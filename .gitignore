@@ -1,0 +1,52 @@
+# ===== SECRETOS Y CONFIGURACIÓN SENSIBLE =====
+.env
+package-lock.json
+src/utils/public/pdf/
+*.key
+*.pem
+*.p12
+secrets/
+config/secrets.yml
+credentials.json
+
+# ===== DEPENDENCIAS =====
+node_modules/
+vendor/
+venv/
+__pycache__/
+*.pyc
+.Python
+pip-log.txt
+
+# ===== ARCHIVOS DE BUILD =====
+dist/
+build/
+*.log
+*.out
+.cache/
+tmp/
+temp/
+
+# ===== IDEs =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ===== BASES DE DATOS LOCALES =====
+*.sqlite
+*.db
+*.sql.gz
+
+# ===== CERTIFICADOS Y LLAVES =====
+*.crt
+*.cer
+ssl/
+
+# ===== ARCHIVOS DE GRAN TAMAÑO =====
+*.zip
+*.tar.gz
+uploads/
+media/large-files/

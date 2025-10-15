@@ -1,0 +1,28 @@
+{
+  "name": "bot-vendedor",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.11.0",
+    "buffer": "^6.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "form-data": "^4.0.4",
+    "fs": "^0.0.1-security",
+    "ngrok": "^5.0.0-beta.2",
+    "numeral": "^2.0.6",
+    "openai": "^5.16.0",
+    "path": "^0.12.7",
+    "pdfkit": "^0.17.2",
+    "stream": "^0.0.3",
+    "uuid": "^11.1.0"
+  }
+}
