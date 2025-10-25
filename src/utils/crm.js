@@ -248,10 +248,9 @@ async function agregarVariosArticulosAlCarrito(carritoId, Productos, opcion = "a
     } else {
       return {
         success: true,
-        productoId, 
-        cantidad, 
+        productos: Productos, 
         carritoId,
-        message: `Producto agregado al carrito correctamente`,
+        message: `Productos agregados al carrito correctamente`,
         preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
       };
     }
@@ -279,7 +278,7 @@ async function crearNuevoCarrito(productoId, cantidad) {
       productoId, 
       cantidad, 
       carritoId: response.data.carrito_creado,
-      message: `Producto agregado al carrito correctamente`,
+      message: `Producto agregado a un nuevo carrito correctamente`,
       preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
     };
   } catch (error) {
@@ -305,7 +304,7 @@ async function crearNuevoCarritoConVariosArticulos(Productos) {
       success: true,
       productos: Productos, 
       carritoId: response.data.carrito_creado,
-      message: `Productos agregados al carrito correctamente`,
+      message: `Productos agregados a un nuevo carrito correctamente`,
       preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
     };
   } catch (error) {
