@@ -135,7 +135,8 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
         MONEDA_ID: cliente.MONEDA_ID || moneda_id, 
         VENDEDOR_ID: cliente.VENDEDOR_ID, 
         NOMBRE_COMERCIAL: cliente.NOMBRE_COMERCIAL        
-      }
+      },
+      preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
     };
   } catch (error) {
     console.error('Error:', error.message);
@@ -152,7 +153,8 @@ async function obtenerCategorias() {
     return {
       success: true,
       data: Categorias, // Máximo 5 resultados
-      message: `Encontré ${Categorias.length} categorias que coinciden con tu búsqueda`
+      message: `Encontré ${Categorias.length} categorias que coinciden con tu búsqueda`,
+      preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
     };
   } catch (error) {
     console.error('Error:', error.message);
@@ -174,7 +176,8 @@ async function buscarProductos(query, categoria = null, precioMax = null, curren
     return {
       success: true,
       data: productos, 
-      message: `Encontré ${productos.length} productos que coinciden con tu búsqueda`
+      message: `Encontré ${productos.length} productos que coinciden con tu búsqueda`,
+      preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
     };
   } catch (error) {
     console.error('Error:', error.message);
@@ -193,25 +196,36 @@ async function obtenerDetalleProducto(id) {
       data: {
         ...producto        
       },
-      message: "Detalles del producto obtenido correctamente"
+      message: "Detalles del producto obtenido correctamente",
+      preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
     };
   } catch (error) {
     console.error('Error:', error.message);
   }
 }
-  
+
 async function agregarAlCarrito(productoId, cantidad, carritoId, opcion = "add") {
   let data = JSON.stringify({ articulo_id: productoId, unidades: cantidad });
   let config = getConfigApiDaiko(`cart/${carritoId}/${opcion}`, data, 2);
   try {
-    const response = await getApiData(config);
-    return {
-      success: true,
-      productoId, 
-      cantidad, 
-      carritoId,
-      message: `Producto agregado al carrito correctamente`
-    };
+    let data = (await getApiData(config)).data;
+    console.log('agregarAlCarrito', {data});
+    if (data.error && data.error === true) {
+      return {
+        success: false,
+        message: data.message,
+        preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
+      };
+    } else {
+      return {
+        success: true,
+        productoId, 
+        cantidad, 
+        carritoId,
+        message: `Producto agregado al carrito correctamente`,
+        preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
+      };
+    }
   } catch (error) {
     console.error('Error:', error.message);
   }
@@ -219,22 +233,32 @@ async function agregarAlCarrito(productoId, cantidad, carritoId, opcion = "add")
   
 async function agregarVariosArticulosAlCarrito(carritoId, Productos, opcion = "add") {
   console.log({carritoId, Productos, opcion});
-  //let data = JSON.stringify({ articulo_id: productoId, unidades: cantidad });
-  /*
+/*
+  let data = JSON.stringify({ "productos": Productos });
   let config = getConfigApiDaiko(`cart/${carritoId}/${opcion}`, data, 2);
   try {
-    const response = await getApiData(config);
-    return {
-      success: true,
-      productoId, 
-      cantidad, 
-      carritoId,
-      message: `Producto agregado al carrito correctamente`
-    };
+    let data = (await getApiData(config)).data;
+    console.log('agregarAlCarrito', {data});
+    if (data.error && data.error === true) {
+      return {
+        success: false,
+        message: data.message,
+        preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
+      };
+    } else {
+      return {
+        success: true,
+        productoId, 
+        cantidad, 
+        carritoId,
+        message: `Producto agregado al carrito correctamente`,
+        preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
+      };
+    }
   } catch (error) {
     console.error('Error:', error.message);
   }
-  */
+*/
 }
   
 async function crearNuevoCarrito(productoId, cantidad) {
@@ -246,7 +270,7 @@ async function crearNuevoCarrito(productoId, cantidad) {
     "productos": [{"articulo_id":productoId, "unidades":cantidad}]    
   });
   let config = getConfigApiDaiko(`createCart/${cliente_id}`, data, 2);
-console.log({crearNuevoCarrito: data, config});
+//console.log({crearNuevoCarrito: data, config});
   
   try {
     const response = await getApiData(config);
@@ -255,12 +279,39 @@ console.log({crearNuevoCarrito: data, config});
       productoId, 
       cantidad, 
       carritoId: response.data.carrito_creado,
-      message: `Producto agregado al carrito correctamente`
+      message: `Producto agregado al carrito correctamente`,
+      preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
     };
   } catch (error) {
     console.error('Error:', error.message);
   }
   
+}
+
+async function crearNuevoCarritoConVariosArticulos(Productos) {
+ 
+  let data = JSON.stringify({ 
+    "almacen_id":  almacen_id,
+    "moneda_id":   moneda_id, 
+    "vendedor_id": vendedor_id, 
+    "folio_ventas_id": folio_ventas_id,
+    "productos": Productos    
+  });
+  let config = getConfigApiDaiko(`createCart/${cliente_id}`, data, 2);
+  
+  try {
+    const response = await getApiData(config);
+    return {
+      success: true,
+      productos: Productos, 
+      carritoId: response.data.carrito_creado,
+      message: `Productos agregados al carrito correctamente`,
+      preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
+    };
+  } catch (error) {
+    console.error('Error:', error.message);
+  }
+
 }
 
 async function obtenerCarritosDisponibles() {
@@ -273,13 +324,16 @@ async function obtenerCarritosDisponibles() {
       return {
         success: false,
         data: response.data,
-        message: 'No tiene carritos disponibles'
+        message: 'No tiene carritos disponibles',
+        preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
       };
     }else{
+      delete response.data.CARRITOS_ID;
       return {
         success: true,
         data: response.data,
-        message: 'Estos son tus carritos disponibles'
+        message: 'Estos son tus carritos disponibles',
+        preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
       };
     }
   } catch (error) {
@@ -311,20 +365,28 @@ async function verCarrito(carrito_id) {
           total: 0.0,
           cantidad: 0,
         },
-        message: response.data.message
+        message: response.data.message,
+        preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
       };
     }else{
       let i = 0;
+      let TOTAL = 0.0;
       for (const producto of response.data.Carrito) {
         delete response.data.Carrito[i].COSTO_ENVIO;
+        response.data.Carrito[i].TOTAL = ( (response.data.Carrito[i].PRECIO_UNITARIO + response.data.Carrito[i].MONTO_IMPUESTO) * response.data.Carrito[i].UNIDADES);
+
+        TOTAL = TOTAL + response.data.Carrito[i].TOTAL;
         i++;                
       };
+      response.data.importeCarrito.TOTAL_CARRITO = TOTAL;
+
       return {
         success: true,
         data: response.data,
         message: response.data.Carrito.length > 0 ? 
         `Tienes ${response.data.Carrito.length} productos en tu carrito` : 
-        "Tu carrito está vacío"
+        "Tu carrito está vacío",
+        preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
       };
     }
   } catch (error) {
@@ -404,13 +466,15 @@ async function cancelarCarrito(carrito_id) {
           total: 0.0,
           cantidad: 0,
         },
-        message: response.data.message
+        message: response.data.message,
+        preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
       };
     }else{
       return {
         success: true,
         data: response.data,
-        message: `El carrito ha sido cancelado `
+        message: `El carrito ha sido cancelado `,
+        preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
       };
     }
   } catch (error) {
@@ -490,7 +554,8 @@ async function generarPdf(carrito_id) {
   return {
     success: true,
     data: pdf,
-    message: `El PDF ha sido creado`
+    message: `El PDF ha sido creado`,
+    preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
   };
 
   /*
@@ -530,6 +595,7 @@ module.exports = {
   agregarAlCarrito,
   agregarVariosArticulosAlCarrito,
   crearNuevoCarrito,
+  crearNuevoCarritoConVariosArticulos,
   obtenerCarritosDisponibles,
   verCarrito,
   crearOrden,

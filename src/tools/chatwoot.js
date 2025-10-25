@@ -122,6 +122,12 @@ function extraerDatosWebhook(webhookData) {
       
       // const conversationHistory = conversations.get(userId);
       const conversationHistory = await getMessages(webhookData.token, webhookData.account_id, webhookData.conversation_id);
+
+/* // conversaciones de respuesta
+      const conversationAssistants = conversationHistory.filter(conversation => conversation.role === 'assistant');
+      const conversationAssistant  = conversationAssistants[conversationAssistants.length - 1];
+console.log({conversationAssistant});
+*/
       
       // // Agregar mensaje del usuario
       // conversationHistory.push({
@@ -134,7 +140,7 @@ function extraerDatosWebhook(webhookData) {
         { role: "system", content: systemPrompt },
         ...conversationHistory
       ];
-      console.log({input});
+      //console.log({input});
       // Llamar a OpenAI
       const response = await openai.chat.completions.create({
         model: "gpt-4o",
@@ -489,5 +495,6 @@ const sendMessage = async (token, account_id, conversation_id, messageData, file
   module.exports = {
     extraerDatosWebhook,
     procesarMensajeWebhook,
-    enviarMensajeWebhook
+    enviarMensajeWebhook,
+    getHooksCrm  // DEV0001 Integracion Whatsapp - 24 oct 
   };
