@@ -121,17 +121,17 @@ const functionDefinitions = [
               items: {
                 type: "object",
                 properties: {
-                  producto_id: {
+                  articulo_id: {
                     type: "integer",
                     description: "ID del producto a agregar"
                   },
-                  cantidad: {
+                  unidades: {
                     type: "integer",
                     minimum: 1,
                     description: "Cantidad de unidades del producto"
                   }
                 },
-                required: ["producto_id", "cantidad"],
+                required: ["articulo_id", "unidades"],
                 additionalProperties: false
               },
               minItems: 1

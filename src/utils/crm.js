@@ -232,8 +232,8 @@ async function agregarAlCarrito(productoId, cantidad, carritoId, opcion = "add")
 }
   
 async function agregarVariosArticulosAlCarrito(carritoId, Productos, opcion = "add") {
-  console.log({carritoId, Productos, opcion});
-/*
+  //console.log({carritoId, Productos, opcion});
+
   let data = JSON.stringify({ "productos": Productos });
   let config = getConfigApiDaiko(`cart/${carritoId}/${opcion}`, data, 2);
   try {
@@ -258,7 +258,7 @@ async function agregarVariosArticulosAlCarrito(carritoId, Productos, opcion = "a
   } catch (error) {
     console.error('Error:', error.message);
   }
-*/
+
 }
   
 async function crearNuevoCarrito(productoId, cantidad) {
