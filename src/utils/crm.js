@@ -11,6 +11,15 @@ let url_crm_zeus = '';     // process.env.CRMZEUS_URL; // 'https://app.chatzeus.
 const { getApiData } = require('./functions');
 const { generarPDFCotizacion } = require('./pdf-make');
 
+let evalError = (data, title = '') => {
+  if (data.error && data.error === true) {
+    data.success = false
+    data.preserveCurrentCart: true;
+    data.message = title + data.message;
+    console.log(data);
+  }
+}
+
 function getConfigApiDaiko(api, data, version = '1', urlExtra = ''){
   urlExtra = urlExtra.trim();
   let url = ( urlExtra.length == 0 ? `${url_crm_zeus}apiCrm/externalAccess/accessToken/api/Daiko/v${version}/${api}` : `${url_crm_zeus}apiCrm/externalAccess/accessToken/${urlExtra}`) ;
@@ -150,6 +159,10 @@ async function obtenerCategorias() {
   try {
     const response = await getApiData(config);    
     Categorias  = await response.data.Categorias;      
+    evalError(response.data);
+    if (response.data.error && response.data.error === true) {
+      return response.data;
+    }
     return {
       success: true,
       data: Categorias, // Máximo 5 resultados
@@ -208,24 +221,20 @@ async function agregarAlCarrito(productoId, cantidad, carritoId, opcion = "add")
   let data = JSON.stringify({ articulo_id: productoId, unidades: cantidad });
   let config = getConfigApiDaiko(`cart/${carritoId}/${opcion}`, data, 2);
   try {
-    let data = (await getApiData(config)).data;
-    console.log('agregarAlCarrito', {data});
-    if (data.error && data.error === true) {
-      return {
-        success: false,
-        message: data.message,
-        preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
-      };
-    } else {
-      return {
-        success: true,
-        productoId, 
-        cantidad, 
-        carritoId,
-        message: `Producto agregado al carrito correctamente`,
-        preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
-      };
+    let response = await getApiData(config);
+    let title = 'Error al ' + { add: 'agregar', remove: 'eliminar', update: 'actualizar' }[opcion] + ' el producto. ';
+    evalError(response.data, title);
+    if (response.data.error && response.data.error === true) {
+      return response.data;
     }
+    return {
+      success: true,
+      productoId, 
+      cantidad, 
+      carritoId,
+      message: `Producto agregado al carrito correctamente`,
+      preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
+    };
   } catch (error) {
     console.error('Error:', error.message);
   }
@@ -273,6 +282,10 @@ async function crearNuevoCarrito(productoId, cantidad) {
   
   try {
     const response = await getApiData(config);
+    evalError(response.data);
+    if (response.data.error && response.data.error === true) {
+      return response.data;
+    }
     return {
       success: true,
       productoId, 
@@ -327,6 +340,10 @@ async function obtenerCarritosDisponibles() {
         preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
       };
     }else{
+      evalError(response.data);
+      if (response.data.error && response.data.error === true) {
+        return response.data;
+      }
       delete response.data.CARRITOS_ID;
       return {
         success: true,
