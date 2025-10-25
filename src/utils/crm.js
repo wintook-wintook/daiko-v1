@@ -13,8 +13,8 @@ const { generarPDFCotizacion } = require('./pdf-make');
 
 let evalError = (data, title = '') => {
   if (data.error && data.error === true) {
-    data.success = false
-    data.preserveCurrentCart: true;
+    data.success = false;
+    data.preserveCurrentCart = true;
     data.message = title + data.message;
     console.log(data);
   }
