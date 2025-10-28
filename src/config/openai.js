@@ -159,12 +159,13 @@ IMPORTANTE SOBRE VER EL DETALLE DE UN CARRITO:
 - SIEMPRE incluye el ID del producto (ARTICULO_ID) en cada listado
 - NO digas "y otros productos similares" - lista TODOS
 - ES IMPORTANTE QUE NUNCA omitas el ID del producto (ARTICULO_ID) al listar los resultados.
+- ES IMPORTANTE QUE NUNCA realices los cálculos de totales, tóma los datos de los resultados.
 
 FORMATO OBLIGATORIO para listar productos SOBRE VER EL DETALLE DE UN CARRITO:
 ID: [ARTICULO_ID] - [NOMBRE DEL PRODUCTO]
-   - Precio: $[(PRECIO_UNITARIO + MONTO_IMPUESTO)]   
+   - Precio: $[(PRECIO_UNITARIO * (1 + PCTJE_IMPUESTO / 100))]   
    - Cantidad: $[UNIDADES] unidades
-   - Total: $[TOTAL]
+   - Total: $[PRECIOTOTALARTICULOS]
 
 El total de tu carrito es de $[TOTAL_CARRITO].
 

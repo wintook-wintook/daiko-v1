@@ -204,7 +204,7 @@ console.log({conversationAssistant});
             messages: finalInput,
             temperature: 0.7
           });
-    
+          console.log({ choices: finalOpenAIResponse.choices });
           finalResponse = finalOpenAIResponse.choices[0].message.content;
           
           // Agregar respuesta final al historial

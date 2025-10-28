@@ -387,16 +387,16 @@ async function verCarrito(carrito_id) {
         preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
       };
     }else{
-      let i = 0;
-      let TOTAL = 0.0;
-      for (const producto of response.data.Carrito) {
-        delete response.data.Carrito[i].COSTO_ENVIO;
-        response.data.Carrito[i].TOTAL = ( (response.data.Carrito[i].PRECIO_UNITARIO + response.data.Carrito[i].MONTO_IMPUESTO) * response.data.Carrito[i].UNIDADES);
+      // let i = 0;
+      // let TOTAL = 0.0;
+      // for (const producto of response.data.Carrito) {
+      //   delete response.data.Carrito[i].COSTO_ENVIO;
+      //   response.data.Carrito[i].TOTAL = ( (response.data.Carrito[i].PRECIO_UNITARIO + response.data.Carrito[i].MONTO_IMPUESTO) * response.data.Carrito[i].UNIDADES);
 
-        TOTAL = TOTAL + response.data.Carrito[i].TOTAL;
-        i++;                
-      };
-      response.data.importeCarrito.TOTAL_CARRITO = TOTAL;
+      //   TOTAL = TOTAL + response.data.Carrito[i].TOTAL;
+      //   i++;                
+      // };
+      // response.data.importeCarrito.TOTAL_CARRITO = TOTAL;
 
       return {
         success: true,
@@ -476,6 +476,13 @@ async function cancelarCarrito(carrito_id) {
 
   try {
     const response = await getApiData(config);
+    
+    let title = 'Error al cancelar el carrito. ';
+    evalError(response.data, title);
+    if (response.data.error && response.data.error === true) {
+      return response.data;
+    }
+    
     if(response.data.error){
       return {
         success: false,
