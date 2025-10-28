@@ -144,9 +144,7 @@ El total de tu carrito es de $[TOTAL_CARRITO].
       - Precio: $549.00      
       - Cantidad: 1 unidad
       - Total: $549.00"
-   
-   El total de tu carrito es de $2546.00. 
-
+      
    ES IMPORTANTE QUE NUNCA omitas el ID del producto (ARTICULO_ID) al listar los resultados.
 
    
