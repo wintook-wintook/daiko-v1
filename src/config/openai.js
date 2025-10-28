@@ -116,6 +116,8 @@ IMPORTANTE SOBRE BÚSQUEDA DE PRODUCTOS:
 - NO digas "y otros productos similares" - lista TODOS
 
 FORMATO OBLIGATORIO para listar productos:
+"Encontré [length] productos de Laptop que podrían interesarte, página actual [pagina_actual]:
+
 ID: [ARTICULO_ID] - [NOMBRE DEL PRODUCTO]
    - Precio: $[(PRECIO_UNITARIO + MONTO_IMPUESTO)]   
    - Cantidad: $[UNIDADES] unidades
@@ -126,7 +128,7 @@ El total de tu carrito es de $[TOTAL_CARRITO].
 
 
    EJEMPLO CORRECTO:
-   "Encontré 3 productos:
+   "Encontré 3 productos de Laptop que podrían interesarte, página actual 1:
    
    1. ID: 12345 - Laptop HP 15
       - Precio: $599.00      

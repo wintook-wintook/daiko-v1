@@ -188,7 +188,9 @@ async function buscarProductos(query, categoria = null, precioMax = null, curren
     //};
     return {
       success: true,
-      data: productos, 
+      data: productos,
+      length: productos.length,
+      pagina_actual: current_page,
       message: `Encontré ${productos.length} productos que coinciden con tu búsqueda`,
       preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
     };
