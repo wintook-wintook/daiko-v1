@@ -385,15 +385,15 @@ async function verCarrito(carrito_id) {
         preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
       };
     }else{
-      let i = 0;
-      let TOTAL = 0.0;
-      for (const producto of response.data.Carrito) {
-        delete response.data.Carrito[i].COSTO_ENVIO;
-        response.data.Carrito[i].TOTAL = ( (response.data.Carrito[i].PRECIO_UNITARIO + response.data.Carrito[i].MONTO_IMPUESTO) * response.data.Carrito[i].UNIDADES);
+      // let i = 0;
+      // let TOTAL = 0.0;
+      // for (const producto of response.data.Carrito) {
+      //   delete response.data.Carrito[i].COSTO_ENVIO;
+      //   response.data.Carrito[i].TOTAL = ( (response.data.Carrito[i].PRECIO_UNITARIO + response.data.Carrito[i].MONTO_IMPUESTO) * response.data.Carrito[i].UNIDADES);
 
-        TOTAL = TOTAL + response.data.Carrito[i].TOTAL;
-        i++;                
-      };
+      //   TOTAL = TOTAL + response.data.Carrito[i].TOTAL;
+      //   i++;                
+      // };
       response.data.importeCarrito.TOTAL_CARRITO = TOTAL;
 
       return {
