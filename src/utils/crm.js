@@ -394,7 +394,7 @@ async function verCarrito(carrito_id) {
       //   TOTAL = TOTAL + response.data.Carrito[i].TOTAL;
       //   i++;                
       // };
-      response.data.importeCarrito.TOTAL_CARRITO = TOTAL;
+      // response.data.importeCarrito.TOTAL_CARRITO = TOTAL;
 
       return {
         success: true,
