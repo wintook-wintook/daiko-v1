@@ -8,6 +8,7 @@ let getApiData = async (config, retryCount = 1) => {
     let response = await axios(config);
     if (retryCount < 1) {
     }
+    console.log({ fn: 'getApiData', url: config.url, data: config.data, response: response.data || response });
     return response;
   } catch (error) {
     if (error.response && error.response.status === 401) {
