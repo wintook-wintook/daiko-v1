@@ -332,7 +332,8 @@ const getMessages = async (token, account_id, conversation_id) => {
   })
   */
   messages.splice(0, messages.length - 10);
-  console.log(messages);
+  // console.log(messages);
+  console.log({ msg1: messages[0] || '', ["msg" + messages.length]: messages[messages.length - 1] || '' });
   return messages;
 }
 
