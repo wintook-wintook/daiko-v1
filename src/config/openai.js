@@ -145,7 +145,7 @@ El total de tu carrito es de $[TOTAL_CARRITO].
    
    El total de tu carrito es de $2546.00. 
 
-   NUNCA omitas el ID del producto (ARTICULO_ID).
+   ES IMPORTANTE QUE NUNCA omitas el ID del producto (ARTICULO_ID) al listar los resultados.
 
    
 IMPORTANTE SOBRE VER EL DETALLE DE UN CARRITO:
@@ -187,7 +187,7 @@ El total de tu carrito es de $[TOTAL_CARRITO].
    El total de tu carrito es de $2546.00. 
 
    ES IMPORTANTE QUE NUNCA omitas el ID del producto (ARTICULO_ID) al listar los resultados.
-   
+
 
 ## Reglas de Oro:
 
