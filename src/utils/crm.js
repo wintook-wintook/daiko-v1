@@ -474,6 +474,13 @@ async function cancelarCarrito(carrito_id) {
 
   try {
     const response = await getApiData(config);
+    
+    let title = 'Error al cancelar el carrito. ';
+    evalError(response.data, title);
+    if (response.data.error && response.data.error === true) {
+      return response.data;
+    }
+    
     if(response.data.error){
       return {
         success: false,
