@@ -147,7 +147,7 @@ console.log({conversationAssistant});
         messages: input,
         tools: functionDefinitions,
         tool_choice: "auto",
-        temperature: 0.7
+        temperature: 0.3  // ✅ Cambiar de 0.7 a 0.3 para más precisión
       });
   
       const assistantMessage = response.choices[0].message;
@@ -202,7 +202,7 @@ console.log({conversationAssistant});
           const finalOpenAIResponse = await openai.chat.completions.create({
             model: "gpt-3.5-turbo",
             messages: finalInput,
-            temperature: 0.7
+            temperature: 0.3  // ✅ Cambiar de 0.7 a 0.3 para más precisión
           });
           console.log({ choices: finalOpenAIResponse.choices });
           finalResponse = finalOpenAIResponse.choices[0].message.content;
