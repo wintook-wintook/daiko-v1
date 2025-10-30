@@ -125,11 +125,7 @@ FORMATO OBLIGATORIO para listar productos:
 
 ID: [ARTICULO_ID] - [NOMBRE DEL PRODUCTO]
    - Precio: $[(PRECIO_UNITARIO + MONTO_IMPUESTO)]   
-   - Cantidad: $[UNIDADES] unidades
-   - Total: $[TOTAL]
-
-El total de tu carrito es de $[TOTAL_CARRITO].
-
+  
 
 
    EJEMPLO CORRECTO:
@@ -137,21 +133,17 @@ El total de tu carrito es de $[TOTAL_CARRITO].
    
    1. ID: 12345 - Laptop HP 15
       - Precio: $599.00      
-      - Cantidad: 1 unidad
-      - Total: $599.00
    
    2. ID: 12346 - Laptop Dell Inspiron
       - Precio: $699.00      
-      - Cantidad: 2 unidades
-      - Total: $1398.00
    
    3. ID: 12347 - Laptop Lenovo IdeaPad
       - Precio: $549.00      
-      - Cantidad: 1 unidad
-      - Total: $549.00"
-      
+
+   "   
+   
    ES IMPORTANTE QUE NUNCA omitas el ID del producto (ARTICULO_ID) al listar los resultados.
-   "
+   
 
    
 IMPORTANTE SOBRE VER EL DETALLE DE UN CARRITO:
