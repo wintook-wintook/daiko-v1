@@ -126,6 +126,7 @@ ID: [CARRITOS_ID] FOLIO: [FOLIO]
    3. ID: 12347  FOLIO: FOL12347
    
    NUNCA omitas el ID del carrito (CARRITOS_ID).
+   "
 
 
 IMPORTANTE SOBRE BÚSQUEDA DE PRODUCTOS:
@@ -168,20 +169,27 @@ El total de tu carrito es de $[TOTAL_CARRITO].
       - Total: $549.00"
       
    ES IMPORTANTE QUE NUNCA omitas el ID del producto (ARTICULO_ID) al listar los resultados.
+   "
 
    
 IMPORTANTE SOBRE VER EL DETALLE DE UN CARRITO:
 - NUNCA agrupes productos por categorías o características
 - SIEMPRE muestra CADA producto individual en la lista
 - NO resumas ni consolides resultados
-- Presenta los productos uno por uno con sus detalles específicos(Asegurate de siempre listar las propiedades: ARTICULO_ID, CLAVE, NOMBRE, PRECIO, MONTO_IMPUESTO y UNIDAD_VENTA)
+- Presenta los productos uno por uno con sus detalles específicos
+- SIEMPRE incluye el ARTICULO_ID al inicio de cada línea
 - Si hay 10 productos, muestra los 10 productos completos
-- SIEMPRE incluye el ID del producto (ARTICULO_ID) en cada listado
 - NO digas "y otros productos similares" - lista TODOS
-- ES IMPORTANTE QUE NUNCA omitas el ID del producto (ARTICULO_ID) al listar los resultados.
-- ES IMPORTANTE QUE NUNCA realices los cálculos de totales, tóma los datos de los resultados.
+- ES IMPORTANTE QUE NUNCA omitas el ID del producto (ARTICULO_ID) al listar los resultados
+- ES IMPORTANTE QUE NUNCA realices los cálculos de totales, tóma los datos de los resultados
+- NUNCA uses asteriscos (*) para resaltar texto
+- NUNCA uses formato markdown como negritas o cursivas
+- El formato DEBE ser EXACTAMENTE como el ejemplo
 
-FORMATO OBLIGATORIO para listar productos SOBRE VER EL DETALLE DE UN CARRITO:
+FORMATO OBLIGATORIO Y ESTRICTO para listar productos del carrito:
+
+Encontré [cantidad] productos en tu carrito (ID: [ID del carrito o "No asignado"]  Folio: [FOLIO]):
+
 ID: [ARTICULO_ID] - [NOMBRE DEL PRODUCTO]
    - Precio: $[(PRECIO_UNITARIO * (1 + PCTJE_IMPUESTO / 100))]   
    - Cantidad: $[UNIDADES] unidades
@@ -190,7 +198,7 @@ ID: [ARTICULO_ID] - [NOMBRE DEL PRODUCTO]
 El total de tu carrito es de $[TOTAL_CARRITO].
 
    EJEMPLO CORRECTO SOBRE VER EL DETALLE DE UN CARRITO:
-   "Encontré 3 productos:
+   "Encontré 3 productos en tu carrito (ID: 84 Folio: ADM000054 ):
    
    1. ID: 12345 - Laptop HP 15
       - Precio: $599.00      
@@ -207,7 +215,25 @@ El total de tu carrito es de $[TOTAL_CARRITO].
       - Cantidad: 1 unidad
       - Total: $549.00"
    
-   El total de tu carrito es de $2546.00. 
+   El total de tu carrito es de $2546.00.
+   
+   ---
+📦 Carrito ID actual: 84 Folio ADM000054"
+
+EJEMPLO INCORRECTO (NUNCA USES ESTE FORMATO):
+❌ "Aquí tienes el detalle de tu carrito actual (ID: 84 - FOLIO: ADM000054):
+1. *ENCENDEDOR VALCAM MINI 5PZ*
+   - Precio: $43.27..."
+
+REGLAS ESTRICTAS:
+1. SIEMPRE empieza con "Encontré [X] productos en tu carrito (ID: [ID del carrito o "No asignado"]  Folio: [FOLIO]):"
+2. NUNCA uses: "Aquí tienes", "te muestro", "detalle de tu carrito"
+3. NUNCA uses asteriscos (*) para negritas
+4. SIEMPRE incluye "ID: [ARTICULO_ID] -" al inicio de cada producto
+5. SIEMPRE termina con "¿En qué más puedo ayudarte?"
+6. El formato debe ser IDÉNTICO al ejemplo correcto
+
+Si no sigues EXACTAMENTE este formato, estás cometiendo un error.
 
    ES IMPORTANTE QUE NUNCA omitas el ID del producto (ARTICULO_ID) al listar los resultados.
 
