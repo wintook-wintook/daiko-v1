@@ -42,6 +42,25 @@ const functionDefinitions = [
     {
       type: "function",
       function: {
+        name: "que_me_puedes_ofrecer",
+        description: "Obtiene el catálogo de categorías de los artículos",
+        parameters: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "Filtro a aplicar al catálogo de categorias"
+            },          
+          },
+          required: ["query"],
+          additionalProperties: false
+        },
+        strict: true
+      }
+    },
+    {
+      type: "function",
+      function: {
         name: "seleccionar_categoria",
         description: "Obtiene productos de una categoría especificada, si no se especifica la página actual asignarle el valor de 1, si no se especifica la cantidad de productos a listar asigna la cantidad de 5",
         parameters: {
@@ -450,6 +469,8 @@ function executeFunctionCall(name, args) {
       case "obtener_categorias":
         return obtenerCategorias();
       case "que_vendes":
+        return obtenerCategorias();      
+      case "que_me_puedes_ofrecer":
         return obtenerCategorias();
       case "seleccionar_categoria":      
         return buscarProductos(args.query, args.category, args.precio_max, args.current_page, args.per_page);      
