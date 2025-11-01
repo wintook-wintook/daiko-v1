@@ -120,6 +120,10 @@ IMPORTANTE SOBRE BÚSQUEDA DE PRODUCTOS:
 - Si hay 10 productos, muestra los 10 productos completos
 - SIEMPRE incluye el ID del producto (ARTICULO_ID) en cada listado
 - NO digas "y otros productos similares" - lista TODOS
+- NUNCA uses asteriscos (*) para resaltar texto
+- NUNCA uses formato markdown como negritas o cursivas
+- El formato DEBE ser EXACTAMENTE como el ejemplo
+
 
 FORMATO OBLIGATORIO para CUALQUIER listado de productos (SIN EXCEPCIONES):
 
