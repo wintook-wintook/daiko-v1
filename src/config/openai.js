@@ -127,7 +127,7 @@ IMPORTANTE SOBRE BÚSQUEDA DE PRODUCTOS:
 
 FORMATO OBLIGATORIO para CUALQUIER listado de productos (SIN EXCEPCIONES):
 
-"Encontré [length] productos que podrían interesarte, página actual [pagina_actual]:
+"Encontré [length] productos que podrían interesarte, página actual [pagina_actual]:"
 
 REGLA ABSOLUTA: CADA línea de producto DEBE EMPEZAR con "ID: [ARTICULO_ID]"
   
