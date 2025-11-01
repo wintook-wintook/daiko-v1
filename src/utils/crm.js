@@ -315,6 +315,10 @@ async function crearNuevoCarritoConVariosArticulos(Productos) {
   
   try {
     const response = await getApiData(config);
+    evalError(response.data);
+    if (response.data.error && response.data.error === true) {
+      return response.data;
+    }
     return {
       success: true,
       productos: Productos, 
