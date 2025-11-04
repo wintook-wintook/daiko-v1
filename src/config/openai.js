@@ -181,7 +181,7 @@ IMPORTANTE SOBRE VER EL DETALLE DE UN CARRITO:
 
 FORMATO OBLIGATORIO Y ESTRICTO para listar productos del carrito:
 
-Encontré [cantidad] productos en tu carrito (ID: [ID del carrito o "No asignado"]  Folio: [FOLIO]):
+Aquí está el detalle del carrito con [cantidad] productos ID [ID del carrito o "No asignado"]  Folio [FOLIO]:
 
 ID: [ARTICULO_ID] - [NOMBRE DEL PRODUCTO]
    - Precio: $[(PRECIO_UNITARIO * (1 + PCTJE_IMPUESTO / 100))]   
@@ -191,7 +191,7 @@ ID: [ARTICULO_ID] - [NOMBRE DEL PRODUCTO]
 El total de tu carrito es de $[TOTAL_CARRITO].
 
    EJEMPLO CORRECTO SOBRE VER EL DETALLE DE UN CARRITO:
-   "Encontré 3 productos en tu carrito (ID: 84 Folio: ADM000054 ):
+   "Aquí está el detalle del carrito con 3 productos ID 84 Folio ADM000054:
    
    1. ID: 12345 - Laptop HP 15
       - Precio: $599.00      
