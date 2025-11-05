@@ -153,7 +153,7 @@ const functionDefinitions = [
               description: "Cantidad de productos a listar"
             },
           },
-          required: ["query", "current_page", "per_page"],
+          required: ["query", "categoria", "etiquetas", "precio_max", "current_page", "per_page"],
           additionalProperties: false
         },
         strict: true
