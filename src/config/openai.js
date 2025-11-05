@@ -134,7 +134,19 @@ IMPORTANTE SOBRE BÚSQUEDA DE PRODUCTOS:
 
 FORMATO OBLIGATORIO para CUALQUIER listado de productos (SIN EXCEPCIONES):
 
-"Encontré [length] Laptop que podrían interesarte, página [pagina_actual]:"
+CRÍTICO: Usa UNA SOLA línea de introducción con el formato EXACTO:
+   "Encontré [length] [término_buscado] que podrían interesarte, página [pagina_actual]:"
+   
+   Donde [término_buscado] es EXACTAMENTE lo que el cliente está buscando
+   
+   EJEMPLOS DE INTRODUCCIÓN CORRECTA:
+   - Cliente busca "azúcar" → "Encontré 3 azúcar que podrían interesarte, página 1:"
+   - Cliente busca "laptops" → "Encontré 5 laptops que podrían interesarte, página 1:"
+   
+   NUNCA USES:
+   - "Encontré X productos de [término]..." ❌
+   - "aquí te los muestro" ❌
+   - Dos líneas de introducción ❌
 
 REGLA ABSOLUTA: CADA línea de producto DEBE EMPEZAR con "ID: [ARTICULO_ID]"
   
