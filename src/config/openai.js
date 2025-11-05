@@ -127,7 +127,7 @@ IMPORTANTE SOBRE BÚSQUEDA DE PRODUCTOS:
 
 FORMATO OBLIGATORIO para CUALQUIER listado de productos (SIN EXCEPCIONES):
 
-"Encontré [length] productos que podrían interesarte, página actual [pagina_actual]:"
+"Encontré [length] Laptop que podrían interesarte, página [pagina_actual]:"
 
 REGLA ABSOLUTA: CADA línea de producto DEBE EMPEZAR con "ID: [ARTICULO_ID]"
   
@@ -143,7 +143,7 @@ Estructura EXACTA (NO MODIFIQUES):
 - Cualquier línea de producto que NO empiece con "ID:"
 
 ✅ FORMATO CORRECTO (USA SIEMPRE):
-   "Encontré 3 productos que podrían interesarte, página actual 1:
+   "Encontré 3 Laptop que podrían interesarte, página 1:
    
    1. ID: 12345 - Laptop HP 15
       - Precio: $599.00      
