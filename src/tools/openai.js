@@ -88,8 +88,39 @@ const functionDefinitions = [
     {
       type: "function",
       function: {
+        name: "buscar_por_etiquetas",
+        description: "Busca productos específicamente por etiquetas o tags. Útil cuando el cliente busca productos con características específicas como 'productos en oferta', 'nuevos productos', 'más vendidos', etc., si no se especifica la página actual asignarle el valor de 1, si no se especifica la cantidad de productos a listar asigna la cantidad de 5",
+        parameters: {
+          type: "object",
+          properties: {
+            etiquetas: {
+              type: "array",
+              description: "Lista de etiquetas a buscar",
+              items: {
+                type: "string"
+              },
+              minItems: 1
+            },
+            current_page: {
+              type: "integer",
+              description: "Página actual para el listado de los productos"
+            },
+            per_page: {
+              type: "integer",
+              description: "Cantidad de productos a listar"
+            },
+          },
+          required: ["etiquetas", "current_page", "per_page"],
+          additionalProperties: false
+        },
+        strict: true
+      }
+    },
+    {
+      type: "function",
+      function: {
         name: "buscar_productos",
-        description: "Busca productos en el catálogo basado en criterios específicos, si no se especifica la página actual asignarle el valor de 1, si no se especifica la cantidad de productos a listar asigna la cantidad de 5, siempre y sin exepción debe de mostrar la información del artículo, como mínimo: precio, nombre, articulo_id, impuesto, unidad de venta",
+        description: "Busca productos en el catálogo. Puede buscar por nombre, categoría, etiquetas o combinación de estos criterios. Si no se especifica la página actual asignarle el valor de 1, si no se especifica la cantidad de productos a listar asigna la cantidad de 5, siempre y sin exepción debe de mostrar la información del artículo, como mínimo: precio, nombre, articulo_id, impuesto, unidad de venta",
         parameters: {
           type: "object",
           properties: {
@@ -101,6 +132,13 @@ const functionDefinitions = [
               type: ["string", "null"],
               enum: ["electronica", "hogar", "deportes", "moda", "libros", null],
               description: "Categoría específica para filtrar"
+            },
+            etiquetas: {
+              type: ["array", "null"],
+              description: "Lista de etiquetas para filtrar productos (ej: ['oferta', 'nuevo', 'destacado'])",
+              items: {
+                type: "string"
+              }
             },
             precio_max: {
               type: ["number", "null"],
@@ -115,7 +153,7 @@ const functionDefinitions = [
               description: "Cantidad de productos a listar"
             },
           },
-          required: ["query", "categoria", "precio_max", "current_page", "per_page"],
+          required: ["query", "current_page", "per_page"],
           additionalProperties: false
         },
         strict: true
@@ -473,9 +511,11 @@ function executeFunctionCall(name, args) {
       case "que_me_puedes_ofrecer":
         return obtenerCategorias();
       case "seleccionar_categoria":      
-        return buscarProductos(args.query, args.category, args.precio_max, args.current_page, args.per_page);      
+        return buscarProductos(args.query, args.category, args.etiquetas, args.precio_max, args.current_page, args.per_page);      
+      case "buscar_por_etiquetas":      
+        return buscarProductos(args.query, args.category, args.etiquetas, args.precio_max, args.current_page, args.per_page);      
       case "buscar_productos":
-        return buscarProductos(args.query, args.categoria, args.precio_max, args.current_page, args.per_page);
+        return buscarProductos(args.query, args.categoria, args.etiquetas, args.precio_max, args.current_page, args.per_page);
       
       case "obtener_detalle_producto":
         return obtenerDetalleProducto(args.id);
