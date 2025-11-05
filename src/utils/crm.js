@@ -174,12 +174,24 @@ async function obtenerCategorias() {
   }
 }
   
-async function buscarProductos(query, categoria = null, precioMax = null, current_page=1, per_page=5) {
+async function buscarProductos(query, categoria = null, etiquetas = null, precioMax = null, current_page=1, per_page=5) {
   let data = JSON.stringify({ cliente_id: cliente_id, moneda_id: moneda_id, current_page, per_page });
-  //console.log({ln: 76, data});  
-  let config = getConfigApiDaiko('getProduct' + (!query ? `ByCategory/${categoria}` : `Search/${query}`), data);
+  //console.log({ln: 76, data}); 
+  if (categoria) { data.categoria = categoria; }
+  if (query) { data.query = query; }
+  if (etiquetas && etiquetas.length > 0) {
+    data.etiquetas = etiquetas.join(',');
+  }
+  let url = `Search/${query}`;
+  if (!query && (!etiquetas || etiquetas.length == 0)) { url = `ByCategory/${categoria}`; }
+  if (!query && !categoria) { url = `ByLables/`; }
+  let config = getConfigApiDaiko('getProduct' + url, data);
   try {
     const response = await getApiData(config);
+    evalError(response.data);
+    if (response.data.error && response.data.error === true) {
+      return response.data;
+    }
     let productos  = await response.data.data; //response.data.productos;
     //console.log({productos, meta: response.data.meta});
 
