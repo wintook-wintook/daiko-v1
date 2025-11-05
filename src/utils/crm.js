@@ -208,6 +208,8 @@ async function buscarProductos(query, categoria = null, etiquetas = null, precio
     };
   } catch (error) {
     console.error('Error:', error.message);
+    evalError(error)
+    return error;
   }
 }
 
