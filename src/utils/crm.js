@@ -181,7 +181,8 @@ async function buscarProductos(query, categoria = null, etiquetas = null, precio
   if (query) { data.query = query; }
   if (etiquetas && etiquetas.length > 0) { data.etiquetas = etiquetas; }
   data = JSON.stringify(data);
-  let url = `Search/${query}`;
+  let url = `s`;
+  if (!categoria && (!etiquetas || etiquetas.length == 0)) { url = `Search/${query}`; }
   if (!query && (!etiquetas || etiquetas.length == 0)) { url = `ByCategory/${categoria}`; }
   if (!query && !categoria) { url = `ByLabels/`; }
   let config = getConfigApiDaiko('getProduct' + url, data);
