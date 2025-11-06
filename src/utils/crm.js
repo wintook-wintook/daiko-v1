@@ -183,7 +183,7 @@ async function buscarProductos(query, categoria = null, etiquetas = null, precio
   data = JSON.stringify(data);
   let url = `Search/${query}`;
   if (!query && (!etiquetas || etiquetas.length == 0)) { url = `ByCategory/${categoria}`; }
-  if (!query && !categoria) { url = `ByLables/`; }
+  if (!query && !categoria) { url = `ByLabels/`; }
   let config = getConfigApiDaiko('getProduct' + url, data);
   try {
     const response = await getApiData(config);
