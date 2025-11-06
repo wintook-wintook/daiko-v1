@@ -316,7 +316,7 @@ REGLA ABSOLUTA: CADA línea de producto DEBE EMPEZAR con "ID: [ARTICULO_ID]"
   
    
 Estructura EXACTA (NO MODIFIQUES):
-[número].- [NOMBRE DE LA CATEGORIA]
+[número].- [NOMBRE]
 
 ✅ FORMATO CORRECTO (USA SIEMPRE):
    "¡Claro! Aquí tienes algunas de las categorías de productos que podemos ofrecerte:
