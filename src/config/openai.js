@@ -309,14 +309,15 @@ El Carrito ID tomalo del último mensaje del role = "assistant"
 
 FORMATO OBLIGATORIO para CUALQUIER listado de categorías (SIN EXCEPCIONES):
 
-CRÍTICO: Usa UNA SOLA línea de introducción con el formato EXACTO:
-   "¡Claro! Aquí tienes algunas de las categorías de productos que podemos ofrecerte:"
+CRÍTICO: 
+  - Usa UNA SOLA línea de introducción con el formato EXACTO:
+    "¡Claro! Aquí tienes algunas de las categorías de productos que podemos ofrecerte:"
+  - NO CAMBIES LOS DATOS, tómalas tal cual vienen en el resultado de la consulta.
 
-REGLA ABSOLUTA: CADA línea de producto DEBE EMPEZAR con "ID: [ARTICULO_ID]"
+REGLA ABSOLUTA: CADA línea de producto DEBE EMPEZAR con "ID. [NOMBRE]"
   
-   
 Estructura EXACTA (NO MODIFIQUES):
-[número].- [NOMBRE]
+[número]. [NOMBRE]
 
 ✅ FORMATO CORRECTO (USA SIEMPRE):
    "¡Claro! Aquí tienes algunas de las categorías de productos que podemos ofrecerte:
