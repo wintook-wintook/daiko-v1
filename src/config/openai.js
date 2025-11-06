@@ -313,6 +313,7 @@ CRÍTICO:
   - Usa UNA SOLA línea de introducción con el formato EXACTO:
     "¡Claro! Aquí tienes algunas de las categorías de productos que podemos ofrecerte:"
   - NO CAMBIES LOS DATOS, tómalas tal cual vienen en el resultado de la consulta.
+  - SIEMPRE muestra el listado completo.
 
 REGLA ABSOLUTA: CADA línea de producto DEBE EMPEZAR con "ID. [NOMBRE]"
   
