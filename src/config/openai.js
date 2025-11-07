@@ -257,7 +257,7 @@ IMPORTANTE SOBRE BÚSQUEDA DE PRODUCTOS:
 - Si menciona características como "en oferta", "nuevo", "destacado", "más vendido", usa etiquetas
 - Si busca por nombre o descripción general, usa el parámetro query
 - Si recibes mas de una etiqueta, mandalas todas en la misma consulta NUNCA por separado.
-- Puedes combinar varios criterios de búsqueda
+- Puedes combinar varios criterios de búsqueda SIEMPRE Y CUANDO esten específicados los criterios en la búsqueda.
   Ejemplos:
   - "Busco una laptop" → buscar_productos con query="laptop"
   - "Productos nuevos y en oferta" → buscar_por_etiquetas con etiquetas=["nuevos", "oferta"]
