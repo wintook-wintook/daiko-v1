@@ -131,8 +131,7 @@ const functionDefinitions = [
             },
             categoria: {
               type: ["string", "null"],
-              enum: ["electronica", "hogar", "deportes", "moda", "libros", null],
-              description: "Categoría específica para filtrar"
+              description: "Categoría específica para filtrar productos (ej: ['muebles', 'farmacia'])"
             },
             etiquetas: {
               type: ["array", "null"],
