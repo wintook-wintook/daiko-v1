@@ -160,25 +160,25 @@ const functionDefinitions = [
         strict: true
       }
     },
-    {
-      type: "function",
-      function: {
-        name: "obtener_detalle_producto",
-        description: "Obtiene información detallada de un producto específico, siempre y sin exepción debe de mostrar la información del artículo, como mínimo: precio, nombre, articulo_id, impuesto, unidad de venta",
-        parameters: {
-          type: "object",
-          properties: {
-            id: {
-              type: "number",
-              description: "ID único del producto"
-            }
-          },
-          required: ["id"],
-          additionalProperties: false
-        },
-        strict: true
-      }
-    },
+    // {
+    //   type: "function",
+    //   function: {
+    //     name: "obtener_detalle_producto",
+    //     description: "Obtiene información detallada de un producto específico, siempre y sin exepción debe de mostrar la información del artículo, como mínimo: precio, nombre, articulo_id, impuesto, unidad de venta",
+    //     parameters: {
+    //       type: "object",
+    //       properties: {
+    //         id: {
+    //           type: "number",
+    //           description: "ID único del producto"
+    //         }
+    //       },
+    //       required: ["id"],
+    //       additionalProperties: false
+    //     },
+    //     strict: true
+    //   }
+    // },
     {
       type: "function",
       function: {
