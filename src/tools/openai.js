@@ -1,4 +1,5 @@
 const { obtenerCategorias, buscarProductos, obtenerDetalleProducto, agregarAlCarrito, agregarVariosArticulosAlCarrito, crearNuevoCarrito, crearNuevoCarritoConVariosArticulos, obtenerCarritosDisponibles, verCarrito, crearOrden, cancelarCarrito, generarPdf } = require('../utils/crm');
+const { ejecutarBusquedaExterna } = require('../utils/busqueda_externa_service');
 
 const functionDefinitions = [
     {
@@ -173,6 +174,34 @@ const functionDefinitions = [
             }
           },
           required: ["id"],
+          additionalProperties: false
+        },
+        strict: true
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "buscar_informacion_externa",
+        description: "Busca información adicional sobre productos, características técnicas, especificaciones, comparativas, compatibilidad o reviews en fuentes externas. USA ESTA FUNCIÓN cuando: 1) El cliente pregunta por especificaciones técnicas no disponibles en el catálogo, 2) Se solicitan comparativas entre productos, 3) Se pregunta sobre compatibilidad, 4) Se buscan opiniones o reviews, 5) Se necesita información sobre usos específicos o aplicaciones del producto",
+        parameters: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "Término de búsqueda detallado sobre el producto o característica específica que se desea conocer. Ejemplo: 'laptop HP 15 especificaciones RAM procesador', 'comparativa Samsung vs LG refrigeradores', 'compatibilidad teclado Logitech K380 con iPad'"
+            },
+            producto_id: {
+              type: ["integer", "null"],
+              description: "ID del producto del catálogo interno sobre el cual buscar información adicional (opcional, usar cuando se está consultando sobre un producto específico ya listado)"
+            },
+            tipo_informacion: {
+              type: "string",
+              enum: ["especificaciones", "reviews", "comparativa", "compatibilidad", "usos"],
+              description: "Tipo específico de información a buscar: 'especificaciones' para detalles técnicos, 'reviews' para opiniones, 'comparativa' para comparar productos, 'compatibilidad' para verificar funcionamiento con otros dispositivos, 'usos' para aplicaciones y casos de uso"
+            }
+          },
+          required: ["query", "producto_id", "tipo_informacion"],
           additionalProperties: false
         },
         strict: true
@@ -519,7 +548,8 @@ function executeFunctionCall(name, args) {
       
       case "obtener_detalle_producto":
         return obtenerDetalleProducto(args.id);
-  
+      case 'buscar_informacion_externa':
+        return ejecutarBusquedaExterna(args.query, args.producto_id || null, args.tipo_informacion);
       case "agregar_al_carrito":
         return agregarAlCarrito(args.producto_id, args.cantidad, args.carrito_id);
       
