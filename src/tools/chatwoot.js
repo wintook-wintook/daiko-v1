@@ -332,13 +332,15 @@ const getMessages = async (token, account_id, conversation_id) => {
   })
   */
   messages.splice(0, messages.length - 10);
-  for (var idx = messages.length - 1; idx >= 0; idx--) {
-    let message = messages[idx];
-    if (message.indexOf('comienza una conversación nueva') != -1) {
+  let idx = -1;
+  for (var i = messages.length - 1; i >= 0; i--) {
+    let message = messages[i];
+    if (message.role != 'user' && message.content.indexOf('comienza una conversación nueva') != -1) {
+      idx = i;
       break;
     }
   }
-  if (idx > 0) { messages.splice(0, messages.length - idx + 1); }
+  if (idx != -1) { messages.splice(0, messages.length - idx + 1); }
   // console.log(messages);
   console.log({ msg1: messages[0] || '', ["msg" + messages.length]: messages[messages.length - 1] || '' });
   return messages;
