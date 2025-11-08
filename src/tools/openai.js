@@ -554,7 +554,7 @@ function executeFunctionCall(name, args) {
       case "reiniciar":
         return {
           success: true,
-          data: []
+          data: [],
           message: `Claro, a partir de este momento inicia una conversación nueva`,
           preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
         };
