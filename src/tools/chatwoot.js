@@ -332,6 +332,13 @@ const getMessages = async (token, account_id, conversation_id) => {
   })
   */
   messages.splice(0, messages.length - 10);
+  for (var idx = messages.length - 1; idx >= 0; idx--) {
+    let message = messages[idx];
+    if (message.includes('comienza una conversación nueva')) {
+      break;
+    }
+  }
+  if (idx > 0) { messages.splice(0, messages.length - idx + 1); }
   // console.log(messages);
   console.log({ msg1: messages[0] || '', ["msg" + messages.length]: messages[messages.length - 1] || '' });
   return messages;
