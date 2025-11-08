@@ -5,6 +5,25 @@ const functionDefinitions = [
     {
       type: "function",
       function: {
+        name: "reiniciar",
+        description: "Reinicia la conversacion",
+        parameters: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "Filtro a aplicar"
+            },          
+          },
+          required: ["query"],
+          additionalProperties: false
+        },
+        strict: true
+      }
+    },
+    {
+      type: "function",
+      function: {
         name: "obtener_categorias",
         description: "Obtiene el catálogo de categorías de los artículos",
         parameters: {
@@ -532,6 +551,13 @@ function executeFunctionCall(name, args) {
     console.log(`🔧 Ejecutando función: ${name}`, args);
     
     switch (name) {
+      case "reiniciar":
+        return {
+          success: true,
+          data: []
+          message: `Claro, a partir de este momento inicia una conversación nueva`,
+          preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
+        };
       case "obtener_categorias":
         return obtenerCategorias();
       case "que_vendes":
