@@ -332,7 +332,7 @@ const getMessages = async (token, account_id, conversation_id) => {
   })
   */
   messages.splice(0, messages.length - 10);
-  let idx = -1;
+  idx = -1;
   for (var i = messages.length - 1; i >= 0; i--) {
     let message = messages[i];
     if (message.role != 'user' && message.content.indexOf('comienza una conversación nueva') != -1) {
