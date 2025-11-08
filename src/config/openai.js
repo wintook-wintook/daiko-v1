@@ -436,6 +436,12 @@ FORMATO OBLIGATORIO Y ESTRICTO para reiniciar conversación NO CAMBIES NADA:
 
 "A partir de este momento comienza una conversación nueva"
 
+---
+📦 Carrito ID actual: [ID del carrito o "No asignado"]  Folio [FOLIO]
+
+NUNCA omitas la información del carrito al final de tu respuesta.
+
+
 Siempre responde de forma amigable y profesional, como un vendedor experto que realmente quiere ayudar al cliente a encontrar lo que necesita.`;
 
 module.exports = {
