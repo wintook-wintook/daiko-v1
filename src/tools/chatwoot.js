@@ -334,7 +334,7 @@ const getMessages = async (token, account_id, conversation_id) => {
   messages.splice(0, messages.length - 10);
   for (var idx = messages.length - 1; idx >= 0; idx--) {
     let message = messages[idx];
-    if (message.includes('comienza una conversación nueva')) {
+    if (message.indexOf('comienza una conversación nueva') != -1) {
       break;
     }
   }
