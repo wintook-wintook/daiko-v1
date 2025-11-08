@@ -121,7 +121,7 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "buscar_productos",
-        description: "Busca productos en el catálogo. Puede buscar por nombre, categoría, etiquetas o combinación de estos criterios. Si no se especifica la página actual asignarle el valor de 1, si no se especifica la cantidad de productos a listar asigna la cantidad de 5, siempre y sin exepción debe de mostrar la información del artículo, como mínimo: precio, nombre, articulo_id, impuesto, unidad de venta",
+        description: "Busca productos en el catálogo. Si no se especifica la página actual asignarle el valor de 1, si no se especifica la cantidad de productos a listar asigna la cantidad de 5, siempre y sin exepción debe de mostrar la información del artículo, como mínimo: precio, nombre, articulo_id, impuesto, unidad de venta",
         parameters: {
           type: "object",
           properties: {
