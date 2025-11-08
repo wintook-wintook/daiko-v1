@@ -434,10 +434,10 @@ IMPORTANTE SOBRE REINICIAR LA CONVERSACION:
 
 FORMATO OBLIGATORIO Y ESTRICTO para reiniciar conversación NO CAMBIES NADA:
 
-"A partir de este momento comienza una conversación nueva"
+"A partir de este momento comienza una conversación nueva
 
 ---
-📦 Carrito ID actual: [ID del carrito o "No asignado"]  Folio [FOLIO]
+📦 No tienes un carrito asignado aún"
 
 NUNCA omitas la información del carrito al final de tu respuesta.
 
