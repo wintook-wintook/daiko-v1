@@ -341,7 +341,7 @@ const getMessages = async (token, account_id, conversation_id) => {
     }
   }
   console.log(idx, messages.length);
-  if (idx != -1) { messages.splice(0, idx); }
+  if (idx != -1) { messages.splice(0, idx + 1); }
   console.log(idx, messages.length);
   // console.log(messages);
   console.log({ msg1: messages[0] || '', ["msg" + messages.length]: messages[messages.length - 1] || '' });
