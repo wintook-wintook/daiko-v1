@@ -18,6 +18,8 @@ let urlWA = process.env.CHATWOOT_URL; // 'https://app.chatzeus.com/';
 var Readable    = require('stream').Readable;
 const { Buffer } = require('buffer');
 
+let fuenteWeb ="Fuente: WEB";
+
 function extraerDatosWebhook(webhookData) {
     try {
       // Extraer información del webhook de Chatwoot
@@ -154,6 +156,7 @@ console.log({conversationAssistant});
       let finalResponse = assistantMessage.content || "";
       let isGetPDF = false;
       // Procesar tool calls si existen
+      let showSourceMessage = false;
       if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
         console.log(`🛠️ Procesando ${assistantMessage.tool_calls.length} function calls para webhook`);
         
@@ -165,7 +168,7 @@ console.log({conversationAssistant});
         for (const toolCall of assistantMessage.tool_calls) {
           const { id, function: func } = toolCall;
           const { name, arguments: args } = func;
-          
+          if (name == 'buscar_informacion_externa') { showSourceMessage = true; }
           try {            
             const functionArgs = JSON.parse(args);
             const functionResult = await executeFunctionCall(name, functionArgs);
@@ -191,6 +194,8 @@ console.log({conversationAssistant});
               })
             });
           }
+        } else {
+          showSourceMessage = true;
         }
         if(!isGetPDF){
           // Obtener respuesta final del asistente
@@ -206,6 +211,8 @@ console.log({conversationAssistant});
           });
           console.log({ choices: finalOpenAIResponse.choices });
           finalResponse = finalOpenAIResponse.choices[0].message.content;
+
+          if (showSourceMessage) { finalResponse += `\r\n${fuenteWeb}`; }
           
           // Agregar respuesta final al historial
           conversationHistory.push({
