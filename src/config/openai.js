@@ -160,7 +160,7 @@ Paso 4: "El Refrigerador Samsung RT38 (ID: 78901) está en oferta a $899.00.
 
    ${fuenteWeb}"
 
-### Al final cita el texto:
+### En la respuesta final NUNCA OLVIDES MOSTRAR el siguiente texto:
 "${fuenteWeb}"
 
 ### ❌ ERRORES QUE DEBES EVITAR:
