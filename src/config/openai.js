@@ -9,6 +9,8 @@ const openai = new OpenAI({
 });
 */
 
+let fuenteWeb ="Fuente: WEB";
+
 // OpenAI Configuration
 const openaiConfig = {
   model: "gpt-4o",
@@ -94,7 +96,7 @@ IMPORTANTE - Reglas para crear un carrito con productos:
 **PASO 4:** Combina ambas fuentes en tu respuesta
    - Primero muestra datos del catálogo (precio, disponibilidad, ID)
    - Luego complementa con información externa
-   - SIEMPRE indica que la información adicional proviene de fuentes externas AGREGANDO AL FINAL DE LA RESPUESTA "Fuente: WEB"
+   - SIEMPRE indica que la información adicional proviene de fuentes externas AGREGANDO AL FINAL DE LA RESPUESTA "${fuenteWeb}"
 
 ### EJEMPLOS DE USO CORRECTO:
 
@@ -116,7 +118,9 @@ Paso 4: Respuesta combinada:
    
    Para diseño 3D básico (SketchUp, Blender en proyectos ligeros) funcionará, 
    pero para trabajo profesional te recomendaría modelos con 16GB de RAM mínimo. 
-   ¿Te muestro opciones más potentes?"
+   ¿Te muestro opciones más potentes?
+
+   ${fuenteWeb}"
 
 **Ejemplo 2: Compatibilidad**
 Cliente: "¿Este teclado Logitech funciona con iPad?"
@@ -133,7 +137,9 @@ Paso 4: "El Teclado Logitech K380 (ID: 45678) está en stock a $39.99.
    - Conexión Bluetooth 5.0
    - Puede conectarse hasta 3 dispositivos simultáneamente
    
-   ¿Te lo agrego al carrito?"
+   ¿Te lo agrego al carrito?
+
+   ${fuenteWeb}"
 
 **Ejemplo 3: Reviews y opiniones**
 Cliente: "¿Qué tan bueno es este refrigerador Samsung?"
@@ -150,7 +156,12 @@ Paso 4: "El Refrigerador Samsung RT38 (ID: 78901) está en oferta a $899.00.
    - Destacan: bajo consumo energético, diseño elegante, espacio interior
    - Algunos mencionan: ruido moderado del compresor
    
-   Es una excelente opción en su rango de precio. ¿Lo agregamos a tu carrito?"
+   Es una excelente opción en su rango de precio. ¿Lo agregamos a tu carrito?
+
+   ${fuenteWeb}"
+
+### Al final cita el texto:
+"${fuenteWeb}"
 
 ### ❌ ERRORES QUE DEBES EVITAR:
 
