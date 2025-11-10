@@ -194,8 +194,6 @@ console.log({conversationAssistant});
               })
             });
           }
-        } else {
-          showSourceMessage = true;
         }
         if(!isGetPDF){
           // Obtener respuesta final del asistente
@@ -212,7 +210,6 @@ console.log({conversationAssistant});
           console.log({ choices: finalOpenAIResponse.choices });
           finalResponse = finalOpenAIResponse.choices[0].message.content;
 
-          if (showSourceMessage) { finalResponse += `\r\n${fuenteWeb}`; }
           
           // Agregar respuesta final al historial
           conversationHistory.push({
@@ -224,6 +221,7 @@ console.log({conversationAssistant});
         }
 
       } else {
+        showSourceMessage = true;
         // Si no hay tool calls, agregar directamente la respuesta
         conversationHistory.push({
           role: "assistant", 
@@ -231,6 +229,8 @@ console.log({conversationAssistant});
         });
       }
   
+      if (showSourceMessage) { finalResponse += `\r\n${fuenteWeb}`; }
+      
       // Mantener solo los últimos 20 mensajes
       //console.log({ length: conversationHistory.length, firtsRole: conversationHistory[0].role, question: messageContent });
       if (conversationHistory.length > 20) {
