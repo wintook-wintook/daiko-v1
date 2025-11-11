@@ -6,16 +6,17 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "saludo",
-        description: "Recibe un hola o cualquier saludo y regresa un saludo por parte de Alex",
+        description: "Se ejecuta cuando el usuario envía cualquier tipo de saludo o expresión de cortesía. Ejemplos: 'hola', 'buenos días', 'buenas tardes', 'buenas noches', 'qué tal', 'cómo estás', 'hey', 'saludos', 'buen día', o cualquier variación de saludo en español",
         parameters: {
           type: "object",
           properties: {
-            query: {
+            tipo_saludo: {
               type: "string",
-              description: "Filtro a aplicar"
-            },          
+              description: "El tipo de saludo detectado (formal, informal, temporal como buenos días/tardes/noches)",
+              enum: ["formal", "informal", "temporal", "general"]
+            }
           },
-          required: ["query"],
+          required: ["tipo_saludo"],
           additionalProperties: false
         },
         strict: true
