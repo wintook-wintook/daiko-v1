@@ -325,12 +325,16 @@ const getMessages = async (token, account_id, conversation_id) => {
   let messages = [];
   for (var idx = 0; idx < data.payload.length; idx++) {
     let item = data.payload[idx];
-    //if (item.message_type != 0) {
+    let addMessage = true;
+    if (item.message_type != 0) {
+      if (item.content.includes(fuenteWeb)) { addMessage = false; }
+    }
+    if (addMessage) {
       messages.push({
         role: (item.message_type != 0 ? 'assistant' : 'user' ),
         content: item.content
       })
-    //}
+    }
   }
   /*
   messages.push({
