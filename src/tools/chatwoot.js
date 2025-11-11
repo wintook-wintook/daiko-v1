@@ -18,7 +18,7 @@ let urlWA = process.env.CHATWOOT_URL; // 'https://app.chatzeus.com/';
 var Readable    = require('stream').Readable;
 const { Buffer } = require('buffer');
 
-let fuenteWeb ="Fuente: OpenAI";
+let fuenteWeb ="Fuente: WEB";
 
 function extraerDatosWebhook(webhookData) {
     try {
