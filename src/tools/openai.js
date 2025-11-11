@@ -6,7 +6,7 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "saludo",
-        description: "Recibe un hola o cualquier saludo (Hola, Buenas tardes, saludos, Buenos dias, Buenas noches, que tal) y regresa un saludo por parte de Alex",
+        description: "Recibe un hola o cualquier saludo y regresa un saludo por parte de Alex",
         parameters: {
           type: "object",
           properties: {
