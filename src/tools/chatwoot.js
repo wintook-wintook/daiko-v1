@@ -18,7 +18,7 @@ let urlWA = process.env.CHATWOOT_URL; // 'https://app.chatzeus.com/';
 var Readable    = require('stream').Readable;
 const { Buffer } = require('buffer');
 
-let fuenteWeb ="Fuente: WEB";
+let fuenteWeb ="Fuente: OpenAI";
 
 function extraerDatosWebhook(webhookData) {
     try {
@@ -230,7 +230,7 @@ console.log({conversationAssistant});
       }
   
       if (showSourceMessage) { finalResponse += `\r\n${fuenteWeb}`; }
-      
+
       // Mantener solo los últimos 20 mensajes
       //console.log({ length: conversationHistory.length, firtsRole: conversationHistory[0].role, question: messageContent });
       if (conversationHistory.length > 20) {
