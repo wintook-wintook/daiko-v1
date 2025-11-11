@@ -299,7 +299,7 @@ Estructura EXACTA (NO MODIFIQUES):
 
    "   
    
-   ES IMPORTANTE QUE NUNCA omitas el ID del producto (ARTICULO_ID) al listar los resultados.
+   ES IMPORTANTE QUE NUNCA omitas el ID del producto (ARTICULO_ID), NI MUCHO MENOS la página actual al listar los resultados.
 
 ANTES DE RESPONDER:
 - Verifica que CADA producto tiene "ID: [número]" al inicio
