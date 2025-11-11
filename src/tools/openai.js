@@ -5,6 +5,25 @@ const functionDefinitions = [
     {
       type: "function",
       function: {
+        name: "saludo",
+        description: "Recibe un hola o un saludo y regresa un saludo por parte de Alex",
+        parameters: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "Filtro a aplicar"
+            },          
+          },
+          required: ["query"],
+          additionalProperties: false
+        },
+        strict: true
+      }
+    },
+    {
+      type: "function",
+      function: {
         name: "reiniciar",
         description: "Reinicia la conversacion",
         parameters: {
@@ -551,6 +570,13 @@ function executeFunctionCall(name, args) {
     console.log(`🔧 Ejecutando función: ${name}`, args);
     
     switch (name) {
+      case "saludo":
+        return {
+          success: true,
+          data: [],
+          message: `¡Hola! Soy tu asesor comercial y estoy aquí para ayudarte con tu proceso de compra. ¿En qué puedo asistirte hoy?`,
+          preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
+        };
       case "reiniciar":
         return {
           success: true,
