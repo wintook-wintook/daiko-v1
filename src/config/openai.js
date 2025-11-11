@@ -276,7 +276,7 @@ REGLA ABSOLUTA: CADA línea de producto DEBE EMPEZAR con "ID: [ARTICULO_ID]"
   
    
 Estructura EXACTA (NO MODIFIQUES):
-[número]. ID: [ARTICULO_ID] - [NOMBRE DEL PRODUCTO]
+[número (EMPEZANDO en (current_page - 1) * page_size)]. ID: [ARTICULO_ID] - [NOMBRE DEL PRODUCTO]
    - Precio: $[(PRECIO_UNITARIO + MONTO_IMPUESTO)]
 
 ❌ FORMATOS PROHIBIDOS (NUNCA USES):
