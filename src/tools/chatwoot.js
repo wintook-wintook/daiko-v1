@@ -346,7 +346,7 @@ const getMessages = async (token, account_id, conversation_id) => {
   idx = -1;
   for (var i = messages.length - 1; i >= 0; i--) {
     let message = messages[i];
-    if (message.role != 'user' && message.content.includes(['conversación nueva', 'nueva conversación'])) {
+    if (message.role != 'user' && (message.content.includes('conversación nueva') || message.content.includes('nueva conversación'))) {
       idx = i;
       break;
     }
