@@ -115,7 +115,7 @@ Encontré 3 laptop que podrían interesarte, página 1:
    - Precio: $549.00
 
 ---
-📦 Carrito ID actual: 84 Folio: ADM000054
+📦 No tienes un carrito asignado aún
 
 REGLAS CRÍTICAS:
 ✅ CADA producto DEBE empezar con "ID: [ARTICULO_ID]"
