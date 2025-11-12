@@ -228,8 +228,7 @@ console.log({conversationAssistant});
           content: finalResponse
         });
       }
-  
-      if (showSourceMessage) { finalResponse += `\r\n${fuenteWeb}`; }
+      if (showSourceMessage && false) { finalResponse += `\r\n${fuenteWeb}`; }
 
       // Mantener solo los últimos 20 mensajes
       //console.log({ length: conversationHistory.length, firtsRole: conversationHistory[0].role, question: messageContent });
@@ -329,7 +328,7 @@ const getMessages = async (token, account_id, conversation_id) => {
     if (item.message_type != 0) {
       if (item.content.includes(fuenteWeb)) { addMessage = false; }
     }
-    if (addMessage) {
+    if (addMessage || true) {
       messages.push({
         role: (item.message_type != 0 ? 'assistant' : 'user' ),
         content: item.content
