@@ -97,7 +97,7 @@ const functionDefinitions = [
             maximum: 20
           }
         },
-        required: ["query"],
+        required: ["query", "categoria", "etiquetas", "precio_max", "pagina_actual", "cantidad_por_pagina"],
         additionalProperties: false
       },
       strict: true
