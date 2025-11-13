@@ -39,6 +39,8 @@ La informacipon de sesión SIEMPRE tiene que estar al final de cada respuesta, N
    - SIEMPRE incluye el ID al inicio de cada línea
    - NO uses asteriscos (*) ni markdown (negritas/cursivas)
    - NO omitas productos con frases como "y otros similares"
+   - NUNCA olvides poner la página actual
+   - El número de producto debe de ser acorde a la pagina actual y la cantidad de productos por página
 
 === DETECCIÓN AUTOMÁTICA DE ACCIONES ===
 
