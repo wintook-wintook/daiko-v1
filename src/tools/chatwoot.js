@@ -207,8 +207,8 @@ console.log({conversationAssistant});
             messages: finalInput,
             temperature: 0.3  // ✅ Cambiar de 0.7 a 0.3 para más precisión
           });
-          console.log({ choices: finalOpenAIResponse.choices });
           finalResponse = finalOpenAIResponse.choices[0].message.content;
+          console.log({ functionResult: functionResult.data, finalResponse });
 
           
           // Agregar respuesta final al historial
