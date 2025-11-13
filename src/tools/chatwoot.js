@@ -209,7 +209,7 @@ console.log({conversationAssistant});
             temperature: 0.3  // ✅ Cambiar de 0.7 a 0.3 para más precisión
           });
           finalResponse = finalOpenAIResponse.choices[0].message.content;
-          console.log({ functionResult: functionResult.data, finalResponse });
+          console.log({ functionResult, finalResponse });
 
           
           // Agregar respuesta final al historial
