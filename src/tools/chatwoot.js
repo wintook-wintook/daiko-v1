@@ -154,6 +154,7 @@ console.log({conversationAssistant});
   
       const assistantMessage = response.choices[0].message;
       let finalResponse = assistantMessage.content || "";
+      let functionResult;
       let isGetPDF = false;
       // Procesar tool calls si existen
       let showSourceMessage = false;
@@ -171,7 +172,7 @@ console.log({conversationAssistant});
           if (name == 'buscar_informacion_externa') { showSourceMessage = true; }
           try {            
             const functionArgs = JSON.parse(args);
-            const functionResult = await executeFunctionCall(name, functionArgs);
+            functionResult = await executeFunctionCall(name, functionArgs);
             
             if(name==='generar_pdf'){isGetPDF=true; finalResponse = functionResult.data; }
 
