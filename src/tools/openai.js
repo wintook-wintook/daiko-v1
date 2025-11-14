@@ -14,9 +14,13 @@ const functionDefinitions = [
               type: "string",
               description: "El tipo de saludo detectado (formal, informal, temporal como buenos días/tardes/noches)",
               enum: ["formal", "informal", "temporal", "general"]
+            },
+            nombre_usuario: {
+              type: "string",
+              description: "Nombre del usuario si lo menciona en el saludo"
             }
           },
-          required: ["tipo_saludo"],
+          required: ["tipo_saludo", "nombre_usuario"],
           additionalProperties: false
         },
         strict: true
@@ -543,11 +547,12 @@ function executeFunctionCall(name, args) {
     console.log(`🔧 Ejecutando función: ${name}`, args);
     
     switch (name) {
-      case "saludo":
+      case "saludo":        
+        const nombrePersonalizado = args.nombre_usuario ? ` ${args.nombre_usuario}` : "";
         return {
           success: true,
           data: [],
-          message: `¡Hola! Soy tu asesor comercial y estoy aquí para ayudarte con tu proceso de compra. ¿En qué puedo asistirte hoy?`,
+          message: `¡Hola${nombrePersonalizado}! Soy tu asesor comercial y estoy aquí para ayudarte con tu proceso de compra. ¿En qué puedo asistirte hoy?`,
           preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
         };
       case "reiniciar":
