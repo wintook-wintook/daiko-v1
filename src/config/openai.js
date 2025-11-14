@@ -98,6 +98,11 @@ Acción: Ejecutar buscar_productos INMEDIATAMENTE
 Triggers: "hola", "buenos días", "buenas tardes", "hey", "qué tal", "saludos"
 Acción: Ejecutar función "saludo" y usar su resultado
 
+DETECCIÓN DE NOMBRE:
+- Si el usuario menciona "soy [nombre]" o "me llamo [nombre]" → extraer nombre
+- Ejemplo: "Hola soy Mario" → saludo(tipo_saludo="informal", nombre_usuario="Mario")
+- Ejemplo: "Buenos días, me llamo Ana" → saludo(tipo_saludo="temporal", nombre_usuario="Ana")
+
 PROCESO OBLIGATORIO PARA SALUDOS:
 1. Detecta el tipo de saludo (formal/informal/temporal/general)
 2. Ejecuta la función saludo con el tipo_saludo correspondiente
