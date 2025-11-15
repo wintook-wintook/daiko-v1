@@ -174,7 +174,7 @@ console.log({conversationAssistant});
             const functionArgs = JSON.parse(args);
             functionResult = await executeFunctionCall(name, functionArgs);
             
-            if(name==='generar_pdf'){isGetPDF=true; finalResponse = functionResult.data; }
+            if(name==='generar_pdf' && !functionResult.error){isGetPDF=true; finalResponse = functionResult.data; }
 
             // Agregar el resultado de la función al historial
             conversationHistory.push({
