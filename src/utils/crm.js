@@ -584,6 +584,12 @@ async function generarPdf(carrito_id) {
     };
   }
   let {data} = await verCarrito(carrito_id);
+  let title = 'Error al genera el PDF, el folio del carrito no existe. ';
+  evalError(data, title);
+  if (data.error && data.error === true) {
+    return data;
+  }
+  
   let cliente = await buscarCliente(data.importeCarrito.CLIENTE_ID);
   let vendedor = await buscarVendedor(data.importeCarrito.VENDEDOR_ID);
   let moneda = await buscarMoneda(data.importeCarrito.MONEDA_ID);
