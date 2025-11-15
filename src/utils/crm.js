@@ -587,11 +587,8 @@ async function generarPdf(carrito_id) {
   }
   let {data} = await verCarrito(carrito_id);
   let title = 'Error al generar el PDF, el folio del carrito no existe. ';
-  console.log(1, {data});
   evalError(data, title);
-  console.log(2, {data});
   if (data.error && data.error === true) {
-  console.log(3, {data});
     return data;
   }
   
