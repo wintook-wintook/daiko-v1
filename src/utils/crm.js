@@ -307,6 +307,7 @@ async function crearNuevoCarrito(productoId, cantidad) {
       productoId, 
       cantidad, 
       carritoId: response.data.carrito_creado,
+      folio: response.data.folio,
       message: `Producto agregado a un nuevo carrito correctamente`,
       preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
     };
@@ -326,13 +327,9 @@ async function crearNuevoCarritoConVariosArticulos(Productos) {
     "productos": Productos    
   });
   let config = getConfigApiDaiko(`createCart/${cliente_id}`, data, 2);
-  
   try {
     const response = await getApiData(config);
     evalError(response.data);
-    
-console.log({agregarCarrito: response.data});
-
     if (response.data.error && response.data.error === true) {
       return response.data;
     }
@@ -340,6 +337,7 @@ console.log({agregarCarrito: response.data});
       success: true,
       productos: Productos, 
       carritoId: response.data.carrito_creado,
+      folio: response.data.folio,
       message: `Productos agregados a un nuevo carrito correctamente`,
       preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
     };
