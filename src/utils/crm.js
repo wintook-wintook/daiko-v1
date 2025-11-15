@@ -396,10 +396,31 @@ async function verCarrito(carrito_id) {
   let config = getConfigApiDaiko(`getCart/${carrito_id}`, data, 2);
   try {
     const response = await getApiData(config);
-      evalError(response.data);
-      if (response.data.error && response.data.error === true) {
-        return response.data;
-      }
+    if(response.data.error){
+      return {
+        success: false,
+        data: {
+          items: [],
+          total: 0.0,
+          cantidad: 0,
+          error: true,
+          message: response.data.message,
+        },
+        message: response.data.message,
+        preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
+      };
+    }else{
+      // let i = 0;
+      // let TOTAL = 0.0;
+      // for (const producto of response.data.Carrito) {
+      //   delete response.data.Carrito[i].COSTO_ENVIO;
+      //   response.data.Carrito[i].TOTAL = ( (response.data.Carrito[i].PRECIO_UNITARIO + response.data.Carrito[i].MONTO_IMPUESTO) * response.data.Carrito[i].UNIDADES);
+
+      //   TOTAL = TOTAL + response.data.Carrito[i].TOTAL;
+      //   i++;                
+      // };
+      // response.data.importeCarrito.TOTAL_CARRITO = TOTAL;
+
       return {
         success: true,
         data: response.data,
@@ -408,6 +429,7 @@ async function verCarrito(carrito_id) {
         "Tu carrito está vacío",
         preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
       };
+    }
   } catch (error) {
     console.error('Error:', error.message);
   }
