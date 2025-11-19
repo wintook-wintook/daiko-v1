@@ -100,6 +100,8 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
 
   }
 
+console.log({cliente_redis, data});
+
   let config = getConfigApiDaiko('', data, '', urlExtra);
   let response = [];
 
