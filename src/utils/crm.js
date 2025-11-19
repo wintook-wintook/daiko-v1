@@ -94,6 +94,8 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
     
   }
 
+console.log({cliente_redis});
+
   let contacto = [];
 
   if((cliente_redis.default||true) == true && data!= '{}'){
