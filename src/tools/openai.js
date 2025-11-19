@@ -1,5 +1,6 @@
 const { obtenerCategorias, buscarProductos, obtenerDetalleProducto, agregarAlCarrito, agregarVariosArticulosAlCarrito, crearNuevoCarrito, crearNuevoCarritoConVariosArticulos, obtenerCarritosDisponibles, verCarrito, crearOrden, cancelarCarrito, generarPdf } = require('../utils/crm');
 const { ejecutarBusquedaExterna } = require('../utils/busqueda_externa_service');
+const UserContext = require('../utils/userContext');
 
 const functionDefinitions = [
     {
@@ -543,12 +544,26 @@ const functionDefinitions = [
   ];
   
 // ===== ROUTER PARA MANEJAR FUNCTION CALLS =====
-function executeFunctionCall(name, args) {
+async function executeFunctionCall(name, args, userId) {
     console.log(`🔧 Ejecutando función: ${name}`, args);
+
+    // Crear instancia de contexto para este usuario
+    const userContext = new UserContext(userId);
     
     switch (name) {
-      case "saludo":        
-        const nombrePersonalizado = args.nombre_usuario ? ` ${args.nombre_usuario}` : "";
+      case "saludo":    
+      
+        // Guardar nombre si lo proporciona
+        if (args.nombre_usuario) {
+          await userContext.setNombre(args.nombre_usuario);
+        }
+        
+        // Obtener nombre (podría ser de una conversación anterior)
+        const nombreGuardado = await userContext.getNombre();
+        const nombre = args.nombre_usuario || nombreGuardado;
+        const nombrePersonalizado = nombre ? ` ${nombre}` : "";
+
+        
         return {
           success: true,
           data: [],
@@ -568,17 +583,49 @@ function executeFunctionCall(name, args) {
         return obtenerCategorias();      
       case "que_me_puedes_ofrecer":
         return obtenerCategorias();
-      case "seleccionar_categoria":      
+      case "seleccionar_categoria": 
+        await userContext.addPreferencia(args.category);     
         return buscarProductos(args.query, args.category, args.etiquetas, args.precio_max, args.current_page, args.per_page);      
       case "buscar_por_etiquetas":      
         return buscarProductos(args.query, args.category, args.etiquetas, args.precio_max, args.current_page, args.per_page);      
       case "buscar_productos":
-        return buscarProductos(args.query, args.categoria, args.etiquetas, args.precio_max, args.current_page, args.per_page);
+
+        const resultado = await buscarProductos(
+          args.query, 
+          args.categoria, 
+          args.etiquetas, 
+          args.precio_max, 
+          args.current_page, 
+          args.per_page
+        );
+        
+        // Guardar última categoría buscada
+        if (args.categoria) {
+          await userContext.setMultiple({ 
+            ultima_categoria: args.categoria 
+          });
+          await userContext.addPreferencia(args.categoria);
+        }
+        
+        return resultado;
+
+        // return buscarProductos(args.query, args.categoria, args.etiquetas, args.precio_max, args.current_page, args.per_page);
       
       case "obtener_detalle_producto":
         return obtenerDetalleProducto(args.id);
       case "agregar_al_carrito":
-        return agregarAlCarrito(args.producto_id, args.cantidad, args.carrito_id);
+        // Obtener carrito actual de Redis si no se proporciona
+        const carritoId = args.carrito_id || await userContext.getCarrito();
+        
+        if (!carritoId) {
+          return {
+            success: false,
+            message: "No tienes un carrito asignado. Primero crea uno."
+          };
+        }
+        
+        return await agregarAlCarrito(args.producto_id, args.cantidad, carritoId);        
+        // return agregarAlCarrito(args.producto_id, args.cantidad, args.carrito_id);
       
       case "agregar_varios_articulos_al_carrito":
         return agregarVariosArticulosAlCarrito(args.carrito_id, args.productos);        
@@ -590,7 +637,15 @@ function executeFunctionCall(name, args) {
         return agregarAlCarrito(args.producto_id, args.cantidad, args.carrito_id, "update");
   
       case "crear_nuevo_carrito":
-        return crearNuevoCarrito(args.producto_id, args.cantidad);
+        const nuevoCarrito = await crearNuevoCarrito(args.producto_id, args.cantidad);
+      
+        // Guardar carrito_id en Redis
+        if (nuevoCarrito.success && nuevoCarrito.carrito_id) {
+          await userContext.setCarrito(nuevoCarrito.carrito_id, nuevoCarrito.folio);
+        }
+        
+        return nuevoCarrito;
+        // return crearNuevoCarrito(args.producto_id, args.cantidad);
 
       case "crear_nuevo_carrito_con_varios_articulos":
         return crearNuevoCarritoConVariosArticulos(args.productos);
