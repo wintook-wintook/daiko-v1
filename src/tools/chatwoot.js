@@ -112,8 +112,6 @@ function extraerDatosWebhook(webhookData) {
         };
       }
       
-      let Cliente = await buscarcliente2(url_crm_zeus, api_access_token, {email: sender.email, phone_number: sender.phone_number, contact_id: contact_id, almacen_id: almacen_id});  
-
 
       //await buscarcliente(senderName);
   
@@ -126,6 +124,14 @@ function extraerDatosWebhook(webhookData) {
       // 1. Obtener contexto del usuario desde Redis
       const userContext = new UserContext(userId);
       const contextStr = await userContext.toSystemContext();
+
+      let Cliente = await buscarcliente2(url_crm_zeus, api_access_token, {
+          email: sender.email, 
+          phone_number: sender.phone_number, 
+          contact_id: contact_id, 
+          almacen_id: almacen_id,
+          userContext
+        });  
 
       // Guardar nombre si lo proporciona
       if (Cliente.data.NOMBRE_COMERCIAL) {
