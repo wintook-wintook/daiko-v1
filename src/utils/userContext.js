@@ -16,12 +16,18 @@ class UserContext {
     if (Object.keys(data).length === 0) {
       return {
         nombre_usuario: null,
+        cliente: {},
         carrito_id: null,
         folio: null,
         ultima_categoria: null,
         preferencias: [],
         created_at: new Date().toISOString()
       };
+    }
+
+    // Parsear campos JSON
+    if (data.cliente) {
+        data.cliente = JSON.parse(data.cliente);
     }
 
     // Parsear campos JSON
@@ -38,6 +44,12 @@ class UserContext {
     await redis.hset(this.key, 'updated_at', new Date().toISOString());
     await redis.expire(this.key, this.ttl);
     return true;
+  }
+
+  // Recuperar cliente
+  async getCliente() {
+    let v = await redis.hget(this.key, 'cliente');
+    return JSON.parse(v);
   }
 
   // Obtener nombre
@@ -76,6 +88,12 @@ class UserContext {
     
     await pipeline.exec();
     return true;
+  }
+
+  // Asignar cliente
+  async setCliente(cliente) {    
+    await redis.hset(this.key, 'cliente', JSON.stringify(cliente));    
+    await redis.expire(this.key, this.ttl);
   }
 
   // Agregar preferencia/historial
