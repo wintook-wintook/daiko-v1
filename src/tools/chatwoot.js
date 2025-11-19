@@ -15,6 +15,8 @@ const {buscarcliente, buscarcliente2} = require('../utils/crm');
 const { getApiData } = require('../utils/functions');
 let urlWA = process.env.CHATWOOT_URL; // 'https://app.chatzeus.com/';
 
+const UserContext = require('../utils/userContext');
+
 var Readable    = require('stream').Readable;
 const { Buffer } = require('buffer');
 
@@ -99,7 +101,7 @@ function extraerDatosWebhook(webhookData) {
 
       //console.log({url_crm_zeus, api_access_token, contact_id, sender});
 
-      let Cliente = await buscarcliente2(url_crm_zeus, api_access_token, {email: sender.email, phone_number: sender.phone_number, contact_id: contact_id, almacen_id: almacen_id});
+
       // console.log({Cliente});
 
       // Solo procesar mensajes entrantes (incoming) de contactos
@@ -109,14 +111,30 @@ function extraerDatosWebhook(webhookData) {
           message: "Mensaje no procesable - solo se procesan mensajes entrantes con contenido"
         };
       }
-  
+      
+      let Cliente = await buscarcliente2(url_crm_zeus, api_access_token, {email: sender.email, phone_number: sender.phone_number, contact_id: contact_id, almacen_id: almacen_id});  
+
+
       //await buscarcliente(senderName);
   
       // Usar el conversation ID como userId para mantener contexto
       const userId = `chatwoot_${conversationId}`;
       
       // console.log(`📨 Webhook recibido - Conversación ${conversationId} de ${senderName}: ${messageContent}`);
-  
+
+      
+      // 1. Obtener contexto del usuario desde Redis
+      const userContext = new UserContext(userId);
+      const contextStr = await userContext.toSystemContext();
+
+      // Guardar nombre si lo proporciona
+      if (Cliente.data.NOMBRE_COMERCIAL) {
+        await userContext.setNombre(Cliente.data.NOMBRE_COMERCIAL);
+      }
+
+      // 2. Inyectar contexto en el system prompt
+      const systemPromptWithContext = systemPrompt + contextStr;
+      
       // Obtener historial de conversación
       if (!conversations.has(userId)) {
         conversations.set(userId, []);
@@ -139,7 +157,7 @@ console.log({conversationAssistant});
   
       // Crear input para OpenAI
       const input = [
-        { role: "system", content: systemPrompt },
+        { role: "system", content: systemPromptWithContext },
         ...conversationHistory
       ];
       //console.log({input});
@@ -172,7 +190,7 @@ console.log({conversationAssistant});
           if (name == 'buscar_informacion_externa') { showSourceMessage = true; }
           try {            
             const functionArgs = JSON.parse(args);
-            functionResult = await executeFunctionCall(name, functionArgs);
+            functionResult = await executeFunctionCall(name, functionArgs, userId);
             
             if(name==='generar_pdf' && !functionResult.error){isGetPDF=true; finalResponse = functionResult.data; }
 
@@ -199,7 +217,7 @@ console.log({conversationAssistant});
         if(!isGetPDF){
           // Obtener respuesta final del asistente
           const finalInput = [
-            { role: "system", content: systemPrompt },
+            { role: "system", content: systemPromptWithContext },
             ...conversationHistory
           ];
     
