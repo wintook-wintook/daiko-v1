@@ -98,7 +98,7 @@ console.log({cliente_redis});
 
   let contacto = [];
 
-  if((cliente_redis.default||true) == true && data!= '{}'){
+  if(( (cliente_redis) && ( cliente_redis.default||true ) ) == true && data!= '{}'){
 
   }
 
