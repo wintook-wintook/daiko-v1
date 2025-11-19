@@ -73,8 +73,9 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
 
   //console.log({info});
 
-  let {email, phone_number, contact_id} = info;
+  let {email, phone_number, contact_id, userContext} = info;
   phone_number = (phone_number ? phone_number.substr(-10) : phone_number);
+  let cliente_redis = await userContext.getCliente();
 
   let data = JSON.stringify({});
   let urlExtra = '';
@@ -93,9 +94,15 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
     
   }
 
+  let contacto = [];
+
+  if((cliente_redis.default||true) == true && data!= '{}'){
+
+  }
+
   let config = getConfigApiDaiko('', data, '', urlExtra);
   let response = [];
-  let contacto = [];
+
 
   try {
 
