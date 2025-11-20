@@ -142,7 +142,8 @@ console.log({cliente_redis, data});
 
 
     let cliente = await response.data[0];
-console.log({Ln: 145, cliente, obj: 'crm'});
+    cliente.default = true;
+
     await userContext.setCliente(cliente);
    
     vendedor_id = await cliente.VENDEDOR_ID;
