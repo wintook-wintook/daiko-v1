@@ -107,7 +107,7 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
     vendedor_id = await cliente_redis.VENDEDOR_ID;
     cliente_id = cliente_redis.CLIENTE_ID;
     moneda_id = cliente_redis.MONEDA_ID || moneda_id; 
-
+console.log({ln: 110, msg: "registro previo"});
     return {
       success: true,
       data: {        
@@ -169,7 +169,7 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
     vendedor_id = await cliente.VENDEDOR_ID;
     cliente_id = cliente.CLIENTE_ID;
     moneda_id = cliente.MONEDA_ID || moneda_id; 
-
+console.log({ln: 172, msg: "nuevo registro"});
     return {
       success: true,
       data: {        
