@@ -142,6 +142,8 @@ console.log({cliente_redis, data});
 
 
     let cliente = response.data[0];
+
+    await cliente_redis.setCliente(cliente);
    
     vendedor_id = await cliente.VENDEDOR_ID;
     cliente_id = cliente.CLIENTE_ID;
