@@ -132,7 +132,7 @@ function extraerDatosWebhook(webhookData) {
           almacen_id: almacen_id,
           userContext
         });  
-
+console.log({Ln: 135, Cliente});
       // Guardar nombre si lo proporciona
       if (Cliente.data.NOMBRE_COMERCIAL) {
         await userContext.setNombre(Cliente.data.NOMBRE_COMERCIAL);

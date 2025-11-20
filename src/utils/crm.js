@@ -141,7 +141,7 @@ console.log({cliente_redis, data});
     response = await getApiData(config);
 
 
-    let cliente = response.data[0];
+    let cliente = await response.data[0];
 
     await cliente_redis.setCliente(cliente);
    
