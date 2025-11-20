@@ -94,7 +94,7 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
     
   }
 
-console.log({cliente_redis});
+
 
   let contacto = [];
 
@@ -102,7 +102,27 @@ console.log({cliente_redis});
 
   }
 
-console.log({cliente_redis, data});
+  if(( (cliente_redis) && ( cliente_redis.default||true ) ) == true ){
+  
+    vendedor_id = await cliente_redis.VENDEDOR_ID;
+    cliente_id = cliente_redis.CLIENTE_ID;
+    moneda_id = cliente_redis.MONEDA_ID || moneda_id; 
+
+    return {
+      success: true,
+      data: {        
+        ALMACEN_ID: almacen_id,
+        CLIENTE_ID: cliente_redis.CLIENTE_ID, 
+        MONEDA_ID: cliente_redis.MONEDA_ID || moneda_id, 
+        VENDEDOR_ID: cliente_redis.VENDEDOR_ID, 
+        NOMBRE_COMERCIAL: cliente_redis.NOMBRE_COMERCIAL        
+      },
+      preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
+    };
+
+  }
+
+
 
   let config = getConfigApiDaiko('', data, '', urlExtra);
   let response = [];
