@@ -233,6 +233,7 @@ class UserContext {
   // Generar contexto para system prompt
   async toSystemContext() {
     const context = await this.get();
+    const prefs = await this.getPreferencias();
     
     let contextStr = '\\n=== CONTEXTO DEL USUARIO ACTUAL ===\\n';
     
