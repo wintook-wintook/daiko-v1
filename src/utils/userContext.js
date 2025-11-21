@@ -114,6 +114,122 @@ class UserContext {
     await redis.expire(this.key, this.ttl);
   }
 
+
+
+  // === MÉTODOS PARA PREFERENCIAS ===
+
+  async getPreferencias() {
+    const data = await redis.hget(this.key, 'preferencias');
+    if (!data) {
+      return {
+        categorias: [],
+        productos_vistos: [],
+        historial_busquedas: [],
+        rango_precio: { min: 0, max: 0, promedio: 0 },
+        marcas_interes: [],
+        etiquetas_interes: []
+      };
+    }
+    return JSON.parse(data);
+  }
+
+  async setPreferencias(preferencias) {
+    await redis.hset(this.key, 'preferencias', JSON.stringify(preferencias));
+    await redis.expire(this.key, this.ttl);
+  }
+
+  // Agregar categoría de interés
+  async addCategoria(categoria) {
+    const prefs = await this.getPreferencias();
+    
+    if (!prefs.categorias.includes(categoria)) {
+      prefs.categorias.push(categoria);
+      
+      // Mantener solo las últimas 10
+      if (prefs.categorias.length > 10) {
+        prefs.categorias = prefs.categorias.slice(-10);
+      }
+      
+      await this.setPreferencias(prefs);
+    }
+  }
+
+  // Registrar producto visto
+  async addProductoVisto(productoId, productoNombre) {
+    const prefs = await this.getPreferencias();
+    
+    prefs.productos_vistos.push({
+      id: productoId,
+      nombre: productoNombre,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Mantener solo los últimos 20
+    if (prefs.productos_vistos.length > 20) {
+      prefs.productos_vistos = prefs.productos_vistos.slice(-20);
+    }
+    
+    await this.setPreferencias(prefs);
+  }
+
+  // Registrar búsqueda
+  async addBusqueda(query, resultados) {
+    const prefs = await this.getPreferencias();
+    
+    prefs.historial_busquedas.push({
+      query: query,
+      resultados: resultados,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Mantener últimas 15 búsquedas
+    if (prefs.historial_busquedas.length > 15) {
+      prefs.historial_busquedas = prefs.historial_busquedas.slice(-15);
+    }
+    
+    await this.setPreferencias(prefs);
+  }
+
+  // Actualizar rango de precio
+  async updateRangoPrecio(precioMax) {
+    const prefs = await this.getPreferencias();
+    
+    if (precioMax > prefs.rango_precio.max_buscado) {
+      prefs.rango_precio.max_buscado = precioMax;
+    }
+    
+    // Calcular promedio simple
+    const precios = prefs.historial_busquedas
+      .filter(b => b.precio_max)
+      .map(b => b.precio_max);
+    
+    if (precios.length > 0) {
+      const suma = precios.reduce((a, b) => a + b, 0);
+      prefs.rango_precio.promedio = Math.round(suma / precios.length);
+    }
+    
+    await this.setPreferencias(prefs);
+  }
+
+  // Agregar marca de interés
+  async addMarca(marca) {
+    const prefs = await this.getPreferencias();
+    
+    if (!prefs.marcas_interes.includes(marca)) {
+      prefs.marcas_interes.push(marca);
+      
+      // Mantener solo las últimas 5 marcas
+      if (prefs.marcas_interes.length > 5) {
+        prefs.marcas_interes = prefs.marcas_interes.slice(-5);
+      }
+      
+      await this.setPreferencias(prefs);
+    }
+  }
+
+
+
+
   // Generar contexto para system prompt
   async toSystemContext() {
     const context = await this.get();
@@ -127,7 +243,30 @@ class UserContext {
     if (context.carrito_id) {
       contextStr += `- Carrito ID: ${context.carrito_id}\\n`;
     }
+
+
+    if (prefs.categorias.length > 0) {
+      contextStr += `- Categorías de interés: ${prefs.categorias.join(', ')}\\n`;
+    }
     
+    if (prefs.productos_vistos.length > 0) {
+      const ultimosVistos = prefs.productos_vistos.slice(-3);
+      contextStr += `- Últimos productos vistos: ${ultimosVistos.map(p => p.nombre).join(', ')}\\n`;
+    }
+    
+    if (prefs.historial_busquedas.length > 0) {
+      const ultimasBusquedas = prefs.historial_busquedas.slice(-3);
+      contextStr += `- Búsquedas recientes: ${ultimasBusquedas.map(b => b.query).join(', ')}\\n`;
+    }
+    
+    if (prefs.rango_precio.max_buscado > 0) {
+      contextStr += `- Rango de precio típico: $${prefs.rango_precio.min_buscado}-$${prefs.rango_precio.max_buscado}\\n`;
+    }
+    
+    if (prefs.marcas_interes.length > 0) {
+      contextStr += `- Marcas de interés: ${prefs.marcas_interes.join(', ')}\\n`;
+    }
+/*    
     if (context.ultima_categoria) {
       contextStr += `- Última categoría vista: ${context.ultima_categoria}\\n`;
     }
@@ -135,8 +274,13 @@ class UserContext {
     if (context.preferencias && context.preferencias.length > 0) {
       contextStr += `- Categorías de interés: ${context.preferencias.join(', ')}\\n`;
     }
-    
+  
+
     contextStr += '\\nUsa esta información para personalizar tus respuestas de manera natural.\\n';
+*/
+
+    contextStr += '\\n💡 Usa esta información para hacer recomendaciones personalizadas y recordar contexto previo.\\n';
+
     
     return contextStr;
   }
