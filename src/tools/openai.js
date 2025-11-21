@@ -599,20 +599,41 @@ async function executeFunctionCall(name, args, userId) {
           args.per_page
         );
         
-        // Guardar última categoría buscada
+        // Guardar preferencias
         if (args.categoria) {
-          await userContext.setMultiple({ 
-            ultima_categoria: args.categoria 
-          });
-          await userContext.addPreferencia(args.categoria);
+          await userContext.addCategoria(args.categoria);
         }
+        
+        if (args.precio_max) {
+          await userContext.updateRangoPrecio(args.precio_max);
+        }
+        
+        // Guardar búsqueda en historial
+        await userContext.addBusqueda(args.query, resultado.meta?.count || 0);
         
         return resultado;
 
         // return buscarProductos(args.query, args.categoria, args.etiquetas, args.precio_max, args.current_page, args.per_page);
       
       case "obtener_detalle_producto":
-        return obtenerDetalleProducto(args.id);
+        //return obtenerDetalleProducto(args.id);
+        const detalle = await obtenerDetalleProducto(args.id);
+      
+        // Registrar que vio este producto
+        if (detalle.success) {
+          await userContext.addProductoVisto(
+            detalle.data.articulo_id, 
+            detalle.data.nombre
+          );
+          
+          // Si tiene marca, agregarla
+          if (detalle.data.marca) {
+            await userContext.addMarca(detalle.data.marca);
+          }
+        }
+        
+        return detalle;
+        
       case "agregar_al_carrito":
         // Obtener carrito actual de Redis si no se proporciona
         const carritoId = args.carrito_id || await userContext.getCarrito();
