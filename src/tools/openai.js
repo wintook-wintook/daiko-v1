@@ -584,7 +584,8 @@ async function executeFunctionCall(name, args, userId) {
       case "que_me_puedes_ofrecer":
         return obtenerCategorias();
       case "seleccionar_categoria": 
-        await userContext.addPreferencia(args.category);     
+        //await userContext.addPreferencia(args.category);     
+        await userContext.addCategoria(args.category);     
         return buscarProductos(args.query, args.category, args.etiquetas, args.precio_max, args.current_page, args.per_page);      
       case "buscar_por_etiquetas":      
         return buscarProductos(args.query, args.category, args.etiquetas, args.precio_max, args.current_page, args.per_page);      
@@ -633,7 +634,7 @@ async function executeFunctionCall(name, args, userId) {
         }
         
         return detalle;
-        
+
       case "agregar_al_carrito":
         // Obtener carrito actual de Redis si no se proporciona
         const carritoId = args.carrito_id || await userContext.getCarrito();
