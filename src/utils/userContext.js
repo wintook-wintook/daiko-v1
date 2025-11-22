@@ -282,6 +282,8 @@ class UserContext {
 
     contextStr += '\\n💡 Usa esta información para hacer recomendaciones personalizadas y recordar contexto previo.\\n';
 
+console.log({obj: "UserContext", contextStr});
+
     
     return contextStr;
   }
