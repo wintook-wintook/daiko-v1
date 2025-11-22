@@ -120,17 +120,31 @@ class UserContext {
 
   async getPreferencias() {
     const data = await redis.hget(this.key, 'preferencias');
+
+    // Estructura por defecto
+    const defaultPrefs = {
+      categorias: [],
+      productos_vistos: [],
+      historial_busquedas: [],
+      rango_precio: { min: 0, max: 0, promedio: 0 },
+      marcas_interes: [],
+      etiquetas_interes: []
+    };
+    
     if (!data) {
-      return {
-        categorias: [],
-        productos_vistos: [],
-        historial_busquedas: [],
-        rango_precio: { min: 0, max: 0, promedio: 0 },
-        marcas_interes: [],
-        etiquetas_interes: []
-      };
+      return defaultPrefs;
     }
-    return JSON.parse(data);
+    
+    // Parsear y mezclar con valores por defecto para asegurar que todos los campos existan
+    const parsed = JSON.parse(data);
+    return {
+      categorias: parsed.categorias || [],
+      productos_vistos: parsed.productos_vistos || [],
+      historial_busquedas: parsed.historial_busquedas || [],
+      rango_precio: parsed.rango_precio || { min: 0, max: 0, promedio: 0 },
+      marcas_interes: parsed.marcas_interes || [],
+      etiquetas_interes: parsed.etiquetas_interes || []
+    };
   }
 
   async setPreferencias(preferencias) {
