@@ -246,25 +246,25 @@ class UserContext {
     }
 
 
-    if (prefs.categorias.length > 0) {
+    if (prefs.categorias && prefs.categorias.length > 0) {
       contextStr += `- Categorías de interés: ${prefs.categorias.join(', ')}\\n`;
     }
     
-    if (prefs.productos_vistos.length > 0) {
+    if (prefs.productos_vistos && prefs.productos_vistos.length > 0) {
       const ultimosVistos = prefs.productos_vistos.slice(-3);
       contextStr += `- Últimos productos vistos: ${ultimosVistos.map(p => p.nombre).join(', ')}\\n`;
     }
     
-    if (prefs.historial_busquedas.length > 0) {
+    if (prefs.historial_busquedas && prefs.historial_busquedas.length > 0) {
       const ultimasBusquedas = prefs.historial_busquedas.slice(-3);
       contextStr += `- Búsquedas recientes: ${ultimasBusquedas.map(b => b.query).join(', ')}\\n`;
     }
     
-    if (prefs.rango_precio.max_buscado > 0) {
+    if (prefs.rango_precio && prefs.rango_precio.max_buscado > 0) {
       contextStr += `- Rango de precio típico: $${prefs.rango_precio.min_buscado}-$${prefs.rango_precio.max_buscado}\\n`;
     }
     
-    if (prefs.marcas_interes.length > 0) {
+    if (prefs.marcas_interes && prefs.marcas_interes.length > 0) {
       contextStr += `- Marcas de interés: ${prefs.marcas_interes.join(', ')}\\n`;
     }
 /*    
