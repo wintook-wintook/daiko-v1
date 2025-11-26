@@ -678,18 +678,6 @@ async function copiarArticulosEntreCarritos(carritoOrigenId, carritoDestinoId, a
     const carritoOrigen = await verCarrito(carritoOrigenId);
     const carritoDestino = await verCarrito(carritoDestinoId);
 
-console.log({carritoOrigenId, carritoDestinoId, 
-  carritoOrigen: carritoOrigen.data.Carrito, 
-  carritoDestino: carritoDestino.data.Carrito, 
-  articulosEspecificos, 
-  modoCopia
-});    
-
-return {
-  success: false,
-  message: `El proceso actual se encuentra en desarrollo`
-};
-
     if (!carritoOrigen.success) {
       return {
         success: false,
@@ -709,16 +697,16 @@ return {
 
     if (modoCopia === 'todos') {
       // Copiar TODOS los artículos del carrito origen
-      articulosACopiar = carritoOrigen.data.articulos.map(articulo => ({
-        articulo_id: articulo.articulo_id,
-        unidades: articulo.unidades
+      articulosACopiar = carritoOrigen.data.Carrito.map(articulo => ({
+        articulo_id: articulo.ARTICULO_ID,
+        unidades: articulo.UNIDADES
       }));
     } else if (modoCopia === 'especificos' && articulosEspecificos && articulosEspecificos.length > 0) {
       // Copiar solo los artículos específicos
       for (const articuloEsp of articulosEspecificos) {
         // Buscar el artículo en el carrito origen
-        const articuloEnOrigen = carritoOrigen.data.articulos.find(
-          a => a.articulo_id === articuloEsp.articulo_id
+        const articuloEnOrigen = carritoOrigen.data.Carrito.find(
+          a => a.ARTICULO_ID === articuloEsp.articulo_id
         );
 
         if (!articuloEnOrigen) {
@@ -747,6 +735,19 @@ return {
         message: 'No hay artículos para copiar'
       };
     }
+
+    console.log({carritoOrigenId, carritoDestinoId, 
+      carritoOrigen: carritoOrigen.data.Carrito, 
+      carritoDestino: carritoDestino.data.Carrito, 
+      articulosACopiar: articulosACopiar,
+      articulosEspecificos, 
+      modoCopia
+    });    
+    
+    return {
+      success: false,
+      message: `El proceso actual se encuentra en desarrollo`
+    };
 
     // 4. Agregar los artículos al carrito destino
     const resultado = await agregarVariosArticulosAlCarrito(carritoDestinoId, articulosACopiar);
