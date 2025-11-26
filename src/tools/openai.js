@@ -583,7 +583,7 @@ const functionDefinitions = [
               enum: ["todos", "especificos"]
             }
           },
-          required: ["carrito_origen_id", "carrito_destino_id", "modo_copia"],
+          required: ["carrito_origen_id", "carrito_destino_id", "articulos_especificos", "modo_copia"],
           additionalProperties: false
         },
         strict: true
