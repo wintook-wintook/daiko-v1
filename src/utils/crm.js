@@ -298,7 +298,7 @@ async function crearNuevoCarrito(productoId, cantidad) {
   
   try {
     const response = await getApiData(config);
-    evalError(response.data, 'Para la respuesta final, no olvides incluir en la respuesta el mensaje siguiente: ');
+    evalError(response.data, 'Para la respuesta final, asegúrate de incluir en la respuesta el mensaje siguiente. Error: ');
     if (response.data.error && response.data.error === true) {
       return response.data;
     }
@@ -329,7 +329,7 @@ async function crearNuevoCarritoConVariosArticulos(Productos) {
   let config = getConfigApiDaiko(`createCart/${cliente_id}`, data, 2);
   try {
     const response = await getApiData(config);
-    evalError(response.data, 'Para la respuesta final, no olvides incluir en la respuesta el mensaje siguiente: ');
+    evalError(response.data, 'Para la respuesta final, asegúrate de incluir en la respuesta el mensaje siguiente. Error: ');
     if (response.data.error && response.data.error === true) {
       return response.data;
     }
