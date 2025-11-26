@@ -573,7 +573,7 @@ const functionDefinitions = [
                     description: "Cantidad a copiar. Si es null, usa la cantidad del carrito origen"
                   }
                 },
-                required: ["articulo_id"],
+                required: ["articulo_id", "cantidad"],
                 additionalProperties: false
               }
             },
