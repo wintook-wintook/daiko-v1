@@ -678,7 +678,12 @@ async function copiarArticulosEntreCarritos(carritoOrigenId, carritoDestinoId, a
     const carritoOrigen = await verCarrito(carritoOrigenId);
     const carritoDestino = await verCarrito(carritoDestinoId);
 
-console.log({carritoOrigenId, carritoDestinoId, carritoOrigen, carritoDestino});    
+console.log({carritoOrigenId, carritoDestinoId, 
+  carritoOrigen: carritoOrigen.data.Carrito, 
+  carritoDestino: carritoDestino.data.Carrito, 
+  articulosEspecificos, 
+  modoCopia
+});    
 
 return {
   success: false,
