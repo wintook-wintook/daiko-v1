@@ -824,19 +824,6 @@ async function copiarArticulosDeUnCarritoExisenteAUnoNuevo(carritoOrigenId, arti
       };
     }
 
-
-    console.log({carritoOrigenId, 
-      carritoOrigen: carritoOrigen.data.Carrito,       
-      articulosACopiar: articulosACopiar,
-      articulosEspecificos, 
-      modoCopia
-    });    
-    
-    return {
-      success: false,
-      message: `El proceso actual se encuentra en desarrollo`
-    };
-
     // 4. Agregar los artículos al carrito destino
     const resultado = await crearNuevoCarritoConVariosArticulos(articulosACopiar);
 
