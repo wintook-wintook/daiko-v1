@@ -611,12 +611,6 @@ async function executeFunctionCall(name, args, userId) {
         const nombreGuardado = await userContext.getNombre();
         const nombre = args.nombre_usuario || nombreGuardado;
         const nombrePersonalizado = nombre ? ` ${nombre}` : "";
-
-console.log({})
-console.log({})
-console.log({obj: "openai.js", nombrePersonalizado})
-console.log({})
-console.log({})
         
         return {
           success: true,
