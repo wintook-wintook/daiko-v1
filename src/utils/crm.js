@@ -767,6 +767,105 @@ async function copiarArticulosEntreCarritos(carritoOrigenId, carritoDestinoId, a
   }
 }
 
+
+async function copiarArticulosDeUnCarritoExisenteAUnoNuevo(carritoOrigenId, articulosEspecificos = null, modoCopia = 'todos') {
+  try {
+    // 1. Verificar que el carrito existe
+    const carritoOrigen = await verCarrito(carritoOrigenId);    
+
+    if (!carritoOrigen.success) {
+      return {
+        success: false,
+        message: `El carrito origen ${carritoOrigenId} no existe o no se pudo acceder`
+      };
+    }
+
+    // 2. Determinar qué artículos copiar
+    let articulosACopiar = [];
+
+    if (modoCopia === 'todos') {
+      // Copiar TODOS los artículos del carrito origen
+      articulosACopiar = carritoOrigen.data.Carrito.map(articulo => ({
+        articulo_id: articulo.ARTICULO_ID,
+        unidades: articulo.UNIDADES
+      }));
+    } else if (modoCopia === 'especificos' && articulosEspecificos && articulosEspecificos.length > 0) {
+      // Copiar solo los artículos específicos
+      for (const articuloEsp of articulosEspecificos) {
+        // Buscar el artículo en el carrito origen
+        const articuloEnOrigen = carritoOrigen.data.Carrito.find(
+          a => a.ARTICULO_ID === articuloEsp.articulo_id
+        );
+
+        if (!articuloEnOrigen) {
+          console.warn(`⚠️  Artículo ${articuloEsp.articulo_id} no encontrado en carrito origen`);
+          continue;
+        }
+
+        articulosACopiar.push({
+          articulo_id: articuloEsp.articulo_id,
+          unidades: articuloEsp.cantidad !== null && articuloEsp.cantidad !== undefined 
+            ? articuloEsp.cantidad 
+            : articuloEnOrigen.unidades
+        });
+      }
+    } else {
+      return {
+        success: false,
+        message: 'Debes especificar artículos cuando usas modo "especificos"'
+      };
+    }
+
+    // 3. Validar que hay artículos para copiar
+    if (articulosACopiar.length === 0) {
+      return {
+        success: false,
+        message: 'No hay artículos para copiar'
+      };
+    }
+
+
+    console.log({carritoOrigenId, 
+      carritoOrigen: carritoOrigen.data.Carrito,       
+      articulosACopiar: articulosACopiar,
+      articulosEspecificos, 
+      modoCopia
+    });    
+    
+    return {
+      success: false,
+      message: `El proceso actual se encuentra en desarrollo`
+    };
+
+    // 4. Agregar los artículos al carrito destino
+    const resultado = await crearNuevoCarritoConVariosArticulos(articulosACopiar);
+
+    if (resultado.success) {
+      return {
+        success: true,
+        message: `Se copiaron ${articulosACopiar.length} artículo(s) del carrito ${carritoOrigenId} al carrito ${carritoDestinoId}`,
+        data: {
+          carrito_origen_id: carritoOrigenId,          
+          articulos_copiados: articulosACopiar.length,
+          carrito_destino_actualizado: resultado.data
+        }
+      };
+    } else {
+      return {
+        success: false,
+        message: `Error al agregar artículos al carrito destino: ${resultado.message}`
+      };
+    }
+
+  } catch (error) {
+    console.error('❌ Error en copiarArticulosEntreCarritos:', error);
+    return {
+      success: false,
+      message: `Error al copiar artículos: ${error.message}`
+    };
+  }
+}
+
 module.exports = {
   buscarcliente,
   buscarcliente2,
@@ -782,5 +881,6 @@ module.exports = {
   crearOrden,
   cancelarCarrito,
   generarPdf,
-  copiarArticulosEntreCarritos
+  copiarArticulosEntreCarritos,
+  copiarArticulosDeUnCarritoExisenteAUnoNuevo
 };

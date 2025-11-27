@@ -1,4 +1,4 @@
-const { obtenerCategorias, buscarProductos, obtenerDetalleProducto, agregarAlCarrito, agregarVariosArticulosAlCarrito, crearNuevoCarrito, crearNuevoCarritoConVariosArticulos, obtenerCarritosDisponibles, verCarrito, crearOrden, cancelarCarrito, generarPdf, copiarArticulosEntreCarritos } = require('../utils/crm');
+const { obtenerCategorias, buscarProductos, obtenerDetalleProducto, agregarAlCarrito, agregarVariosArticulosAlCarrito, crearNuevoCarrito, crearNuevoCarritoConVariosArticulos, obtenerCarritosDisponibles, verCarrito, crearOrden, cancelarCarrito, generarPdf, copiarArticulosEntreCarritos, copiarArticulosDeUnCarritoExisenteAUnoNuevo } = require('../utils/crm');
 const { ejecutarBusquedaExterna } = require('../utils/busqueda_externa_service');
 const UserContext = require('../utils/userContext');
 
@@ -588,6 +588,50 @@ const functionDefinitions = [
         },
         strict: true
       }
+    },
+
+    {
+      type: "function",
+      function: {
+        name: "copiar_articulos_de_un_carrito_exisente_a_uno_nuevo",
+        description: "Copia artículos de un carrito origen a un carrito nuevo. Puede copiar todos los artículos del carrito o solo artículos específicos con cantidades personalizadas.",
+        parameters: {
+          type: "object",
+          properties: {
+            carrito_origen_id: {
+              type: "string",
+              description: "ID del carrito desde donde se copiarán los artículos"
+            },            
+            articulos_especificos: {
+              type: ["array", "null"],
+              description: "Lista de artículos específicos a copiar con sus cantidades. Si es null, se copian TODOS los artículos del carrito origen con sus cantidades originales",
+              items: {
+                type: "object",
+                properties: {
+                  articulo_id: {
+                    type: "integer",
+                    description: "ID del artículo a copiar"
+                  },
+                  cantidad: {
+                    type: ["integer", "null"],
+                    description: "Cantidad a copiar. Si es null, usa la cantidad del carrito origen"
+                  }
+                },
+                required: ["articulo_id", "cantidad"],
+                additionalProperties: false
+              }
+            },
+            modo_copia: {
+              type: "string",
+              description: "Modo de copia: 'todos' para copiar todos los artículos, 'especificos' para copiar solo los indicados en articulos_especificos",
+              enum: ["todos", "especificos"]
+            }
+          },
+          required: ["carrito_origen_id", "articulos_especificos", "modo_copia"],
+          additionalProperties: false
+        },
+        strict: true
+      }
     }
 
   ];
@@ -747,6 +791,13 @@ async function executeFunctionCall(name, args, userId) {
         return copiarArticulosEntreCarritos(
           args.carrito_origen_id,
           args.carrito_destino_id,
+          args.articulos_especificos,
+          args.modo_copia
+        );
+
+      case "copiar_articulos_de_un_carrito_exisente_a_uno_nuevo":
+        return copiarArticulosDeUnCarritoExisenteAUnoNuevo(
+          args.carrito_origen_id,          
           args.articulos_especificos,
           args.modo_copia
         );
