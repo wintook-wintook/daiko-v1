@@ -133,6 +133,8 @@ function extraerDatosWebhook(webhookData) {
           userContext
         });  
 
+console.log({obj: "chatwoot.js", Cliente});
+
       // Guardar nombre si lo proporciona
       if (Cliente.data.NOMBRE_COMERCIAL) {
         await userContext.setNombre(Cliente.data.NOMBRE_COMERCIAL);

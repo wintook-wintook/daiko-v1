@@ -103,7 +103,7 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
   }
 
   if(( (cliente_redis) && ( cliente_redis.default||true ) ) == true ){
-console.log({obj: "buscarcliente2", accion: "Se asino el cliente desde redis"});  
+console.log({obj: "buscarcliente2", accion: "Se asigno el cliente desde redis"});  
     vendedor_id = await cliente_redis.VENDEDOR_ID;
     cliente_id = cliente_redis.CLIENTE_ID;
     moneda_id = cliente_redis.MONEDA_ID || moneda_id; 
