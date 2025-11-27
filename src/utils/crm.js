@@ -828,11 +828,13 @@ async function copiarArticulosDeUnCarritoExisenteAUnoNuevo(carritoOrigenId, arti
     const resultado = await crearNuevoCarritoConVariosArticulos(articulosACopiar);
 
     if (resultado.success) {
+      let carritoDestinoId = resultado.carritoId;
       return {
         success: true,
         message: `Se copiaron ${articulosACopiar.length} artículo(s) del carrito ${carritoOrigenId} al carrito ${carritoDestinoId}`,
         data: {
-          carrito_origen_id: carritoOrigenId,          
+          carrito_origen_id: carritoOrigenId,     
+          carrito_destino_id: carritoDestinoId,     
           articulos_copiados: articulosACopiar.length,
           carrito_destino_actualizado: resultado.data
         }
