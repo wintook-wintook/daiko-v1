@@ -308,6 +308,51 @@ console.log({obj: "UserContext", contextStr});
     return true;
   }
 
+
+  // Reiniciar contexto a valores por defecto
+  async reset() {
+    // Estructura por defecto completa
+    const defaultContext = {
+      nombre_usuario: null,
+      cliente: {},
+      carrito_id: null,
+      folio: null,
+      ultima_categoria: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    const defaultPreferencias = {
+      categorias: [],
+      productos_vistos: [],
+      historial_busquedas: [],
+      rango_precio: { min: 0, max: 0, promedio: 0 },
+      marcas_interes: [],
+      etiquetas_interes: []
+    };
+
+    // Usar pipeline para eficiencia
+    const pipeline = redis.pipeline();
+    
+    // Establecer valores por defecto
+    for (const [key, value] of Object.entries(defaultContext)) {
+      if (typeof value === 'object' && value !== null) {
+        pipeline.hset(this.key, key, JSON.stringify(value));
+      } else {
+        pipeline.hset(this.key, key, value || '');
+      }
+    }
+    
+    // Establecer preferencias por defecto
+    pipeline.hset(this.key, 'preferencias', JSON.stringify(defaultPreferencias));
+    
+    // Establecer TTL
+    pipeline.expire(this.key, this.ttl);
+    
+    await pipeline.exec();
+    return true;
+  }
+
   // Extender TTL
   async keepAlive() {
     await redis.expire(this.key, this.ttl);
