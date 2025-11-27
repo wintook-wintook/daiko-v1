@@ -298,7 +298,7 @@ async function crearNuevoCarrito(productoId, cantidad) {
   
   try {
     const response = await getApiData(config);
-    evalError(response.data, 'Para la respuesta final, si en el siguiente mensaje hace mención de que le falte el vendedor, moneda o almacen, indica que los datos en CRM Kontrolya están incompletos y asegúrate de incluir en la respuesta el mensaje siguiente. Error: ');
+    evalError(response.data, 'Para la respuesta final, si en el siguiente mensaje hace mención de que le falte el vendedor, moneda o almacen, NO OMITAS INDICAR que los datos en CRM Kontrolya están incompletos y asegúrate de incluir en la respuesta lo siguiente. Error: ');
     if (response.data.error && response.data.error === true) {
       return response.data;
     }
@@ -329,7 +329,7 @@ async function crearNuevoCarritoConVariosArticulos(Productos) {
   let config = getConfigApiDaiko(`createCart/${cliente_id}`, data, 2);
   try {
     const response = await getApiData(config);
-    evalError(response.data, 'Para la respuesta final, si en el siguiente mensaje hace mención de que le falte el vendedor, moneda o almacen, indica que los datos en CRM Kontrolya están incompletos y asegúrate de incluir en la respuesta el mensaje siguiente. Error: ');
+    evalError(response.data, 'Para la respuesta final, si en el siguiente mensaje hace mención de que le falte el vendedor, moneda o almacen, NO OMITAS INDICAR que los datos en CRM Kontrolya están incompletos y asegúrate de incluir en la respuesta lo siguiente. Error: ');
     if (response.data.error && response.data.error === true) {
       return response.data;
     }
