@@ -165,6 +165,7 @@ console.log({obj: "buscarcliente2", accion: "Se realizó la busqueda del cliente
     cliente.default = true;
 
     await userContext.setCliente(cliente);
+    await userContext.setNombre(cliente.NOMBRE_COMERCIAL);
    
     vendedor_id = await cliente.VENDEDOR_ID;
     cliente_id = cliente.CLIENTE_ID;
