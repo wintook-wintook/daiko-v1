@@ -735,20 +735,7 @@ async function copiarArticulosEntreCarritos(carritoOrigenId, carritoDestinoId, a
         message: 'No hay artículos para copiar'
       };
     }
-/*
-    console.log({carritoOrigenId, carritoDestinoId, 
-      carritoOrigen: carritoOrigen.data.Carrito, 
-      carritoDestino: carritoDestino.data.Carrito, 
-      articulosACopiar: articulosACopiar,
-      articulosEspecificos, 
-      modoCopia
-    });    
-    
-    return {
-      success: false,
-      message: `El proceso actual se encuentra en desarrollo`
-    };
-*/    
+
 
     // 4. Agregar los artículos al carrito destino
     const resultado = await agregarVariosArticulosAlCarrito(carritoDestinoId, articulosACopiar);
