@@ -620,6 +620,8 @@ async function executeFunctionCall(name, args, userId) {
           preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
         };
       case "reiniciar":
+        await userContext.reset();
+        
         return {
           success: true,
           data: [],
