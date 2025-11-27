@@ -834,7 +834,8 @@ async function copiarArticulosDeUnCarritoExisenteAUnoNuevo(carritoOrigenId, arti
         message: `Se copiaron ${articulosACopiar.length} artículo(s) del carrito ${carritoOrigenId} al carrito ${carritoDestinoId}`,
         data: {
           carrito_origen_id: carritoOrigenId,     
-          carrito_destino_id: carritoDestinoId,     
+          carrito_destino_id: carritoDestinoId,
+          folio: resultado.folio,     
           articulos_copiados: articulosACopiar.length,
           carrito_destino_actualizado: resultado.data
         }
