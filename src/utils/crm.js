@@ -103,6 +103,11 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
   }
 
   if(( (cliente_redis) && ( cliente_redis.default||true ) ) == true ){
+console.log({});
+console.log({});
+console.log({obj: "buscarcliente2", acceso: "redis"});
+console.log({});
+console.log({});
 
     vendedor_id = await cliente_redis.VENDEDOR_ID;
     cliente_id = cliente_redis.CLIENTE_ID;
@@ -159,7 +164,11 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
     config = getConfigApiDaiko('', data, '', urlExtra);
 
     response = await getApiData(config);
-
+console.log({});
+console.log({});
+console.log({obj: "buscarcliente2", acceso: "BD"});
+console.log({});
+console.log({});
     let cliente = await response.data[0];
     cliente.default = true;
 
