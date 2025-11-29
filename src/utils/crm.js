@@ -105,7 +105,7 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
   if(( (cliente_redis) && ( cliente_redis.default||true ) ) == true ){
 console.log({});
 console.log({});
-console.log({obj: "buscarcliente2", acceso: "redis"});
+console.log({obj: "buscarcliente2", acceso: "redis", cliente_redis});
 console.log({});
 console.log({});
 
