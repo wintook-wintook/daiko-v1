@@ -311,17 +311,21 @@ console.log({obj: "UserContext", contextStr});
 
   // Reiniciar contexto a valores por defecto
   async reset() {
-    // Estructura por defecto completa
-    const defaultContext = {
-      nombre_usuario: null,
-      cliente: {},
-      carrito_id: null,
-      folio: null,
-      ultima_categoria: null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-
+    // Usar pipeline para eficiencia
+    const pipeline = redis.pipeline();
+    
+    // Eliminar campos relacionados con el carrito
+    pipeline.hdel(this.key, 'carrito_id');
+    pipeline.hdel(this.key, 'folio');
+    
+    // Establecer valores básicos
+    pipeline.hset(this.key, 'nombre_usuario', '');
+    pipeline.hset(this.key, 'cliente', JSON.stringify({}));
+    pipeline.hset(this.key, 'ultima_categoria', '');
+    pipeline.hset(this.key, 'created_at', new Date().toISOString());
+    pipeline.hset(this.key, 'updated_at', new Date().toISOString());
+    
+    // Establecer preferencias por defecto (estructura completa)
     const defaultPreferencias = {
       categorias: [],
       productos_vistos: [],
@@ -330,26 +334,15 @@ console.log({obj: "UserContext", contextStr});
       marcas_interes: [],
       etiquetas_interes: []
     };
-
-    // Usar pipeline para eficiencia
-    const pipeline = redis.pipeline();
-    
-    // Establecer valores por defecto
-    for (const [key, value] of Object.entries(defaultContext)) {
-      if (typeof value === 'object' && value !== null) {
-        pipeline.hset(this.key, key, JSON.stringify(value));
-      } else {
-        pipeline.hset(this.key, key, value || '');
-      }
-    }
-    
-    // Establecer preferencias por defecto
     pipeline.hset(this.key, 'preferencias', JSON.stringify(defaultPreferencias));
     
     // Establecer TTL
     pipeline.expire(this.key, this.ttl);
     
     await pipeline.exec();
+    
+    console.log(`✅ Contexto reiniciado para usuario ${this.userId}`);
+    
     return true;
   }
 
