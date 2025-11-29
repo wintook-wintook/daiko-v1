@@ -663,13 +663,13 @@ async function executeFunctionCall(name, args, userId) {
           preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
         };
       case "reiniciar":
-        await userContext.clear(); // await userContext.reset();
+        await userContext.reset();  // ← Llamar al reset
 
         return {
           success: true,
           data: [],
           message: `Claro, a partir de este momento inicia una conversación nueva`,
-          preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
+          preserveCurrentCart: false  // ❌ El carrito fue eliminado
         };
       case "obtener_categorias":
         return obtenerCategorias();
