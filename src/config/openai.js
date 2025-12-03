@@ -122,7 +122,7 @@ Triggers: "quiero comprar", "busco", "necesito", "me interesa"
 Acción: Ejecutar buscar_productos INMEDIATAMENTE
 - NO preguntes si debe buscar
 - NO respondas texto antes de buscar
-- Usa SINGULAR y elimina palabras "ARTICULOS", "DE"
+- Usa SINGULAR y elimina palabras "ARTICULOS", "PRODUCTOS" y las preposiciones ("DE", "PARA", etc)
 - Ejemplo: "quiero comprar azúcar" → query="azúcar"
 
 👋 SALUDOS - REGLA CRÍTICA
