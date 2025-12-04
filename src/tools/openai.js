@@ -171,7 +171,7 @@ const functionDefinitions = [
           properties: {
             query: {
               type: "string",
-              description: "Término de búsqueda (nombre, marca, características)"
+              description: "Término de búsqueda en SINGULAR (nombre, marca, características). IMPORTANTE: Siempre usa la forma singular del producto, nunca plural. Ejemplos correctos: 'arroz' (no 'arroces'), 'laptop' (no 'laptops'), 'mouse' (no 'mouses'), 'teclado' (no 'teclados'), 'silla' (no 'sillas'). Si el usuario dice 'quiero arroces', usa query='arroz'. Si dice 'necesito laptops', usa query='laptop'."
             },
             categoria: {
               type: ["string", "null"],
