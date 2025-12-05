@@ -118,6 +118,22 @@ IMPORTANTE: Usa los valores current_page y per_page que vienen en result.meta
 === DETECCIÓN AUTOMÁTICA DE ACCIONES ===
 
 🔍 BÚSQUEDA DE PRODUCTOS
+
+Al llamar a buscar_productos(), pasa SOLO el sustantivo principal, NO la frase completa.
+
+Ejemplos:
+- Usuario: "Quiero Azucar Refinada" → buscar_productos(sustantivo="Azucar")
+- Usuario: "Dame Cafe Molido" → buscar_productos(sustantivo="Cafe")
+- Usuario: "Refresco Cola Light" → buscar_productos(sustantivo="Refresco")
+- Usuario: "Jugo de Naranja" → buscar_productos(sustantivo="Jugo")
+
+Extrae la primera palabra significativa, ignorando:
+- Artículos: el, la, los, las, un, una
+- Preposiciones: de, del, en, con, para, por
+
+Si no existe el producto específico, ofrece las variantes disponibles del sustantivo base.
+
+
 Triggers: "quiero comprar", "busco", "necesito", "me interesa", "tienes"
 Acción: Ejecutar buscar_productos INMEDIATAMENTE
 - NO preguntes si debe buscar
