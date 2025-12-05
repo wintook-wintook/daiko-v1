@@ -165,13 +165,26 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "buscar_productos",
-        description: "Busca productos en el catálogo. Si no se especifica la página actual asignarle el valor de 1, si no se especifica la cantidad de productos a listar asigna la cantidad de 5, siempre y sin exepción debe de mostrar la información del artículo, como mínimo: precio, nombre, articulo_id, impuesto, unidad de venta",
+        description: `Busca productos en el catálogo
+
+        IMPORTANTE: Extrae SOLO el sustantivo (UNA palabra), NO la frase completa.
+            
+        Reglas de extracción:
+        - "Azucar Refinada" → pasar "Azucar"
+        - "Cafe Molido Gourmet" → pasar "Cafe"
+        - "Refresco Cola Light" → pasar "Refresco"
+        - "Jugo de Naranja Natural" → pasar "Jugo"
+        - "Pan Blanco de Caja" → pasar "Pan"
+        
+        La función buscará el producto genérico y retornará todas las variantes disponibles.
+
+        . Si no se especifica la página actual asignarle el valor de 1, si no se especifica la cantidad de productos a listar asigna la cantidad de 5, siempre y sin exepción debe de mostrar la información del artículo, como mínimo: precio, nombre, articulo_id, impuesto, unidad de venta`,
         parameters: {
           type: "object",
           properties: {
             query: {
               type: "string",
-              description: "Término de búsqueda en SINGULAR (nombre, marca, características). IMPORTANTE: Siempre usa la forma singular del producto, nunca plural. Ejemplos correctos: 'arroz' (no 'arroces'), 'laptop' (no 'laptops'), 'mouse' (no 'mouses'), 'teclado' (no 'teclados'), 'silla' (no 'sillas'). Si el usuario dice 'quiero arroces', usa query='arroz'. Si dice 'necesito laptops', usa query='laptop'."
+              description: "SOLO el sustantivo principal del producto (una palabra). Ejemplos: 'Azucar', 'Cafe', 'Refresco', 'Jugo', 'Pan'. Término de búsqueda en SINGULAR (nombre, marca, características). IMPORTANTE: Siempre usa la forma singular del producto, nunca plural. Ejemplos correctos: 'arroz' (no 'arroces'), 'laptop' (no 'laptops'), 'mouse' (no 'mouses'), 'teclado' (no 'teclados'), 'silla' (no 'sillas'). Si el usuario dice 'quiero arroces', usa query='arroz'. Si dice 'necesito laptops', usa query='laptop'."
             },
             categoria: {
               type: ["string", "null"],
