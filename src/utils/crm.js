@@ -205,13 +205,13 @@ async function obtenerCategorias() {
 }
   
 async function buscarProductos(query, categoria = null, etiquetas = null, precioMax = null, current_page=1, per_page=5) {
-  let data = { cliente_id: cliente_id, moneda_id: moneda_id, current_page, per_page };
-  //console.log({ln: 76, data}); 
+  let data = { cliente_id: cliente_id, moneda_id: moneda_id };
+  
   if (categoria) { data.categoria = categoria; }
   if (query) { data.query = query; }
   if (etiquetas && etiquetas.length > 0) { data.etiquetas = etiquetas; }
   data = JSON.stringify(data);
-  let url = `s`;
+  let url = `s`;  
   if (!categoria && (!etiquetas || etiquetas.length == 0)) { url = `Search/${query}`; }
   if (!query && (!etiquetas || etiquetas.length == 0)) { url = `ByCategory/${categoria}`; }
   if (!query && !categoria) { url = `ByLabels/`; }
@@ -222,7 +222,7 @@ async function buscarProductos(query, categoria = null, etiquetas = null, precio
     if (response.data.error && response.data.error === true) {
       return response.data;
     }
-    let productos  = await response.data.data; //response.data.productos;
+    let productos  = await response.data.data || response.data.productos;
     //console.log({productos, meta: response.data.meta});
 
     //for (const producto of productos) {
@@ -231,8 +231,12 @@ async function buscarProductos(query, categoria = null, etiquetas = null, precio
     return {
       success: true,
       data: productos,
-      length: productos.length,
-      pagina_actual: current_page,
+      meta: {
+        count: productos.length,
+        current_page: current_page,
+        per_page: per_page,
+        total_pages: Math.ceil(productos.length / per_page)
+      },
       message: `Encontré ${productos.length} productos que coinciden con tu búsqueda`,
       preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
     };
