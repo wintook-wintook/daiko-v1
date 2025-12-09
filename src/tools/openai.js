@@ -178,7 +178,7 @@ const functionDefinitions = [
         
         La función buscará el producto genérico y retornará todas las variantes disponibles.
 
-        . Si no se especifica la página actual asignarle el valor de 1, si no se especifica la cantidad de productos a listar asigna la cantidad de 5, siempre y sin exepción debe de mostrar la información del artículo, como mínimo: precio, nombre, articulo_id, impuesto, unidad de venta`,
+        . Siempre y sin exepción debe de mostrar la información del artículo, como mínimo: precio, nombre, articulo_id, impuesto, unidad de venta`,
         parameters: {
           type: "object",
           properties: {
