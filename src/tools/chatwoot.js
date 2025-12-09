@@ -123,6 +123,7 @@ function extraerDatosWebhook(webhookData) {
       
       // 1. Obtener contexto del usuario desde Redis
       const userContext = new UserContext(userId);
+      console.log({userContext});
       const contextStr = await userContext.toSystemContext();
 
       let Cliente = await buscarcliente2(url_crm_zeus, api_access_token, {
