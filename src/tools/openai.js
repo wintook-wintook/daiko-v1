@@ -718,7 +718,7 @@ async function executeFunctionCall(name, args, userId) {
         }
         
         // Guardar búsqueda en historial
-        await userContext.addBusqueda(args.query, resultado.data ? resultado.data.data || resultado.data.productos : []);
+        await userContext.addBusqueda(args.query, resultado.data || []);
         
         return resultado;
 
