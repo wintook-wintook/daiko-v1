@@ -271,7 +271,7 @@ class UserContext {
     
     if (prefs.historial_busquedas && prefs.historial_busquedas.length > 0) {
       const ultimasBusquedas = prefs.historial_busquedas.slice(-3);
-      contextStr += `- Búsquedas recientes: ${JSON.parse(ultimasBusquedas)}\\n`;
+      contextStr += `- Búsquedas recientes: ${JSON.stringify(ultimasBusquedas)}\\n`;
     }
     
     if (prefs.rango_precio && prefs.rango_precio.max_buscado > 0) {
