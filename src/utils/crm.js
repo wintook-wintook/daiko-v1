@@ -98,7 +98,7 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
 
   let contacto = [];
 
-  if(( (cliente_redis) && ( cliente_redis.CLIENTE_ID ) ) == true ){
+  if(cliente_redis && cliente_redis.CLIENTE_ID){
 
     vendedor_id = await cliente_redis.VENDEDOR_ID;
     cliente_id = cliente_redis.CLIENTE_ID;
