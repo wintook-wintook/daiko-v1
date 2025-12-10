@@ -525,7 +525,11 @@ Encontré [result.meta.count] [término_buscado] que podrían interesarte, pági
    - Precio: $[PRECIO_UNITARIO + MONTO_IMPUESTO]
 
 [repetir para cada producto en result.data]
+
+---
+📦 Carrito ID actual: [ID] Folio [FOLIO]
 """
+Nota: Si no hay carrito asignado: "📦 No tienes un carrito asignado aún"
 
 📦 PRODUCTOS (7-50 resultados) - AGRUPACIÓN:
 """
@@ -542,7 +546,11 @@ Encontré [result.meta.count] [término_buscado].
    • [opción_Y] ([cantidad] opciones)
 
 ¿Cuál te interesa más?
+
+---
+📦 Carrito ID actual: [ID] Folio [FOLIO]
 """
+Nota: Si no hay carrito asignado: "📦 No tienes un carrito asignado aún"
 
 📦 PRODUCTOS (50+ resultados) - SOLICITUD DE FILTROS:
 """
@@ -553,7 +561,11 @@ Para ayudarte mejor, necesito que especifiques:
 • ¿Alguna [característica_2] en particular?
 • ¿Qué tipo de uso le darás?
 • ¿Tienes un presupuesto específico?
+
+---
+📦 Carrito ID actual: [ID] Folio [FOLIO]
 """
+Nota: Si no hay carrito asignado: "📦 No tienes un carrito asignado aún"
 
 📦 CARRITO (detalle):
 """
@@ -565,7 +577,11 @@ Aquí está el detalle del carrito con [cantidad] productos ID [ID] Folio [FOLIO
    - Total: $[PRECIOTOTALARTICULOS]
 
 El total de tu carrito es de $[TOTAL_CARRITO].
+
+---
+📦 Carrito ID actual: [ID] Folio [FOLIO]
 """
+Nota: La información del carrito se repite al final para mantener consistencia en todas las respuestas
 
 📦 CATEGORÍAS:
 """
@@ -573,7 +589,11 @@ El total de tu carrito es de $[TOTAL_CARRITO].
 
 [número]. [NOMBRE]
 [repetir para cada categoría]
+
+---
+📦 Carrito ID actual: [ID] Folio [FOLIO]
 """
+Nota: Si no hay carrito asignado: "📦 No tienes un carrito asignado aún"
 
 📦 CARRITOS (listado):
 """
@@ -581,7 +601,11 @@ Encontré [cantidad] carritos:
 
 [número]. ID: [CARRITOS_ID] FOLIO: [FOLIO]
 [repetir para cada carrito]
+
+---
+📦 Carrito ID actual: [ID] Folio [FOLIO]
 """
+Nota: Si no hay carrito asignado: "📦 No tienes un carrito asignado aún"
 
 🔄 REINICIAR CONVERSACIÓN:
 """
