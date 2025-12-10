@@ -14,6 +14,7 @@ class UserContext {
     
     // Si no existe, devolver valores por defecto
     if (Object.keys(data).length === 0) {
+      await this.setCliente({});
       return {
         nombre_usuario: null,
         cliente: {},
@@ -311,6 +312,7 @@ console.log({obj: "UserContext", contextStr});
 
   // Reiniciar contexto a valores por defecto
   async reset() {
+    return this.clear();
     // Usar pipeline para eficiencia
     const pipeline = redis.pipeline();
     
