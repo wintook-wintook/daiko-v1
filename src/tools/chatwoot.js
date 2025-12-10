@@ -140,7 +140,7 @@ function extraerDatosWebhook(webhookData) {
       }
 
       // 2. Inyectar contexto en el system prompt
-      const systemPromptWithContext = systemPrompt + contextStr;
+      const systemPromptWithContext = systemPrompt; // + contextStr;
       
       // Obtener historial de conversación
       if (!conversations.has(userId)) {
@@ -148,7 +148,7 @@ function extraerDatosWebhook(webhookData) {
       }
       
       // const conversationHistory = conversations.get(userId);
-      const conversationHistory = await getMessages(webhookData.token, webhookData.account_id, webhookData.conversation_id);
+      const conversationHistory = await getMessages(webhookData.token, webhookData.account_id, webhookData.conversation_id, contextStr);
 
 /* // conversaciones de respuesta
       const conversationAssistants = conversationHistory.filter(conversation => conversation.role === 'assistant');
@@ -334,7 +334,7 @@ const getOPENAI_APIKEY = async (token, account_id) => {
 
 }
 
-const getMessages = async (token, account_id, conversation_id) => {
+const getMessages = async (token, account_id, conversation_id, contextStr) => {
   let url = `${urlWA}api/v1/accounts/${account_id}/conversations/${conversation_id}/messages`;
   console.log(url);
   let headers = {};
@@ -355,6 +355,11 @@ const getMessages = async (token, account_id, conversation_id) => {
       if (item.content.includes(fuenteWeb)) { addMessage = false; }
     }
     if (addMessage || true) {
+      if (idx == data.payload.length - 1) {
+        message.push({
+          role: 'assistant', content: contextStr
+        })
+      }
       messages.push({
         role: (item.message_type != 0 ? 'assistant' : 'user' ),
         content: item.content
