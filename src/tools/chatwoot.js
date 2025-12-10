@@ -356,7 +356,7 @@ const getMessages = async (token, account_id, conversation_id, contextStr) => {
     }
     if (addMessage || true) {
       if (idx == data.payload.length - 1) {
-        message.push({
+        messages.push({
           role: 'assistant', content: contextStr
         })
       }
