@@ -259,6 +259,10 @@ class UserContext {
     if (context.carrito_id) {
       contextStr += `- Carrito ID: ${context.carrito_id}\\n`;
     }
+    
+    if (context.folio) {
+      contextStr += `- Carrito FOLIO: ${context.folio}\\n`;
+    }
 
 
     if (prefs.categorias && prefs.categorias.length > 0) {
