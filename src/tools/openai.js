@@ -768,10 +768,9 @@ async function executeFunctionCall(name, args, userId) {
   
       case "crear_nuevo_carrito":
         const nuevoCarrito = await crearNuevoCarrito(args.producto_id, args.cantidad);
-      
+        console.log({nuevoCarrito});
         // Guardar carrito_id en Redis
-        if (nuevoCarrito.success && nuevoCarrito.carrito_id) {
-          console.log({nuevoCarrito});
+        if (nuevoCarrito.success && nuevoCarrito.carrito_id) {          
           await userContext.setCarrito(nuevoCarrito.carrito_id, nuevoCarrito.folio);
         }
         
@@ -786,8 +785,8 @@ async function executeFunctionCall(name, args, userId) {
       
       case "ver_carrito":
         const carrito = await verCarrito(args.carrito_id);
-        console.log({data: carrito.data.importeCarrito});
-        // await userContext.setCarrito(nuevoCarrito.carrito_id, nuevoCarrito.folio);
+        
+        await userContext.setCarrito(carrito.data.ID_CARRITO, carrito.data.FOLIO);
         return carrito;
 
       case "cancelar_carrito":
