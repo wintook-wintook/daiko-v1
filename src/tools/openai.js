@@ -460,6 +460,25 @@ const functionDefinitions = [
     {
       type: "function",
       function: {
+        name: "asignar_carrito",
+        description: "Asigna un carrito del usuario del cual se proporciona su identificador como asignado. Importante: cuando sea listado el carrito siempre sugierele al cliente lo siguiente: ¿Deseas agregar más productos o quieres continuar con el pedido?",
+        parameters: {
+          type: "object",
+          properties: {
+            carrito_id: {
+              type: "string",
+              description: "ID del carrito asignado"
+            }
+          },
+          required: ["carrito_id"],
+          additionalProperties: false
+        },
+        strict: true
+      }
+    },
+    {
+      type: "function",
+      function: {
         name: "cancelar_carrito",
         description: "Cancelar un carrito, se requiere contar con el identificador del carrito",
         parameters: {
@@ -786,6 +805,11 @@ async function executeFunctionCall(name, args, userId) {
       
       case "ver_carrito":
         return verCarrito(args.carrito_id);
+
+      case "asignar_carrito":
+        const carrito = await verCarrito(args.carrito_id);
+        console.log({carrito});
+        return carrito;
 
       case "cancelar_carrito":
         return cancelarCarrito(args.carrito_id);
