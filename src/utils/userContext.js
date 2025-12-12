@@ -198,8 +198,8 @@ class UserContext {
     });
     
     // Mantener últimas 15 búsquedas
-    if (prefs.historial_busquedas.length > 15) {
-      prefs.historial_busquedas = prefs.historial_busquedas.slice(-15);
+    if (prefs.historial_busquedas.length > 5) {
+      prefs.historial_busquedas = prefs.historial_busquedas.slice(-5);
     }
     
     await this.setPreferencias(prefs);
