@@ -795,7 +795,13 @@ async function executeFunctionCall(name, args, userId) {
         // return crearNuevoCarrito(args.producto_id, args.cantidad);
 
       case "crear_nuevo_carrito_con_varios_articulos":
-        return crearNuevoCarritoConVariosArticulos(args.productos);
+        const carritoN = await crearNuevoCarritoConVariosArticulos(args.productos);
+
+        if(carritoN.success){
+          await userContext.setCarrito(carritoN.carritoId, carritoN.folio);
+        }
+
+        return carritoN;
   
       case "obtener_carritos_disponibles":
         return obtenerCarritosDisponibles();
@@ -840,9 +846,10 @@ async function executeFunctionCall(name, args, userId) {
           args.articulos_especificos,
           args.modo_copia
         );
-        
-        console.log({carritoEN});
-        //await userContext.setCarrito(carritoA.data.importeCarrito.ID_CARRITO, carritoA.data.importeCarrito.FOLIO);
+
+        if(carritoEN.success){
+          await userContext.setCarrito(carritoEN.data.carrito_destino_id, carritoEN.data.folio);
+        }
 
         return carritoEN;
       
