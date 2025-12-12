@@ -257,11 +257,11 @@ class UserContext {
     }
     
     if (context.carrito_id) {
-      contextStr += `- Carrito ID: ${context.carrito_id}\\n`;
+      contextStr += `- Carrito asignado ID: ${context.carrito_id}\\n Toda acción de agregar, eliminar o modificar productos debe hacerse sobre este carrito sin preguntar.`;
     }
     
     if (context.folio) {
-      contextStr += `- Carrito FOLIO: ${context.folio}\\n`;
+      contextStr += `- Carrito asignado FOLIO: ${context.folio}\\n`;
     }
 
 
