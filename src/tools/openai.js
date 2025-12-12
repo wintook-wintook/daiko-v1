@@ -786,13 +786,11 @@ async function executeFunctionCall(name, args, userId) {
         return agregarAlCarrito(args.producto_id, args.cantidad, args.carrito_id, "update");
   
       case "crear_nuevo_carrito":
-        const nuevoCarrito = await crearNuevoCarrito(args.producto_id, args.cantidad);
-        console.log({nuevoCarrito});
+        const nuevoCarrito = await crearNuevoCarrito(args.producto_id, args.cantidad);        
         // Guardar carrito_id en Redis
-        if (nuevoCarrito.success && nuevoCarrito.carrito_id) {          
-          await userContext.setCarrito(nuevoCarrito.carrito_id, nuevoCarrito.folio);
-        }
-        
+        if (nuevoCarrito.success && nuevoCarrito.carritoId) {          
+          await userContext.setCarrito(nuevoCarrito.carritoId, nuevoCarrito.folio);
+        }        
         return nuevoCarrito;
         // return crearNuevoCarrito(args.producto_id, args.cantidad);
 
@@ -837,11 +835,16 @@ async function executeFunctionCall(name, args, userId) {
         );
 
       case "copiar_articulos_de_un_carrito_exisente_a_uno_nuevo":
-        return copiarArticulosDeUnCarritoExisenteAUnoNuevo(
+        const carritoEN = await copiarArticulosDeUnCarritoExisenteAUnoNuevo(
           args.carrito_origen_id,          
           args.articulos_especificos,
           args.modo_copia
         );
+        
+        console.log({carritoEN});
+        //await userContext.setCarrito(carritoA.data.importeCarrito.ID_CARRITO, carritoA.data.importeCarrito.FOLIO);
+
+        return carritoEN;
       
       default:
         return {
