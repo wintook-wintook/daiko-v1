@@ -785,7 +785,7 @@ async function executeFunctionCall(name, args, userId) {
       
       case "ver_carrito":
         const carrito = await verCarrito(args.carrito_id);
-console.log({ID_CARRITO: carrito.data.ID_CARRITO, FOLIO: carrito.data.FOLIO});        
+console.log({carrito, data: carrito.data, ID_CARRITO: carrito.data.ID_CARRITO, FOLIO: carrito.data.FOLIO});        
         await userContext.setCarrito(carrito.data.ID_CARRITO, carrito.data.FOLIO);
         return carrito;
 
