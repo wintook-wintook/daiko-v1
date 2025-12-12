@@ -239,8 +239,8 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "agregar_varios_articulos_al_carrito",
-        // description: "Este método agrega más de un producto en una sola ejecución a un carrito, se requiere contar con un carrito elegido, si no está elegido consulta la función obtener carritos disponibles, si al consultar la función obtener carritos disponibles no cuenta con almenos un carrito ejecuta la función crear nuevo carrito. Importante: cuando sea listado el carrito siempre sugierele al cliente lo siguiente: ¿Deseas agregar más productos o quieres continuar con el pedido?, una vez agregado el producto establece el carrito como elegido.",
-        description: "Agrega MÚLTIPLES productos al carrito en una sola operación. USA ESTA FUNCIÓN cuando el cliente quiera agregar 2 O MÁS PRODUCTOS AL MISMO TIEMPO. Ejemplos: 'agrégame los productos 101, 205 y 308', 'quiero llevar estos 5 productos', 'agrégame los primeros 3 de la lista'. Si solo es UN producto, usa 'agregar_al_carrito'. Se requiere contar con un carrito elegido, si no está elegido consulta la función obtener carritos disponibles primero. . Importante: cuando sea listado el carrito siempre sugierele al cliente lo siguiente: ¿Deseas agregar más productos o quieres continuar con el pedido?, una vez agregado el producto establece el carrito como elegido.",
+        // description: "Este método agrega más de un producto en una sola ejecución a un carrito, se requiere contar con un carrito elegido, si no está elegido consulta la función obtener carritos disponibles, si al consultar la función obtener carritos disponibles no cuenta con almenos un carrito ejecuta la función crear nuevo carrito., una vez agregado el producto establece el carrito como elegido.",
+        description: "Agrega MÚLTIPLES productos al carrito en una sola operación. USA ESTA FUNCIÓN cuando el cliente quiera agregar 2 O MÁS PRODUCTOS AL MISMO TIEMPO. Ejemplos: 'agrégame los productos 101, 205 y 308', 'quiero llevar estos 5 productos', 'agrégame los primeros 3 de la lista'. Si solo es UN producto, usa 'agregar_al_carrito'. Se requiere contar con un carrito elegido, si no está elegido consulta la función obtener carritos disponibles primero. ., una vez agregado el producto establece el carrito como elegido.",
         parameters: {
           type: "object",
           properties: {
@@ -280,8 +280,8 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "agregar_al_carrito",
-        // description: "Este método es solo para agregar un producto al carrito, se requiere contar con un carrito elegido, si no está elegido consulta la función obtener carritos disponibles, si al consultar la función obtener carritos disponibles no cuenta con almenos un carrito ejecuta la función crear nuevo carrito. Importante: cuando sea listado el carrito siempre sugierele al cliente lo siguiente: ¿Deseas agregar más productos o quieres continuar con el pedido?, una vez agregado el producto establece el carrito como elegido.",
-        description: "Agrega UN ÚNICO producto al carrito. USA ESTA FUNCIÓN SOLO cuando el cliente quiera agregar UN SOLO PRODUCTO. Si el cliente menciona varios productos, usa 'agregar_varios_articulos_al_carrito' en su lugar. Se requiere contar con un carrito elegido, si no está elegido consulta la función obtener carritos disponibles, si al consultar la función obtener carritos disponibles no cuenta con al menos un carrito ejecuta la función crear nuevo carrito. Importante: cuando sea listado el carrito siempre sugierele al cliente lo siguiente: ¿Deseas agregar más productos o quieres continuar con el pedido?, una vez agregado el producto establece el carrito como elegido.",
+        // description: "Este método es solo para agregar un producto al carrito, se requiere contar con un carrito elegido, si no está elegido consulta la función obtener carritos disponibles, si al consultar la función obtener carritos disponibles no cuenta con almenos un carrito ejecuta la función crear nuevo carrito., una vez agregado el producto establece el carrito como elegido.",
+        description: "Agrega UN ÚNICO producto al carrito. USA ESTA FUNCIÓN SOLO cuando el cliente quiera agregar UN SOLO PRODUCTO. Si el cliente menciona varios productos, usa 'agregar_varios_articulos_al_carrito' en su lugar. Se requiere contar con un carrito elegido, si no está elegido consulta la función obtener carritos disponibles, si al consultar la función obtener carritos disponibles no cuenta con al menos un carrito ejecuta la función crear nuevo carrito., una vez agregado el producto establece el carrito como elegido.",
         parameters: {
           type: "object",
           properties: {
@@ -312,7 +312,7 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "crear_nuevo_carrito_con_varios_articulos",
-        description: "Crea un carrito de productos con MÚLTIPLES productos en una sola operación. USA ESTA FUNCIÓN cuando el cliente quiera agregar 2 O MÁS PRODUCTOS AL MISMO TIEMPO. Ejemplos: 'agrégame los productos 101, 205 y 308', 'quiero llevar estos 5 productos', 'agrégame los primeros 3 de la lista'. Si solo es UN producto, usa 'crear_nuevo_carrito'. Importante: cuando sea listado el carrito siempre sugierele al cliente lo siguiente: ¿Deseas agregar más productos o quieres continuar con el pedido?",
+        description: "Crea un carrito de productos con MÚLTIPLES productos en una sola operación. USA ESTA FUNCIÓN cuando el cliente quiera agregar 2 O MÁS PRODUCTOS AL MISMO TIEMPO. Ejemplos: 'agrégame los productos 101, 205 y 308', 'quiero llevar estos 5 productos', 'agrégame los primeros 3 de la lista'. Si solo es UN producto, usa 'crear_nuevo_carrito'.",
         parameters: {
           type: "object",
           properties: {
@@ -351,7 +351,7 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "crear_nuevo_carrito",
-        description: "Crea un carrito con un producto, se requiere contar con el identificador del articulo y la cantidad. USA ESTA FUNCIÓN SOLO cuando el cliente quiera crear un carrito con UN SOLO PRODUCTO. Si el cliente menciona varios productos, usa 'agregar_varios_articulos_al_carrito' en su lugar. Importante: cuando sea listado el carrito siempre sugierele al cliente lo siguiente: ¿Deseas agregar más productos o quieres continuar con el pedido?",        
+        description: "Crea un carrito con un producto, se requiere contar con el identificador del articulo y la cantidad. USA ESTA FUNCIÓN SOLO cuando el cliente quiera crear un carrito con UN SOLO PRODUCTO. Si el cliente menciona varios productos, usa 'agregar_varios_articulos_al_carrito' en su lugar.",        
         parameters: {
           type: "object",
           properties: {
@@ -375,7 +375,7 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "remover_articulo_del_carrito",
-        description: "Remover un artículo del carrito, se requiere contar con un carrito elegido, si no está elegido consulta la función obtener carritos disponibles. Importante: cuando sea listado el carrito siempre sugierele al cliente lo siguiente: ¿Quieres continuar con el pedido?",
+        description: "Remover un artículo del carrito, se requiere contar con un carrito elegido, si no está elegido consulta la función obtener carritos disponibles.",
         parameters: {
           type: "object",
           properties: {
@@ -398,7 +398,7 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "actualizar_articulo_del_carrito",
-        description: "Actualiza las unidades de un artículo del carrito, se requiere contar con un carrito elegido, si no está elegido consulta la función obtener carritos disponibles. Importante: cuando sea listado el carrito siempre sugierele al cliente lo siguiente: ¿Quieres continuar con el pedido?",
+        description: "Actualiza las unidades de un artículo del carrito, se requiere contar con un carrito elegido, si no está elegido consulta la función obtener carritos disponibles.",
         parameters: {
           type: "object",
           properties: {
@@ -442,7 +442,7 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "ver_carrito",
-        description: "Muestra el contenido del carrito del usuario, no se requiere identificar el usuario para esta acción. Importante: cuando sea listado el carrito siempre sugierele al cliente lo siguiente: ¿Deseas agregar más productos o quieres continuar con el pedido?",
+        description: "Muestra el contenido del carrito del usuario, no se requiere identificar el usuario para esta acción.",
         parameters: {
           type: "object",
           properties: {
@@ -461,7 +461,7 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "asignar_carrito",
-        description: "Asigna un carrito como elegido. Importante: cuando sea listado el carrito siempre sugierele al cliente lo siguiente: ¿Deseas agregar más productos o quieres continuar con el pedido?",
+        description: "Asigna un carrito como elegido.",
         parameters: {
           type: "object",
           properties: {
