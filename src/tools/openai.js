@@ -771,6 +771,7 @@ async function executeFunctionCall(name, args, userId) {
       
         // Guardar carrito_id en Redis
         if (nuevoCarrito.success && nuevoCarrito.carrito_id) {
+          console.log({nuevoCarrito});
           await userContext.setCarrito(nuevoCarrito.carrito_id, nuevoCarrito.folio);
         }
         

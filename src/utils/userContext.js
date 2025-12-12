@@ -249,7 +249,12 @@ class UserContext {
   async toSystemContext() {
     const context = await this.get();
     const prefs = await this.getPreferencias();
-    
+console.log();
+console.log();
+console.log({context});    
+console.log();
+console.log();
+
     let contextStr = '\\n=== CONTEXTO DEL USUARIO ACTUAL ===\\n';
     
     if (context.nombre_usuario) {
