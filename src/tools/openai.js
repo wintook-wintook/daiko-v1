@@ -786,7 +786,8 @@ async function executeFunctionCall(name, args, userId) {
       
       case "ver_carrito":
         const carrito = await verCarrito(args.carrito_id);
-        console.log({carrito});
+        console.log({data: carrito.data.importeCarrito});
+        // await userContext.setCarrito(nuevoCarrito.carrito_id, nuevoCarrito.folio);
         return carrito;
 
       case "cancelar_carrito":
