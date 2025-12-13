@@ -257,12 +257,16 @@ class UserContext {
     }
     
     if (context.carrito_id) {
-      contextStr += `- Carrito asignado ID: ${context.carrito_id}\\n Toda acción de agregar, eliminar o modificar productos debe hacerse sobre este carrito sin preguntar.`;
+      contextStr += `- El usuario tiene un carrito activo con ID: ${context.carrito_id}\\n, FOLIO: ${context.folio}\\n Toda acción de agregar, eliminar o modificar productos debe hacerse sobre este carrito sin preguntar.`;
+    }else{
+      contextStr += `El usuario no tiene un carrito activo.\\n`;
     }
     
+    /*
     if (context.folio) {
       contextStr += `- Carrito asignado FOLIO: ${context.folio}\\n`;
     }
+    */
 
 
     if (prefs.categorias && prefs.categorias.length > 0) {
