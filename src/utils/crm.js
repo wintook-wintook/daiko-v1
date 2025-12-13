@@ -204,8 +204,8 @@ async function obtenerCategorias() {
   }
 }
   
-async function buscarProductos(query, categoria = null, etiquetas = null, precioMax = null, current_page=1, per_page=5) {
-  let data = { cliente_id: cliente_id, moneda_id: moneda_id };
+async function buscarProductos(query, categoria = null, etiquetas = null, precioMax = null, current_page=1, per_page=25) {
+  let data = { cliente_id: cliente_id, moneda_id: moneda_id, per_page };
   
   if (categoria) { data.categoria = categoria; }
   if (query) { data.query = query; }
