@@ -248,7 +248,7 @@ class UserContext {
   // ===============================                  
   async getHistorialBusquedas(query) {
     const prefs = await this.getPreferencias();
-    console.log({historial_busquedas: prefs.historial_busquedas.resultados});
+    console.log({historial_busquedas: prefs.historial_busquedas});
     // addBusqueda
     return [];
   }
