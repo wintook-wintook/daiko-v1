@@ -242,13 +242,17 @@ class UserContext {
     }
   }
 
-
+/*  
+  // ===============================
+  // ESTADO DE BÚSQUEDA ACTIVA  - 15 Dic 2025
+  // ===============================                  
   async getHistorialBusquedas(query) {
     const prefs = await this.getPreferencias();
     console.log({historial_busquedas: prefs.historial_busquedas});
     // addBusqueda
     return [];
   }
+*/
 
   // Generar contexto para system prompt
   async toSystemContext() {
@@ -313,7 +317,7 @@ class UserContext {
 console.log({obj: "UserContext", contextStr});
 
 
-
+/*
     // ===============================
     // ESTADO DE BÚSQUEDA ACTIVA  - 15 Dic 2025
     // ===============================
@@ -328,7 +332,7 @@ console.log({obj: "UserContext", contextStr});
     }
 
     // FIN ESTADO DE BÚSQUEDA ACTIVA 
-
+*/
 
     
     return contextStr;
@@ -379,7 +383,7 @@ console.log({obj: "UserContext", contextStr});
     return true;
   }
 
-
+/*
   // ===============================
   // BÚSQUEDA ACTIVA (PAGINACIÓN) - 15 Dic 2025
   // ===============================
@@ -399,7 +403,7 @@ console.log({obj: "UserContext", contextStr});
   }
 
   // FIN BÚSQUEDA ACTIVA (PAGINACIÓN)
-
+*/
 
   // Extender TTL
   async keepAlive() {
