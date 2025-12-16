@@ -65,7 +65,7 @@ const functionDefinitions = [
         strict: true
       }
     },
-/*    
+   
     {
       type: "function",
       function: {
@@ -96,7 +96,7 @@ const functionDefinitions = [
         strict: true
       }
     },
-*/
+
     {
       type: "function",
       function: {
@@ -770,7 +770,7 @@ async function executeFunctionCall(name, args, userId) {
         
         // Guardar búsqueda en historial
         await userContext.addBusqueda(args.query, resultado.data || []);
-/*
+
         // ===============================
         // ESTADO DE BÚSQUEDA ACTIVA  - 15 Dic 2025
         // ===============================                  
@@ -783,16 +783,19 @@ async function executeFunctionCall(name, args, userId) {
           mostrados: visibles.length
         });
         // FIN ESTADO DE BÚSQUEDA ACTIVA  - 15 Dic 2025
-*/        
+        
         return resultado;
 
         // return buscarProductos(args.query, args.categoria, args.etiquetas, args.precio_max, args.current_page, args.per_page);
 
-/*        
+      
       case "tienes_mas":
-        //const estado = await userContext.getBusquedaActiva();
-        //const productosTM = await userContext.getHistorialBusquedas(args.query);
-        
+        const estado = await userContext.getBusquedaActiva();
+        const productosTM = await userContext.getHistorialBusquedas(args.query);
+
+        console.log({productosTM});
+
+        /*
         const productosTM = await api.buscarProductos(estado.query);
         const inicio = estado.mostrados;
         const fin = inicio + 5;
@@ -803,9 +806,9 @@ async function executeFunctionCall(name, args, userId) {
           mostrados: estado.mostrados + visiblesTM.length
         });
         return resultado;
-        
-       return;
-*/
+        */
+       return [];
+
 
       case "obtener_detalle_producto":
         //return obtenerDetalleProducto(args.id);
