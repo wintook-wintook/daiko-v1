@@ -68,6 +68,36 @@ const functionDefinitions = [
     {
       type: "function",
       function: {
+        name: "tienes_mas",
+        description: `Obtener más productos del catlogo 
+
+        IMPORTANTE: Extrae SOLO el sustantivo (UNA palabra), NO la frase completa.
+            
+        Reglas de extracción:
+        - "Azucar Refinada" → pasar "Azucar"
+        - "Cafe Molido Gourmet" → pasar "Cafe"
+        - "Refresco Cola Light" → pasar "Refresco"
+        - "Jugo de Naranja Natural" → pasar "Jugo"
+        - "Pan Blanco de Caja" → pasar "Pan"
+        
+        La función buscará el producto genérico y retornará todas las variantes disponibles.`,
+        parameters: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "SOLO el sustantivo principal del producto (una palabra). Ejemplos: 'Azucar', 'Cafe', 'Refresco', 'Jugo', 'Pan'. Término de búsqueda en SINGULAR (nombre, marca, características). IMPORTANTE: Siempre usa la forma singular del producto, nunca plural. Ejemplos correctos: 'arroz' (no 'arroces'), 'laptop' (no 'laptops'), 'mouse' (no 'mouses'), 'teclado' (no 'teclados'), 'silla' (no 'sillas'). Si el usuario dice 'quiero arroces', usa query='arroz'. Si dice 'necesito laptops', usa query='laptop'."
+            },          
+          },
+          required: ["query"],
+          additionalProperties: false
+        },
+        strict: true
+      }
+    },
+    {
+      type: "function",
+      function: {
         name: "que_vendes",
         description: "Obtiene el catálogo de categorías de los artículos",
         parameters: {
@@ -738,11 +768,41 @@ async function executeFunctionCall(name, args, userId) {
         
         // Guardar búsqueda en historial
         await userContext.addBusqueda(args.query, resultado.data || []);
+
+        // ===============================
+        // ESTADO DE BÚSQUEDA ACTIVA  - 15 Dic 2025
+        // ===============================                  
+        let productos = resultado.data || [];
+        const LIMITE = 5;
+        const visibles = productos.slice(0, LIMITE);
+        await userContext.setBusquedaActiva({
+          query,
+          total_resultados: productos.length,
+          mostrados: visibles.length
+        });
+        // FIN ESTADO DE BÚSQUEDA ACTIVA  - 15 Dic 2025
         
         return resultado;
 
         // return buscarProductos(args.query, args.categoria, args.etiquetas, args.precio_max, args.current_page, args.per_page);
       
+      case "tienes_mas":
+        const estado = await userContext.getBusquedaActiva();
+        const productosTM = await userContext.getHistorialBusquedas(args.query);
+        /*
+        const productosTM = await api.buscarProductos(estado.query);
+        const inicio = estado.mostrados;
+        const fin = inicio + 5;
+        const visiblesTM = productosTM.slice(inicio, fin);
+        await userContext.setBusquedaActiva({
+          query: estado.query,
+          total_resultados: productosTM.length,
+          mostrados: estado.mostrados + visiblesTM.length
+        });
+        return resultado;
+        */
+
+
       case "obtener_detalle_producto":
         //return obtenerDetalleProducto(args.id);
         const detalle = await obtenerDetalleProducto(args.id);

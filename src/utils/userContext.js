@@ -243,7 +243,12 @@ class UserContext {
   }
 
 
-
+  async getHistorialBusquedas(query) {
+    const prefs = await this.getPreferencias();
+    console.log({historial_busquedas: prefs.historial_busquedas});
+    // addBusqueda
+    return [];
+  }
 
   // Generar contexto para system prompt
   async toSystemContext() {
@@ -307,6 +312,24 @@ class UserContext {
 
 console.log({obj: "UserContext", contextStr});
 
+
+
+    // ===============================
+    // ESTADO DE BÚSQUEDA ACTIVA  - 15 Dic 2025
+    // ===============================
+
+    const busquedaActiva = await this.getBusquedaActiva();
+    if (busquedaActiva) {
+      contextStr += `\nESTADO_BUSQUEDA:\n`;
+      contextStr += `query=${busquedaActiva.query}\n`;
+      contextStr += `total_resultados=${busquedaActiva.total_resultados}\n`;
+      contextStr += `mostrados=${busquedaActiva.mostrados}\n`;
+      contextStr += `offset=${busquedaActiva.offset}\n`;
+    }
+
+    // FIN ESTADO DE BÚSQUEDA ACTIVA 
+
+
     
     return contextStr;
   }
@@ -355,6 +378,28 @@ console.log({obj: "UserContext", contextStr});
     
     return true;
   }
+
+
+  // ===============================
+  // BÚSQUEDA ACTIVA (PAGINACIÓN) - 15 Dic 2025
+  // ===============================
+
+  async setBusquedaActiva(data) {
+    await redis.hset(this.key, 'busqueda_activa', JSON.stringify(data));
+    await redis.expire(this.key, this.ttl);
+  }
+
+  async getBusquedaActiva() {
+    const v = await redis.hget(this.key, 'busqueda_activa');
+    return v ? JSON.parse(v) : null;
+  }
+
+  async clearBusquedaActiva() {
+    await redis.hdel(this.key, 'busqueda_activa');
+  }
+
+  // FIN BÚSQUEDA ACTIVA (PAGINACIÓN)
+
 
   // Extender TTL
   async keepAlive() {
