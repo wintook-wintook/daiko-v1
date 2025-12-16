@@ -778,7 +778,7 @@ async function executeFunctionCall(name, args, userId) {
         const LIMITE = 5;
         const visibles = productos.slice(0, LIMITE);
         await userContext.setBusquedaActiva({
-          query,
+          query: args.query,
           total_resultados: productos.length,
           mostrados: visibles.length
         });
