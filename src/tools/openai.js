@@ -769,7 +769,7 @@ async function executeFunctionCall(name, args, userId) {
         }
         
         // Guardar búsqueda en historial
-        await userContext.addBusqueda(args.query, resultado.data || []);
+        await userContext.addBusqueda(args.query, { total_resultados: (resultado.data || []).length });
 
         // ===============================
         // ESTADO DE BÚSQUEDA ACTIVA  - 15 Dic 2025
@@ -791,24 +791,54 @@ async function executeFunctionCall(name, args, userId) {
       
       case "tienes_mas":
         const estado = await userContext.getBusquedaActiva();
-        const productosTM = await userContext.getHistorialBusquedas(args.query);
 
-        console.log({productosTM});
-
-        /*
-        const productosTM = await api.buscarProductos(estado.query);
+        // Si no hay una búsqueda activa, no se puede continuar
+        if (!estado || !estado.query) {
+          return {
+            success: false,
+            message: "No hay una búsqueda activa para mostrar más productos."
+          };
+        }
+      
+        // Volver a consultar la API (fuente de verdad)
+        const resultadoTM = await buscarProductos(
+          estado.query,
+          null,
+          null,
+          null,
+          1,
+          1000 // traer todo y paginar en memoria
+        );
+      
+        const productosTM = resultadoTM.data || [];
+        const total = productosTM.length;
+      
+        // Si ya no hay más productos
+        if (estado.mostrados >= total) {
+          return {
+            success: true,
+            data: [],
+            message: "No hay más productos disponibles para esta búsqueda."
+          };
+        }
+      
+        const LIMITETM = 5;
         const inicio = estado.mostrados;
-        const fin = inicio + 5;
+        const fin = inicio + LIMITETM;
+      
         const visiblesTM = productosTM.slice(inicio, fin);
+      
+        // Actualizar estado de búsqueda activa
         await userContext.setBusquedaActiva({
           query: estado.query,
-          total_resultados: productosTM.length,
-          mostrados: estado.mostrados + visiblesTM.length
+          total_resultados: total,
+          mostrados: estado.mostrados + visibles.length
         });
-        return resultado;
-        */
-       return [];
-
+      
+        return {
+          success: true,
+          data: visiblesTM
+        };
 
       case "obtener_detalle_producto":
         //return obtenerDetalleProducto(args.id);

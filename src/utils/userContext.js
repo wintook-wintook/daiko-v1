@@ -243,15 +243,6 @@ class UserContext {
   }
 
   
-  // ===============================
-  // ESTADO DE BÚSQUEDA ACTIVA  - 15 Dic 2025
-  // ===============================                  
-  async getHistorialBusquedas(query) {
-    const prefs = await this.getPreferencias();
-    console.log({historial_busquedas: prefs.historial_busquedas});
-    // addBusqueda
-    return [];
-  }
 
 
   // Generar contexto para system prompt
