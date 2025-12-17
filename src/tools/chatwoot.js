@@ -11,8 +11,8 @@ const carts = new Map(); // userId -> cart items
 const orders = new Map(); // orderId -> order details
 const conversations = new Map(); // userId -> conversation history
 
-const { openaiConfig, systemPrompt } = require('../config/openai');
-const { functionDefinitions, executeFunctionCall } = require('../tools/openai');
+const { openaiConfig, systemPrompt } = require('../config/openai_prompt');
+const { functionDefinitions, executeFunctionCall } = require('../tools/openai_tools');
 const {buscarcliente, buscarcliente2} = require('../utils/crm');
 const { getApiData } = require('../utils/functions');
 let urlWA = process.env.CHATWOOT_URL; // 'https://app.chatzeus.com/';

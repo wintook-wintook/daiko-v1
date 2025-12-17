@@ -8,8 +8,8 @@ const carts = new Map(); // userId -> cart items
 const orders = new Map(); // orderId -> order details
 const conversations = new Map(); // userId -> conversation history
 
-const { openai, openaiConfig, systemPrompt } = require('../config/openai');
-const { functionDefinitions, executeFunctionCall } = require('../tools/openai');
+const { openai, openaiConfig, systemPrompt } = require('../config/openai_prompt');
+const { functionDefinitions, executeFunctionCall } = require('../tools/openai_tools');
 
 async function enviarMensajeTelegram(chatId, texto, opciones = {}) {
     try {
