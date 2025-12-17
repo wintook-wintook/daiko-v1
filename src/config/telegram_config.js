@@ -1,4 +1,4 @@
-// daiko/src/config/telegram.js
+// daiko/src/config/telegram_config.js
 
 require('dotenv').config();
 

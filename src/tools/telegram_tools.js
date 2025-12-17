@@ -1,7 +1,7 @@
-// daiko/src/tools/telegram.js
+// daiko/src/tools/telegram_tools.js
 
 const axios = require('axios');
-const { TELEGRAM_BOT_TOKEN, TELEGRAM_API_URL } = require('../config/telegram');
+const { TELEGRAM_BOT_TOKEN, TELEGRAM_API_URL } = require('../config/telegram_config');
 const {buscarcliente} = require('../utils/crm');
 
 const carts = new Map(); // userId -> cart items

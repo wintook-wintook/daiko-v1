@@ -3,13 +3,13 @@
 const express = require("express");
 const app = express();
 
-const { TELEGRAM_BOT_TOKEN, TELEGRAM_API_URL } = require("../config/telegram");
+const { TELEGRAM_BOT_TOKEN, TELEGRAM_API_URL } = require("../config/telegram_config");
 const {
   procesarMensajeTelegram,
   configurarWebhookTelegram,
   obtenerInfoBot,
   enviarMensajeTelegram,
-} = require("../tools/telegram");
+} = require("../tools/telegram_tools");
 // DEV0001 Integracion Whatsapp - 24 oct -Ini
 //const { extraerDatosWebhook, procesarMensajeWebhook, enviarMensajeWebhook } = require('../tools/chatwoot');
 const {
