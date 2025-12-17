@@ -774,17 +774,58 @@ async function executeFunctionCall(name, args, userId) {
         // ===============================
         // ESTADO DE BÚSQUEDA ACTIVA  - 15 Dic 2025
         // ===============================                  
-        let productos = resultado.data || [];
+        const productosApi = resultado.data || [];
+
+        /**
+         * NORMALIZACIÓN ESTRICTA
+         * El LLM SOLO puede ver estos campos.
+         * Si ARTICULO_ID no existe, el producto NO pasa.
+         */
+        const productosNormalizados = productosApi
+          .map(p => ({
+            ARTICULO_ID: p.ARTICULO_ID,
+            NOMBRE: p.NOMBRE,
+            PRECIO: p.PRECIO
+          }))
+          .filter(p =>
+            p.ARTICULO_ID !== undefined &&
+            p.ARTICULO_ID !== null &&
+            p.NOMBRE &&
+            p.PRECIO !== undefined
+          );
+        
+        if (!productosNormalizados.length) {
+          return {
+            success: true,
+            data: [],
+            message: "No encontré productos disponibles para esta búsqueda."
+          };
+        }
+        
+        /**
+         * CONTROL DE LISTADO (ejemplo: 5)
+         * Mantén tu límite actual si ya existe.
+         */
         const LIMITE = 5;
-        const visibles = productos.slice(0, LIMITE);
+        const visibles = productosNormalizados.slice(0, LIMITE);
+        
+        /**
+         * ESTADO DE BÚSQUEDA (NO CACHE DE PRODUCTOS)
+         */
         await userContext.setBusquedaActiva({
           query: args.query,
-          total_resultados: productos.length,
+          total_resultados: productosNormalizados.length,
           mostrados: visibles.length
         });
-        // FIN ESTADO DE BÚSQUEDA ACTIVA  - 15 Dic 2025
         
-        return resultado;
+        /**
+         * DEVOLVER SOLO DATA REAL
+         * El LLM NO puede inventar nada aquí.
+         */
+        return {
+          success: true,
+          data: visibles
+        };
 
         // return buscarProductos(args.query, args.categoria, args.etiquetas, args.precio_max, args.current_page, args.per_page);
 
