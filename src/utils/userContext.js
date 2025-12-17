@@ -278,10 +278,12 @@ class UserContext {
       contextStr += `- Últimos productos vistos: ${ultimosVistos.map(p => p.nombre).join(', ')}\\n`;
     }
     
+    /*
     if (prefs.historial_busquedas && prefs.historial_busquedas.length > 0) {
       const ultimasBusquedas = prefs.historial_busquedas.slice(-3);
       contextStr += `- Búsquedas recientes: ${JSON.stringify(ultimasBusquedas)}\\n`;
     }
+    */
     
     if (prefs.rango_precio && prefs.rango_precio.max_buscado > 0) {
       contextStr += `- Rango de precio típico: $${prefs.rango_precio.min_buscado}-$${prefs.rango_precio.max_buscado}\\n`;
