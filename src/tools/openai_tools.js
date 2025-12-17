@@ -72,24 +72,13 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "tienes_mas",
-        description: `Obtener más productos del catlogo 
-
-        IMPORTANTE: Extrae SOLO el sustantivo (UNA palabra), NO la frase completa.
-            
-        Reglas de extracción:
-        - "Azucar Refinada" → pasar "Azucar"
-        - "Cafe Molido Gourmet" → pasar "Cafe"
-        - "Refresco Cola Light" → pasar "Refresco"
-        - "Jugo de Naranja Natural" → pasar "Jugo"
-        - "Pan Blanco de Caja" → pasar "Pan"
-        
-        La función buscará el producto genérico y retornará todas las variantes disponibles.`,
+        description: "Obtener más productos del catlogo",
         parameters: {
           type: "object",
           properties: {
             query: {
               type: "string",
-              description: "SOLO el sustantivo principal del producto (una palabra). Ejemplos: 'Azucar', 'Cafe', 'Refresco', 'Jugo', 'Pan'. Término de búsqueda en SINGULAR (nombre, marca, características). IMPORTANTE: Siempre usa la forma singular del producto, nunca plural. Ejemplos correctos: 'arroz' (no 'arroces'), 'laptop' (no 'laptops'), 'mouse' (no 'mouses'), 'teclado' (no 'teclados'), 'silla' (no 'sillas'). Si el usuario dice 'quiero arroces', usa query='arroz'. Si dice 'necesito laptops', usa query='laptop'."
+              description: "Término de búsqueda"
             },          
           },
           required: ["query"],
@@ -141,7 +130,7 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "seleccionar_categoria",
-        description: "Obtiene productos de una categoría especificada, si no se especifica la página actual asignarle el valor de 1, si no se especifica la cantidad de productos a listar asigna la cantidad de 5",
+        description: "Obtiene productos de una categoría especificada",
         parameters: {
           type: "object",
           properties: {
@@ -168,7 +157,7 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "buscar_por_etiquetas",
-        description: "Busca productos específicamente por etiquetas o tags. Útil cuando el cliente busca productos con características específicas como 'productos en oferta', 'nuevos productos', 'más vendidos', etc., si no se especifica la página actual asignarle el valor de 1, si no se especifica la cantidad de productos a listar asigna la cantidad de 5",
+        description: "Busca productos específicamente por etiquetas o tags",
         parameters: {
           type: "object",
           properties: {
@@ -199,34 +188,21 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "buscar_productos",
-        description: `Busca productos en el catálogo
-
-        IMPORTANTE: Extrae SOLO el sustantivo (UNA palabra), NO la frase completa.
-            
-        Reglas de extracción:
-        - "Azucar Refinada" → pasar "Azucar"
-        - "Cafe Molido Gourmet" → pasar "Cafe"
-        - "Refresco Cola Light" → pasar "Refresco"
-        - "Jugo de Naranja Natural" → pasar "Jugo"
-        - "Pan Blanco de Caja" → pasar "Pan"
-        
-        La función buscará el producto genérico y retornará todas las variantes disponibles.
-
-        . Siempre y sin exepción debe de mostrar la información del artículo, como mínimo: precio, nombre, articulo_id, impuesto, unidad de venta`,
+        description: "Busca productos en el catálogo",
         parameters: {
           type: "object",
           properties: {
             query: {
               type: "string",
-              description: "SOLO el sustantivo principal del producto (una palabra). Ejemplos: 'Azucar', 'Cafe', 'Refresco', 'Jugo', 'Pan'. Término de búsqueda en SINGULAR (nombre, marca, características). IMPORTANTE: Siempre usa la forma singular del producto, nunca plural. Ejemplos correctos: 'arroz' (no 'arroces'), 'laptop' (no 'laptops'), 'mouse' (no 'mouses'), 'teclado' (no 'teclados'), 'silla' (no 'sillas'). Si el usuario dice 'quiero arroces', usa query='arroz'. Si dice 'necesito laptops', usa query='laptop'."
+              description: "Término de búsqueda en SINGULAR"
             },
             categoria: {
               type: ["string", "null"],
-              description: "Categoría específica para filtrar productos (ej: ['muebles', 'farmacia'])"
+              description: "Categoría específica para filtrar productos"
             },
             etiquetas: {
               type: ["array", "null"],
-              description: "Lista de etiquetas para filtrar productos (ej: ['oferta', 'nuevo', 'destacado'])",
+              description: "Lista de etiquetas para filtrar productos",
               items: {
                 type: "string"
               }
@@ -250,31 +226,11 @@ const functionDefinitions = [
         strict: true
       }
     },
-    // {
-    //   type: "function",
-    //   function: {
-    //     name: "obtener_detalle_producto",
-    //     description: "Obtiene información detallada de un producto específico, siempre y sin exepción debe de mostrar la información del artículo, como mínimo: precio, nombre, articulo_id, impuesto, unidad de venta",
-    //     parameters: {
-    //       type: "object",
-    //       properties: {
-    //         id: {
-    //           type: "number",
-    //           description: "ID único del producto"
-    //         }
-    //       },
-    //       required: ["id"],
-    //       additionalProperties: false
-    //     },
-    //     strict: true
-    //   }
-    // },
     {
       type: "function",
       function: {
         name: "agregar_varios_articulos_al_carrito",
-        // description: "Este método agrega más de un producto en una sola ejecución a un carrito, se requiere contar con un carrito elegido, si no está elegido consulta la función obtener carritos disponibles, si al consultar la función obtener carritos disponibles no cuenta con almenos un carrito ejecuta la función crear nuevo carrito., una vez agregado el producto establece el carrito como elegido.",
-        description: "Agrega MÚLTIPLES productos al carrito en una sola operación. USA ESTA FUNCIÓN cuando el cliente quiera agregar 2 O MÁS PRODUCTOS AL MISMO TIEMPO. Ejemplos: 'agrégame los productos 101, 205 y 308', 'quiero llevar estos 5 productos', 'agrégame los primeros 3 de la lista'. Si solo es UN producto, usa 'agregar_al_carrito'. Se requiere contar con un carrito elegido, si no está elegido consulta la función obtener carritos disponibles primero. ., una vez agregado el producto establece el carrito como elegido.",
+        description: "Agrega MÚLTIPLES productos al carrito en una sola operación",
         parameters: {
           type: "object",
           properties: {
@@ -314,8 +270,7 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "agregar_al_carrito",
-        // description: "Este método es solo para agregar un producto al carrito, se requiere contar con un carrito elegido, si no está elegido consulta la función obtener carritos disponibles, si al consultar la función obtener carritos disponibles no cuenta con almenos un carrito ejecuta la función crear nuevo carrito., una vez agregado el producto establece el carrito como elegido.",
-        description: "Agrega UN ÚNICO producto al carrito. USA ESTA FUNCIÓN SOLO cuando el cliente quiera agregar UN SOLO PRODUCTO. Si el cliente menciona varios productos, usa 'agregar_varios_articulos_al_carrito' en su lugar. Se requiere contar con un carrito elegido, si no está elegido consulta la función obtener carritos disponibles, si al consultar la función obtener carritos disponibles no cuenta con al menos un carrito ejecuta la función crear nuevo carrito., una vez agregado el producto establece el carrito como elegido.",
+        description: "Agrega UN ÚNICO producto al carrito",
         parameters: {
           type: "object",
           properties: {
@@ -339,14 +294,11 @@ const functionDefinitions = [
         strict: true
       }
     },
-    
-
-
     {
       type: "function",
       function: {
         name: "crear_nuevo_carrito_con_varios_articulos",
-        description: "Crea un carrito de productos con MÚLTIPLES productos en una sola operación. USA ESTA FUNCIÓN cuando el cliente quiera agregar 2 O MÁS PRODUCTOS AL MISMO TIEMPO. Ejemplos: 'agrégame los productos 101, 205 y 308', 'quiero llevar estos 5 productos', 'agrégame los primeros 3 de la lista'. Si solo es UN producto, usa 'crear_nuevo_carrito'.",
+        description: "Crea un carrito de productos con MÚLTIPLES productos en una sola operación",
         parameters: {
           type: "object",
           properties: {
@@ -378,14 +330,11 @@ const functionDefinitions = [
         strict: true
       }
     },
-    
-
-
     {
       type: "function",
       function: {
         name: "crear_nuevo_carrito",
-        description: "Crea un carrito con un producto, se requiere contar con el identificador del articulo y la cantidad. USA ESTA FUNCIÓN SOLO cuando el cliente quiera crear un carrito con UN SOLO PRODUCTO. Si el cliente menciona varios productos, usa 'agregar_varios_articulos_al_carrito' en su lugar.",        
+        description: "Crea un carrito con un producto",
         parameters: {
           type: "object",
           properties: {
@@ -409,7 +358,7 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "remover_articulo_del_carrito",
-        description: "Remover un artículo del carrito, se requiere contar con un carrito elegido, si no está elegido consulta la función obtener carritos disponibles.",
+        description: "Remover un artículo del carrito",
         parameters: {
           type: "object",
           properties: {
@@ -432,7 +381,7 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "actualizar_articulo_del_carrito",
-        description: "Actualiza las unidades de un artículo del carrito, se requiere contar con un carrito elegido, si no está elegido consulta la función obtener carritos disponibles.",
+        description: "Actualiza las unidades de un artículo del carrito",
         parameters: {
           type: "object",
           properties: {
@@ -476,7 +425,7 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "ver_carrito",
-        description: "Muestra el contenido del carrito del usuario, no se requiere identificar el usuario para esta acción.",
+        description: "Muestra el contenido del carrito del usuario",
         parameters: {
           type: "object",
           properties: {
@@ -495,7 +444,7 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "asignar_carrito",
-        description: "Asigna un carrito como elegido.",
+        description: "Asigna un carrito como elegido",
         parameters: {
           type: "object",
           properties: {
@@ -514,7 +463,7 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "cancelar_carrito",
-        description: "Cancelar un carrito, se requiere contar con el identificador del carrito",
+        description: "Cancelar un carrito",
         parameters: {
           type: "object",
           properties: {
@@ -529,12 +478,11 @@ const functionDefinitions = [
         strict: true
       }
     },
-
     {
       type: "function",
       function: {
         name: "generar_pdf",
-        description: "Crear PDF de un carrito proporcionado, se requiere contar con el identificador del carrito",
+        description: "Crear PDF de un carrito proporcionado",
         parameters: {
           type: "object",
           properties: {
@@ -549,12 +497,11 @@ const functionDefinitions = [
         strict: true
       }
     },
-
     {
       type: "function",
       function: {
-        name: "crear_orden", // 05Sep2025 Pedido en CRMZeus
-        description: "Crea una orden de compra con los productos del carritose requiere contar con un carrito elegido, si no está elegido el carrito consulta la función obtener carritos disponibles",
+        name: "crear_orden",
+        description: "Crea una orden de compra con los productos del carrito",
         parameters: {
           type: "object",
           properties: {
@@ -607,12 +554,11 @@ const functionDefinitions = [
         strict: true
       }
     },
-
     {
       type: "function",
       function: {
         name: "copiar_articulos_entre_carritos",
-        description: "Copia artículos de un carrito origen a un carrito destino. Puede copiar todos los artículos del carrito o solo artículos específicos con cantidades personalizadas.",
+        description: "Copia artículos de un carrito origen a un carrito destino",
         parameters: {
           type: "object",
           properties: {
@@ -626,7 +572,7 @@ const functionDefinitions = [
             },
             articulos_especificos: {
               type: ["array", "null"],
-              description: "Lista de artículos específicos a copiar con sus cantidades. Si es null, se copian TODOS los artículos del carrito origen con sus cantidades originales",
+              description: "Lista de artículos específicos a copiar con sus cantidades",
               items: {
                 type: "object",
                 properties: {
@@ -636,7 +582,7 @@ const functionDefinitions = [
                   },
                   cantidad: {
                     type: ["integer", "null"],
-                    description: "Cantidad a copiar. Si es null, usa la cantidad del carrito origen"
+                    description: "Cantidad a copiar"
                   }
                 },
                 required: ["articulo_id", "cantidad"],
@@ -645,7 +591,7 @@ const functionDefinitions = [
             },
             modo_copia: {
               type: "string",
-              description: "Modo de copia: 'todos' para copiar todos los artículos, 'especificos' para copiar solo los indicados en articulos_especificos",
+              description: "Modo de copia",
               enum: ["todos", "especificos"]
             }
           },
@@ -655,12 +601,11 @@ const functionDefinitions = [
         strict: true
       }
     },
-
     {
       type: "function",
       function: {
         name: "copiar_articulos_de_un_carrito_exisente_a_uno_nuevo",
-        description: "Copia artículos de un carrito origen a un carrito nuevo. Puede copiar todos los artículos del carrito o solo artículos específicos con cantidades personalizadas.",
+        description: "Copia artículos de un carrito origen a un carrito nuevo",
         parameters: {
           type: "object",
           properties: {
@@ -670,7 +615,7 @@ const functionDefinitions = [
             },            
             articulos_especificos: {
               type: ["array", "null"],
-              description: "Lista de artículos específicos a copiar con sus cantidades. Si es null, se copian TODOS los artículos del carrito origen con sus cantidades originales",
+              description: "Lista de artículos específicos a copiar",
               items: {
                 type: "object",
                 properties: {
@@ -680,7 +625,7 @@ const functionDefinitions = [
                   },
                   cantidad: {
                     type: ["integer", "null"],
-                    description: "Cantidad a copiar. Si es null, usa la cantidad del carrito origen"
+                    description: "Cantidad a copiar"
                   }
                 },
                 required: ["articulo_id", "cantidad"],
@@ -689,7 +634,7 @@ const functionDefinitions = [
             },
             modo_copia: {
               type: "string",
-              description: "Modo de copia: 'todos' para copiar todos los artículos, 'especificos' para copiar solo los indicados en articulos_especificos",
+              description: "Modo de copia",
               enum: ["todos", "especificos"]
             }
           },
@@ -699,8 +644,8 @@ const functionDefinitions = [
         strict: true
       }
     }
-
   ];
+
   
 // ===== ROUTER PARA MANEJAR FUNCTION CALLS =====
 async function executeFunctionCall(name, args, userId) {
@@ -711,13 +656,11 @@ async function executeFunctionCall(name, args, userId) {
     
     switch (name) {
       case "saludo":    
-      
         // Guardar nombre si lo proporciona
         if (args.nombre_usuario) {
           await userContext.setNombre(args.nombre_usuario);
         }
 
-        // Obtener nombre (podría ser de una conversación anterior)
         const nombreGuardado = await userContext.getNombre();
         const nombre = args.nombre_usuario || nombreGuardado;
         const nombrePersonalizado = nombre ? ` ${nombre}` : "";
@@ -726,32 +669,37 @@ async function executeFunctionCall(name, args, userId) {
           success: true,
           data: [],
           message: `¡Hola${nombrePersonalizado}! Soy tu asesor comercial y estoy aquí para ayudarte con tu proceso de compra. ¿En qué puedo asistirte hoy?`,
-          preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
+          preserveCurrentCart: true
         };
+        
       case "reiniciar":
-        //await userContext.clear();  // 
-        await userContext.reset();  // ← Llamar al reset
-
+        await userContext.reset();
         return {
           success: true,
           data: [],
           message: `Claro, a partir de este momento inicia una conversación nueva`,
-          preserveCurrentCart: false  // ❌ El carrito fue eliminado
+          preserveCurrentCart: false
         };
+        
       case "obtener_categorias":
         return obtenerCategorias();
+        
       case "que_vendes":
-        return obtenerCategorias();      
+        return obtenerCategorias();
+        
       case "que_me_puedes_ofrecer":
         return obtenerCategorias();
+        
       case "seleccionar_categoria": 
-        //await userContext.addPreferencia(args.category);     
         await userContext.addCategoria(args.category);     
-        return buscarProductos(args.query, args.category, args.etiquetas, args.precio_max, args.current_page, args.per_page);      
+        return buscarProductos(args.query, args.category, args.etiquetas, args.precio_max, args.current_page, args.per_page);
+        
       case "buscar_por_etiquetas":      
-        return buscarProductos(args.query, args.category, args.etiquetas, args.precio_max, args.current_page, args.per_page);      
+        return buscarProductos(args.query, args.category, args.etiquetas, args.precio_max, args.current_page, args.per_page);
+        
       case "buscar_productos":
-
+        console.log(`🔍 BÚSQUEDA DE PRODUCTOS - Query: "${args.query}"`);
+        
         const resultado = await buscarProductos(
           args.query, 
           args.categoria, 
@@ -760,6 +708,45 @@ async function executeFunctionCall(name, args, userId) {
           args.current_page, 
           args.per_page
         );
+        
+        console.log(`📊 RESULTADO DE BÚSQUEDA:`, {
+          success: resultado.success,
+          totalProductos: resultado.data?.length || 0,
+          mensaje: resultado.message
+        });
+        
+        // ✅ VALIDACIÓN CRÍTICA ADICIONAL
+        // Verificar que TODOS los productos tengan ARTICULO_ID válido
+        if (resultado.success && resultado.data && Array.isArray(resultado.data)) {
+          const productosConId = resultado.data.filter(p => 
+            p.ARTICULO_ID !== undefined && 
+            p.ARTICULO_ID !== null && 
+            p.ARTICULO_ID !== ''
+          );
+          
+          if (productosConId.length === 0) {
+            console.warn(`⚠️ ALERTA: Todos los productos fueron filtrados por falta de ARTICULO_ID`);
+            return {
+              success: false,
+              data: [],
+              message: "No encontré productos disponibles con información completa para esta búsqueda.",
+              preserveCurrentCart: true
+            };
+          }
+          
+          if (productosConId.length < resultado.data.length) {
+            console.warn(`⚠️ FILTRADOS ${resultado.data.length - productosConId.length} productos sin ARTICULO_ID`);
+          }
+          
+          // Log de productos válidos para debugging
+          console.log(`✅ Productos válidos con ID:`, productosConId.map(p => ({
+            id: p.ARTICULO_ID,
+            nombre: p.NOMBRE
+          })));
+          
+          // Actualizar resultado con solo productos válidos
+          resultado.data = productosConId;
+        }
         
         // Guardar preferencias
         if (args.categoria) {
@@ -771,18 +758,12 @@ async function executeFunctionCall(name, args, userId) {
         }
         
         // Guardar búsqueda en historial
-        await userContext.addBusqueda(args.query, { total_resultados: (resultado.data || []).length });
+        await userContext.addBusqueda(args.query, { 
+          total_resultados: (resultado.data || []).length 
+        });
 
-        // ===============================
-        // ESTADO DE BÚSQUEDA ACTIVA  - 15 Dic 2025
-        // ===============================                  
+        // Estado de búsqueda activa
         const productosApi = resultado.data || [];
-
-        /**
-         * NORMALIZACIÓN ESTRICTA
-         * El LLM SOLO puede ver estos campos.
-         * Si ARTICULO_ID no existe, el producto NO pasa.
-         */
         const productosNormalizados = productosApi
           .map(p => ({
             ARTICULO_ID: p.ARTICULO_ID,
@@ -797,71 +778,63 @@ async function executeFunctionCall(name, args, userId) {
           );
         
         if (!productosNormalizados.length) {
+          console.warn(`⚠️ No hay productos normalizados válidos después del segundo filtro`);
           return {
-            success: true,
+            success: false,
             data: [],
-            message: "No encontré productos disponibles para esta búsqueda."
+            message: "No encontré productos disponibles para esta búsqueda.",
+            preserveCurrentCart: true
           };
         }
         
-        /**
-         * CONTROL DE LISTADO (ejemplo: 5)
-         * Mantén tu límite actual si ya existe.
-         */
+        console.log(`✅ Productos normalizados finales: ${productosNormalizados.length}`);
+        
         const LIMITE = 5;
         const visibles = productosNormalizados.slice(0, LIMITE);
         
-        /**
-         * ESTADO DE BÚSQUEDA (NO CACHE DE PRODUCTOS)
-         */
+        console.log(`📋 Productos a mostrar al usuario: ${visibles.length}/${productosNormalizados.length}`);
+        
         await userContext.setBusquedaActiva({
           query: args.query,
           total_resultados: productosNormalizados.length,
           mostrados: visibles.length
         });
         
-        /**
-         * DEVOLVER SOLO DATA REAL
-         * El LLM NO puede inventar nada aquí.
-         */
         return {
           success: true,
-          data: visibles
+          data: visibles,
+          preserveCurrentCart: true
         };
-
-        // return buscarProductos(args.query, args.categoria, args.etiquetas, args.precio_max, args.current_page, args.per_page);
-
       
       case "tienes_mas":
         const estado = await userContext.getBusquedaActiva();
 
-        // Si no hay una búsqueda activa, no se puede continuar
         if (!estado || !estado.query) {
           return {
             success: false,
-            message: "No hay una búsqueda activa para mostrar más productos."
+            message: "No hay una búsqueda activa para mostrar más productos.",
+            preserveCurrentCart: true
           };
         }
       
-        // Volver a consultar la API (fuente de verdad)
         const resultadoTM = await buscarProductos(
           estado.query,
           null,
           null,
           null,
           1,
-          1000 // traer todo y paginar en memoria
+          1000
         );
       
         const productosTM = resultadoTM.data || [];
         const total = productosTM.length;
       
-        // Si ya no hay más productos
         if (estado.mostrados >= total) {
           return {
             success: true,
             data: [],
-            message: "No hay más productos disponibles para esta búsqueda."
+            message: "No hay más productos disponibles para esta búsqueda.",
+            preserveCurrentCart: true
           };
         }
       
@@ -871,7 +844,6 @@ async function executeFunctionCall(name, args, userId) {
       
         const visiblesTM = productosTM.slice(inicio, fin);
       
-        // Actualizar estado de búsqueda activa
         await userContext.setBusquedaActiva({
           query: estado.query,
           total_resultados: total,
@@ -880,21 +852,19 @@ async function executeFunctionCall(name, args, userId) {
       
         return {
           success: true,
-          data: visiblesTM
+          data: visiblesTM,
+          preserveCurrentCart: true
         };
 
       case "obtener_detalle_producto":
-        //return obtenerDetalleProducto(args.id);
         const detalle = await obtenerDetalleProducto(args.id);
       
-        // Registrar que vio este producto
         if (detalle.success) {
           await userContext.addProductoVisto(
             detalle.data.articulo_id, 
             detalle.data.nombre
           );
           
-          // Si tiene marca, agregarla
           if (detalle.data.marca) {
             await userContext.addMarca(detalle.data.marca);
           }
@@ -903,21 +873,20 @@ async function executeFunctionCall(name, args, userId) {
         return detalle;
 
       case "agregar_al_carrito":
-        // Obtener carrito actual de Redis si no se proporciona
         const carritoId = args.carrito_id || await userContext.getCarrito();
         
         if (!carritoId) {
           return {
             success: false,
-            message: "No tienes un carrito asignado. Primero crea uno."
+            message: "No tienes un carrito asignado. Primero crea uno.",
+            preserveCurrentCart: true
           };
         }
         
-        return await agregarAlCarrito(args.producto_id, args.cantidad, carritoId);        
-        // return agregarAlCarrito(args.producto_id, args.cantidad, args.carrito_id);
+        return await agregarAlCarrito(args.producto_id, args.cantidad, carritoId);
       
       case "agregar_varios_articulos_al_carrito":
-        return agregarVariosArticulosAlCarrito(args.carrito_id, args.productos);        
+        return agregarVariosArticulosAlCarrito(args.carrito_id, args.productos);
   
       case "remover_articulo_del_carrito":
         return agregarAlCarrito(args.producto_id, args.cantidad, args.carrito_id, "remove");
@@ -926,13 +895,13 @@ async function executeFunctionCall(name, args, userId) {
         return agregarAlCarrito(args.producto_id, args.cantidad, args.carrito_id, "update");
   
       case "crear_nuevo_carrito":
-        const nuevoCarrito = await crearNuevoCarrito(args.producto_id, args.cantidad);        
-        // Guardar carrito_id en Redis
+        const nuevoCarrito = await crearNuevoCarrito(args.producto_id, args.cantidad);
+        
         if (nuevoCarrito.success && nuevoCarrito.carritoId) {          
           await userContext.setCarrito(nuevoCarrito.carritoId, nuevoCarrito.folio);
-        }        
+        }
+        
         return nuevoCarrito;
-        // return crearNuevoCarrito(args.producto_id, args.cantidad);
 
       case "crear_nuevo_carrito_con_varios_articulos":
         const carritoN = await crearNuevoCarritoConVariosArticulos(args.productos);
@@ -948,14 +917,12 @@ async function executeFunctionCall(name, args, userId) {
       
       case "ver_carrito":
         const carrito = await verCarrito(args.carrito_id);
-        // await userContext.setCarrito(carrito.data.importeCarrito.ID_CARRITO, carrito.data.importeCarrito.FOLIO);
         return carrito;
 
       case "asignar_carrito":
         const carritoA = await verCarrito(args.carrito_id);
         await userContext.setCarrito(carritoA.data.importeCarrito.ID_CARRITO, carritoA.data.importeCarrito.FOLIO);
         return carritoA;
-        
 
       case "cancelar_carrito":
         return cancelarCarrito(args.carrito_id);
@@ -996,7 +963,8 @@ async function executeFunctionCall(name, args, userId) {
       default:
         return {
           success: false,
-          message: `Función ${name} no implementada`
+          message: `Función ${name} no implementada`,
+          preserveCurrentCart: true
         };
     }
   }
