@@ -338,7 +338,6 @@ console.log({obj: "UserContext", contextStr});
 
   // Reiniciar contexto a valores por defecto
   async reset() {
-    return this.clear();
     // Usar pipeline para eficiencia
     const pipeline = redis.pipeline();
     
