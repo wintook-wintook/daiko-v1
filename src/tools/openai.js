@@ -832,7 +832,7 @@ async function executeFunctionCall(name, args, userId) {
         await userContext.setBusquedaActiva({
           query: estado.query,
           total_resultados: total,
-          mostrados: estado.mostrados + visibles.length
+          mostrados: estado.mostrados + visiblesTM.length
         });
       
         return {
