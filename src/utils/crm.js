@@ -205,7 +205,81 @@ async function obtenerCategorias() {
     console.error('Error:', error.message);
   }
 }
+
   
+async function buscarProductos(query, categoria = null, etiquetas = null, precioMax = null, current_page=1, per_page=25) {
+  let data = { cliente_id: cliente_id, moneda_id: moneda_id, per_page };
+  
+  if (categoria) { data.categoria = categoria; }
+  if (query) { data.query = query; }
+  if (etiquetas && etiquetas.length > 0) { data.etiquetas = etiquetas; }
+  data = JSON.stringify(data);
+  let url = `s`;  
+  if (!categoria && (!etiquetas || etiquetas.length == 0)) { url = `Search/${query}`; }
+  if (!query && (!etiquetas || etiquetas.length == 0)) { url = `ByCategory/${categoria}`; }
+  if (!query && !categoria) { url = `ByLabels/`; }
+  let config = getConfigApiDaiko('getProduct' + url, data);
+  try {
+    const response = await getApiData(config);
+    evalError(response.data);
+    if (response.data.error && response.data.error === true) {
+      return response.data;
+    }
+    let productos  = await response.data.data || response.data.productos;
+    
+    // ✅ VALIDACIÓN CRÍTICA: Filtrar productos sin ARTICULO_ID
+    // Esto evita que el LLM invente IDs cuando la API no los proporciona
+    if (productos && Array.isArray(productos)) {
+      const productosOriginales = productos.length;
+      
+      productos = productos.filter(p => {
+        // Validar que el producto tenga ARTICULO_ID válido
+        const tieneId = p.ARTICULO_ID !== undefined && 
+                       p.ARTICULO_ID !== null && 
+                       p.ARTICULO_ID !== '';
+        
+        if (!tieneId) {
+          console.warn(`⚠️ Producto sin ARTICULO_ID filtrado:`, p.NOMBRE || 'Sin nombre');
+        }
+        
+        return tieneId;
+      });
+      
+      if (productosOriginales > productos.length) {
+        console.log(`📊 Filtrados ${productosOriginales - productos.length} productos sin ARTICULO_ID válido`);
+      }
+    }
+    
+    // Si después del filtro no quedan productos, retornar error
+    if (!productos || productos.length === 0) {
+      return {
+        success: false,
+        data: [],
+        message: "No se encontraron productos con IDs válidos para esta búsqueda",
+        preserveCurrentCart: true
+      };
+    }
+
+    return {
+      success: true,
+      data: productos,
+      meta: {
+        count: productos.length,
+        current_page: current_page,
+        per_page: per_page,
+        total_pages: Math.ceil(productos.length / per_page)
+      },
+      message: `Encontré ${productos.length} productos que coinciden con tu búsqueda`,
+      preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
+    };
+  } catch (error) {
+    console.error('Error:', error.message);
+    evalError(error)
+    return error;
+  }
+}
+
+/* // 17 Dic 2025 Codigo comentado
 async function buscarProductos(query, categoria = null, etiquetas = null, precioMax = null, current_page=1, per_page=25) {
   let data = { cliente_id: cliente_id, moneda_id: moneda_id, per_page };
   
@@ -248,6 +322,7 @@ async function buscarProductos(query, categoria = null, etiquetas = null, precio
     return error;
   }
 }
+*/
 
 async function obtenerDetalleProducto(id) {
   let data = JSON.stringify({ cliente_id: cliente_id, moneda_id: moneda_id });
