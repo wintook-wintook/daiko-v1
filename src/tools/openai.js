@@ -775,7 +775,7 @@ async function executeFunctionCall(name, args, userId) {
         // ESTADO DE BÚSQUEDA ACTIVA  - 15 Dic 2025
         // ===============================                  
         const productosApi = resultado.data || [];
-
+console.log({productosApi});
         /**
          * NORMALIZACIÓN ESTRICTA
          * El LLM SOLO puede ver estos campos.
