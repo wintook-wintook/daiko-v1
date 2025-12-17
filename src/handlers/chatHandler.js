@@ -1,3 +1,5 @@
+// daiko/src/handlers/chatHandler.js
+
 // handlers/chatHandler.js
 const OpenAI = require('openai');
 const { functionDefinitions, executeFunctionCall } = require('../openai');

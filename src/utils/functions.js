@@ -1,3 +1,5 @@
+// daiko/src/utils/functions.js
+
 const axios = require('axios');
 const maxRetries = 5
 let delay = (ms) => {

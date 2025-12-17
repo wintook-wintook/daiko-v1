@@ -1,3 +1,5 @@
+// daiko/src/tools/openai.js
+
 const { obtenerCategorias, buscarProductos, obtenerDetalleProducto, agregarAlCarrito, agregarVariosArticulosAlCarrito, crearNuevoCarrito, crearNuevoCarritoConVariosArticulos, obtenerCarritosDisponibles, verCarrito, crearOrden, cancelarCarrito, generarPdf, copiarArticulosEntreCarritos, copiarArticulosDeUnCarritoExisenteAUnoNuevo } = require('../utils/crm');
 const { ejecutarBusquedaExterna } = require('../utils/busqueda_externa_service');
 const UserContext = require('../utils/userContext');
@@ -775,7 +777,7 @@ async function executeFunctionCall(name, args, userId) {
         // ESTADO DE BÚSQUEDA ACTIVA  - 15 Dic 2025
         // ===============================                  
         const productosApi = resultado.data || [];
-console.log({productosApi});
+
         /**
          * NORMALIZACIÓN ESTRICTA
          * El LLM SOLO puede ver estos campos.

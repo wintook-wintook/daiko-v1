@@ -1,3 +1,5 @@
+// daiko/src/config/openai.js
+
 const OpenAI = require('openai');
 require('dotenv').config();
 

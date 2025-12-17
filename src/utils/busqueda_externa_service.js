@@ -1,3 +1,5 @@
+// daiko/src/utils/busqueda_externa_service.js
+
 const OpenAI = require('openai');
 require('dotenv').config();
 
