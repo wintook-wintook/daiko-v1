@@ -313,19 +313,26 @@ console.log({obj: "UserContext", contextStr});
 
 
     // ===============================
-    // ESTADO DE BÚSQUEDA ACTIVA  - 15 Dic 2025
+    // ESTADO DE BÚSQUEDA ACTIVA  - 18 Dic 2025
+    // SOLUCIÓN: Guardar estado en Redis PERO NO mostrarlo al LLM
     // ===============================
-    /*
+    
+    // ✅ SÍ obtener el estado (para uso interno de las funciones)
     const busquedaActiva = await this.getBusquedaActiva();
+    
+    // ❌ PERO NO agregarlo al contextStr que ve el LLM
+    // Esto evita que el LLM vea "total_resultados=55" y decida NO ejecutar funciones
+    
+    // Solo log para debugging (opcional)
     if (busquedaActiva) {
-      contextStr += `\nESTADO_BUSQUEDA:\n`;
-      contextStr += `query=${busquedaActiva.query}\n`;
-      contextStr += `total_resultados=${busquedaActiva.total_resultados}\n`;
-      contextStr += `mostrados=${busquedaActiva.mostrados}\n`;
-      contextStr += `offset=${busquedaActiva.offset}\n`;
+      console.log('🔍 Búsqueda activa (solo interno, NO visible al LLM):', {
+        query: busquedaActiva.query,
+        total: busquedaActiva.total_resultados,
+        mostrados: busquedaActiva.mostrados
+      });
     }
+    
     // FIN ESTADO DE BÚSQUEDA ACTIVA 
-    */
 
 
     
