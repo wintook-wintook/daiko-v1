@@ -315,7 +315,7 @@ console.log({obj: "UserContext", contextStr});
     // ===============================
     // ESTADO DE BÚSQUEDA ACTIVA  - 15 Dic 2025
     // ===============================
-/*
+    /*
     const busquedaActiva = await this.getBusquedaActiva();
     if (busquedaActiva) {
       contextStr += `\nESTADO_BUSQUEDA:\n`;
@@ -324,8 +324,8 @@ console.log({obj: "UserContext", contextStr});
       contextStr += `mostrados=${busquedaActiva.mostrados}\n`;
       contextStr += `offset=${busquedaActiva.offset}\n`;
     }
-*/
     // FIN ESTADO DE BÚSQUEDA ACTIVA 
+    */
 
 
     
