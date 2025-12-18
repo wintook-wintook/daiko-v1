@@ -72,16 +72,11 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "tienes_mas",
-        description: "Obtener más productos del catlogo",
+        description: "Muestra los SIGUIENTES productos de la búsqueda activa actual. USA ESTA FUNCIÓN OBLIGATORIAMENTE cuando el usuario pida: 'hay más', 'tienes más', 'muestra más', 'más opciones', 'siguiente', 'otros productos', 'ver más'. Esta función NO requiere parámetros porque lee automáticamente la búsqueda anterior del contexto. NUNCA uses buscar_productos cuando el usuario solo pide ver más de lo mismo.",
         parameters: {
           type: "object",
-          properties: {
-            query: {
-              type: "string",
-              description: "Término de búsqueda"
-            },          
-          },
-          required: ["query"],
+          properties: {},
+          required: [],
           additionalProperties: false
         },
         strict: true
@@ -807,15 +802,20 @@ async function executeFunctionCall(name, args, userId) {
         };
       
       case "tienes_mas":
+        console.log('📞 Ejecutando tienes_mas (mostrar siguientes productos)');
+        
         const estado = await userContext.getBusquedaActiva();
 
         if (!estado || !estado.query) {
+          console.warn('⚠️ tienes_mas: No hay búsqueda activa en el estado');
           return {
             success: false,
             message: "No hay una búsqueda activa para mostrar más productos.",
             preserveCurrentCart: true
           };
         }
+        
+        console.log(`🔍 tienes_mas: Continuando búsqueda "${estado.query}" desde producto ${estado.mostrados + 1}`);
       
         const resultadoTM = await buscarProductos(
           estado.query,

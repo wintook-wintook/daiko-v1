@@ -408,7 +408,7 @@ console.log({obj: "UserContext", contextStr});
   // Extender TTL
   async keepAlive() {
     await redis.expire(this.key, this.ttl);
-  }
+  } 
 }
 
 module.exports = UserContext;
