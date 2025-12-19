@@ -787,11 +787,14 @@ async function executeFunctionCall(name, args, userId) {
         const LIMITE = 5;
         const visibles = productosNormalizados.slice(0, LIMITE);
         
-        console.log(`📋 Productos a mostrar al usuario: ${visibles.length}/${productosNormalizados.length}`);
+        // ✅ Usar el count total de la API, no el length del array
+        const totalProductos = resultado.meta?.count || productosNormalizados.length;
+        
+        console.log(`📋 Productos a mostrar al usuario: ${visibles.length}/${totalProductos}`);
         
         await userContext.setBusquedaActiva({
           query: args.query,
-          total_resultados: productosNormalizados.length,
+          total_resultados: totalProductos,  // ✅ Total real de la API
           mostrados: visibles.length
         });
         
