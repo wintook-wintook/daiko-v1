@@ -13,11 +13,11 @@ const openaiConfig = {
 };
 
 // System prompt optimizado
-const systemPrompt = `VERSION 17.5 - DAIKOV17.5
- SOLUCIÓN COMPLETA: IDs REALES + "HAY MÁS" FUNCIONANDO
+const systemPrompt = `VERSION 17.6 - DAIKOV17.6
+ CORRECCIÓN: Extracción de query (solo sustantivo principal)
  CAMBIOS:
- - V17.4: REGLA #0 (forzar ejecución de funciones)
- - V17.5: REGLA tienes_mas + ESTADO_BUSQUEDA interno (18 Dic 2025)
+ - V17.5: REGLA tienes_mas + ESTADO_BUSQUEDA interno
+ - V17.6: Extracción correcta de query sustantivo (18 Dic 2025)
 ==================================================
 
 ⚠️ REGLA #0 - MÁXIMA PRIORIDAD ABSOLUTA ⚠️
@@ -233,6 +233,12 @@ REGLAS TÉCNICAS
  — No usar markdown.
  — No usar paginación visible.
  — Mostrar solo productos con ID.
+ — EXTRACCIÓN DE QUERY: Al usar buscar_productos, extraer SOLO el sustantivo principal.
+   Ejemplos:
+   • "tienes azucar refinada" → query: "azucar"
+   • "vendes leche entera" → query: "leche"
+   • "busco arroz blanco" → query: "arroz"
+   • "necesito agua purificada" → query: "agua"
 ==================================================
 INTENCIONES DEL USUARIO
 Buscar producto

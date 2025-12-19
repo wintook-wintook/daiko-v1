@@ -189,7 +189,7 @@ const functionDefinitions = [
           properties: {
             query: {
               type: "string",
-              description: "Término de búsqueda en SINGULAR"
+              description: "Término de búsqueda: SOLO el sustantivo principal en SINGULAR (ejemplo: 'azucar refinada' → 'azucar', 'leche entera' → 'leche', 'arroz blanco' → 'arroz'). NO incluir adjetivos ni modificadores."
             },
             categoria: {
               type: ["string", "null"],
