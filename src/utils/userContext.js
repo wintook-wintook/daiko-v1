@@ -355,6 +355,9 @@ console.log({obj: "UserContext", contextStr});
     pipeline.hdel(this.key, 'carrito_id');
     pipeline.hdel(this.key, 'folio');
     
+    // ✅ Eliminar búsqueda activa
+    pipeline.hdel(this.key, 'busqueda_activa');
+    
     // Establecer valores básicos
     pipeline.hset(this.key, 'nombre_usuario', '');
     pipeline.hset(this.key, 'cliente', JSON.stringify({}));
