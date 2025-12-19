@@ -830,7 +830,9 @@ async function executeFunctionCall(name, args, userId) {
         );
       
         const productosTM = resultadoTM.data || [];
-        const total = productosTM.length;
+        
+        // ✅ Usar el total del estado (que viene del meta.count original)
+        const total = estado.total_resultados;
       
         if (estado.mostrados >= total) {
           return {
@@ -847,9 +849,10 @@ async function executeFunctionCall(name, args, userId) {
       
         const visiblesTM = productosTM.slice(inicio, fin);
       
+        // ✅ Mantener el total_resultados del estado (NO sobrescribir)
         await userContext.setBusquedaActiva({
           query: estado.query,
-          total_resultados: total,
+          total_resultados: estado.total_resultados,  // ✅ Mantener el original
           mostrados: estado.mostrados + visiblesTM.length
         });
       
