@@ -859,6 +859,13 @@ async function executeFunctionCall(name, args, userId) {
         return {
           success: true,
           data: visiblesTM,
+          metadata: {
+            inicio_numeracion: inicio + 1,  // ✅ Número del primer producto
+            fin_numeracion: inicio + visiblesTM.length,  // ✅ Número del último producto
+            total_disponibles: total,
+            mostrados_hasta_ahora: estado.mostrados + visiblesTM.length
+          },
+          message: `Mostrando productos ${inicio + 1} al ${inicio + visiblesTM.length} de ${total} disponibles`,
           preserveCurrentCart: true
         };
 
