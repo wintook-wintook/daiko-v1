@@ -348,6 +348,8 @@ console.log({obj: "UserContext", contextStr});
 
   // Reiniciar contexto a valores por defecto
   async reset() {
+    console.log('🔄 EJECUTANDO RESET - Limpiando contexto completo');
+    
     // Usar pipeline para eficiencia
     const pipeline = redis.pipeline();
     
@@ -356,6 +358,7 @@ console.log({obj: "UserContext", contextStr});
     pipeline.hdel(this.key, 'folio');
     
     // ✅ Eliminar búsqueda activa
+    console.log('🗑️ Limpiando busqueda_activa de Redis');
     pipeline.hdel(this.key, 'busqueda_activa');
     
     // Establecer valores básicos
@@ -383,6 +386,10 @@ console.log({obj: "UserContext", contextStr});
     
     console.log(`✅ Contexto reiniciado para usuario ${this.userId}`);
     
+    // ✅ Verificar que se limpió
+    const estadoDespues = await this.getBusquedaActiva();
+    console.log('🔍 Estado después de reset:', estadoDespues);
+    
     return true;
   }
 
@@ -392,8 +399,10 @@ console.log({obj: "UserContext", contextStr});
   // ===============================
 
   async setBusquedaActiva(data) {
+    console.log(`💾 GUARDANDO búsqueda activa:`, data);
     await redis.hset(this.key, 'busqueda_activa', JSON.stringify(data));
     await redis.expire(this.key, this.ttl);
+    console.log(`✅ Búsqueda guardada en Redis para ${this.userId}`);
   }
 
   async getBusquedaActiva() {
