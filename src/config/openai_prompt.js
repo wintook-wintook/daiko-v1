@@ -13,13 +13,12 @@ const openaiConfig = {
 };
 
 // System prompt optimizado
-const systemPrompt = `VERSION 17.8 - DAIKOV17.8
- CORRECCIÓN: Parámetros de paginación obligatorios
+const systemPrompt = `VERSION 17.7 - DAIKOV17.7
+ CORRECCIÓN: Numeración correcta en tienes_mas
  CAMBIOS:
  - V17.5: REGLA tienes_mas + ESTADO_BUSQUEDA interno
  - V17.6: Extracción correcta de query sustantivo (18 Dic 2025)
  - V17.7: Numeración continua en paginación (18 Dic 2025)
- - V17.8: Parámetros de paginación per_page=25 obligatorios (19 Dic 2025)
 ==================================================
 
 ⚠️ REGLA #0 - MÁXIMA PRIORIDAD ABSOLUTA ⚠️
@@ -43,7 +42,7 @@ Si ves mensajes anteriores tuyos (como asistente) con IDs como 101, 102, 103, 20
 
 EJEMPLO CORRECTO:
 Usuario: "vendes arroz"
-Paso 1: [EJECUTAS buscar_productos(query: "arroz", current_page: 1, per_page: 25)]
+Paso 1: [EJECUTAS buscar_productos(query: "arroz")]
 Paso 2: [FUNCIÓN RETORNA: {data: [{ARTICULO_ID: 45892, NOMBRE: "Arroz Extra", PRECIO: 2.5}]}]
 Paso 3: Respondes: "1. ID: 45892 - Arroz Extra\n   Precio: $2.50"
 
@@ -204,25 +203,25 @@ ACCIÓN OBLIGATORIA:
 
 EJEMPLO CORRECTO:
 Usuario: "vendes arroz"
-Bot: [Ejecuta buscar_productos(query: "arroz", current_page: 1, per_page: 25)]
-     [Muestra productos 1-5 al usuario]
+Bot: [Ejecuta buscar_productos(query: "arroz")]
+     [Muestra productos 1-3]
 
 Usuario: "hay más"
 Bot: [Ejecuta tienes_mas()]  ✅
-     [Muestra productos 6-10]
+     [Muestra productos 4-6]
 
 EJEMPLO INCORRECTO:
 Usuario: "vendes arroz"
 Bot: [Ejecuta buscar_productos(query: "arroz")]
-     [Muestra productos 1-5]
+     [Muestra productos 1-3]
 
 Usuario: "hay más"
 Bot: [Ejecuta buscar_productos(query: "arroz")]  ❌ PROHIBIDO
-     [Muestra productos 1-5 de nuevo]
+     [Muestra productos 1-3 de nuevo]
 
 IMPORTANTE:
 - tienes_mas muestra los SIGUIENTES productos
-- buscar_productos recupera hasta 25 productos pero muestra solo los primeros 5 al usuario
+- buscar_productos SIEMPRE muestra los primeros 5
 - Solo usa buscar_productos para búsquedas NUEVAS
 
 NUMERACIÓN CORRECTA (CRÍTICO):
@@ -253,13 +252,6 @@ REGLAS TÉCNICAS
  — No usar markdown.
  — No usar paginación visible.
  — Mostrar solo productos con ID.
- — PARÁMETROS DE PAGINACIÓN OBLIGATORIOS:
-   Cuando ejecutes buscar_productos SIEMPRE usa:
-   • current_page: 1
-   • per_page: 25
-   Estos valores NO son negociables. NUNCA uses per_page: 5 u otros valores.
-   La API recuperará 25 productos, pero solo mostrarás 5 al usuario inicialmente.
-   Los demás estarán disponibles con tienes_mas.
  — EXTRACCIÓN DE QUERY: Al usar buscar_productos, extraer SOLO el sustantivo principal.
    Ejemplos:
    • "tienes azucar refinada" → query: "azucar"
