@@ -26,7 +26,7 @@ function getConfigApiDaiko(api, data, version = '1', urlExtra = ''){
   urlExtra = urlExtra.trim();
   let url = ( urlExtra.length == 0 ? `${url_crm_zeus}apiCrm/externalAccess/accessToken/api/Daiko/v${version}/${api}` : `${url_crm_zeus}apiCrm/externalAccess/accessToken/${urlExtra}`) ;
   console.log({url, data});
-  // Se supone que aquÃƒÂ­ se debe de agregar lo de recuperar el api_access_token desde https://app.chatzeus.com/api/v1/accounts/416/integrations/apps/daiko
+  // Se supone que aquÃ­ se debe de agregar lo de recuperar el api_access_token desde https://app.chatzeus.com/api/v1/accounts/416/integrations/apps/daiko
   return {
     method: 'post',
     maxBodyLength: Infinity,
@@ -115,7 +115,7 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
         VENDEDOR_ID: cliente_redis.VENDEDOR_ID, 
         NOMBRE_COMERCIAL: cliente_redis.NOMBRE_COMERCIAL        
       },
-      preserveCurrentCart: true  // Ã¢Å“â€¦ Indicar que NO debe cambiar el carrito actual
+      preserveCurrentCart: true  // âœ… Indicar que NO debe cambiar el carrito actual
     };
 
   }
@@ -132,7 +132,7 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
     contacto = response.data[0];
 
   } catch (error) {
-    // No se encontrÃƒÂ³ el contacto recuperar el CLIENTE_ID usando el CONTACTO_ID ASIGNADO
+    // No se encontrÃ³ el contacto recuperar el CLIENTE_ID usando el CONTACTO_ID ASIGNADO
 
     data = JSON.stringify({CLIENTE_ID: contact_id});
     urlExtra = 'api/v1/org/get_Organizacion';
@@ -177,7 +177,7 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
         VENDEDOR_ID: cliente.VENDEDOR_ID, 
         NOMBRE_COMERCIAL: cliente.NOMBRE_COMERCIAL        
       },
-      preserveCurrentCart: true  // Ã¢Å“â€¦ Indicar que NO debe cambiar el carrito actual
+      preserveCurrentCart: true  // âœ… Indicar que NO debe cambiar el carrito actual
     };
   } catch (error) {
     console.error('Error:', error.message);
@@ -197,9 +197,9 @@ async function obtenerCategorias() {
     }
     return {
       success: true,
-      data: Categorias, // MÃƒÂ¡ximo 5 resultados
-      message: `EncontrÃƒÂ© ${Categorias.length} categorias que coinciden con tu bÃƒÂºsqueda`,
-      preserveCurrentCart: true  // Ã¢Å“â€¦ Indicar que NO debe cambiar el carrito actual
+      data: Categorias, // MÃ¡ximo 5 resultados
+      message: `EncontrÃ© ${Categorias.length} categorias que coinciden con tu bÃºsqueda`,
+      preserveCurrentCart: true  // âœ… Indicar que NO debe cambiar el carrito actual
     };
   } catch (error) {
     console.error('Error:', error.message);
@@ -213,20 +213,10 @@ async function buscarProductos(query, categoria = null, etiquetas = null, precio
   if (query) { data.query = query; }
   if (etiquetas && etiquetas.length > 0) { data.etiquetas = etiquetas; }
   data = JSON.stringify(data);
-  
-  // ✅ CORRECCIÓN: Priorizar búsqueda por query SIEMPRE que exista
-  // La búsqueda por texto es más precisa que filtrar por categoría
   let url = `s`;  
-  if (query && (!etiquetas || etiquetas.length == 0)) { 
-    // Si hay query, usar búsqueda directa por texto (ignora categoría)
-    url = `Search/${query}`; 
-  } else if (!query && categoria && (!etiquetas || etiquetas.length == 0)) { 
-    // Solo si NO hay query, usar búsqueda por categoría
-    url = `ByCategory/${categoria}`; 
-  } else if (!query && !categoria && etiquetas && etiquetas.length > 0) { 
-    // Búsqueda solo por etiquetas
-    url = `ByLabels/`; 
-  }
+  if (!categoria && (!etiquetas || etiquetas.length == 0)) { url = `Search/${query}`; }
+  if (!query && (!etiquetas || etiquetas.length == 0)) { url = `ByCategory/${categoria}`; }
+  if (!query && !categoria) { url = `ByLabels/`; }
   let config = getConfigApiDaiko('getProduct' + url, data);
   try {
     const response = await getApiData(config);
@@ -235,41 +225,41 @@ async function buscarProductos(query, categoria = null, etiquetas = null, precio
       return response.data;
     }
     
-    // âœ… Guardar meta original de la API
+    // ✅ Guardar meta original de la API
     const metaOriginal = response.data.meta || {};
     const totalProductos = metaOriginal.count || 0;
     
     let productos  = await response.data.data || response.data.productos;
     
-    // âœ… VALIDACIÃ“N CRÃTICA: Filtrar productos sin ARTICULO_ID
+    // ✅ VALIDACIÓN CRÍTICA: Filtrar productos sin ARTICULO_ID
     // Esto evita que el LLM invente IDs cuando la API no los proporciona
     if (productos && Array.isArray(productos)) {
       const productosOriginales = productos.length;
       
       productos = productos.filter(p => {
-        // Validar que el producto tenga ARTICULO_ID vÃ¡lido
+        // Validar que el producto tenga ARTICULO_ID válido
         const tieneId = p.ARTICULO_ID !== undefined && 
                        p.ARTICULO_ID !== null && 
                        p.ARTICULO_ID !== '';
         
         if (!tieneId) {
-          console.warn(`âš ï¸ Producto sin ARTICULO_ID filtrado:`, p.NOMBRE || 'Sin nombre');
+          console.warn(`⚠️ Producto sin ARTICULO_ID filtrado:`, p.NOMBRE || 'Sin nombre');
         }
         
         return tieneId;
       });
       
       if (productosOriginales > productos.length) {
-        console.log(`ðŸ“Š Filtrados ${productosOriginales - productos.length} productos sin ARTICULO_ID vÃ¡lido`);
+        console.log(`📊 Filtrados ${productosOriginales - productos.length} productos sin ARTICULO_ID válido`);
       }
     }
     
-    // Si despuÃ©s del filtro no quedan productos, retornar error
+    // Si después del filtro no quedan productos, retornar error
     if (!productos || productos.length === 0) {
       return {
         success: false,
         data: [],
-        message: "No se encontraron productos con IDs vÃ¡lidos para esta bÃºsqueda",
+        message: "No se encontraron productos con IDs válidos para esta búsqueda",
         preserveCurrentCart: true
       };
     }
@@ -278,14 +268,14 @@ async function buscarProductos(query, categoria = null, etiquetas = null, precio
       success: true,
       data: productos,
       meta: {
-        count: totalProductos,  // âœ… Total de productos (de la API)
-        count_filtered: productos.length,  // Productos despuÃ©s del filtro
+        count: totalProductos,  // ✅ Total de productos (de la API)
+        count_filtered: productos.length,  // Productos después del filtro
         current_page: current_page,
         per_page: per_page,
         total_pages: Math.ceil(totalProductos / per_page)
       },
-      message: `EncontrÃ© ${productos.length} productos que coinciden con tu bÃºsqueda`,
-      preserveCurrentCart: true  // âœ… Indicar que NO debe cambiar el carrito actual
+      message: `Encontré ${productos.length} productos que coinciden con tu búsqueda`,
+      preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
     };
   } catch (error) {
     console.error('Error:', error.message);
@@ -307,7 +297,7 @@ async function obtenerDetalleProducto(id) {
         ...producto        
       },
       message: "Detalles del producto obtenido correctamente",
-      preserveCurrentCart: true  // Ã¢Å“â€¦ Indicar que NO debe cambiar el carrito actual
+      preserveCurrentCart: true  // âœ… Indicar que NO debe cambiar el carrito actual
     };
   } catch (error) {
     console.error('Error:', error.message);
@@ -330,7 +320,7 @@ async function agregarAlCarrito(productoId, cantidad, carritoId, opcion = "add")
       cantidad, 
       carritoId,
       message: `Producto agregado al carrito correctamente`,
-      preserveCurrentCart: true  // Ã¢Å“â€¦ Indicar que NO debe cambiar el carrito actual
+      preserveCurrentCart: true  // âœ… Indicar que NO debe cambiar el carrito actual
     };
   } catch (error) {
     console.error('Error:', error.message);
@@ -349,7 +339,7 @@ async function agregarVariosArticulosAlCarrito(carritoId, Productos, opcion = "a
       return {
         success: false,
         message: data.message,
-        preserveCurrentCart: true  // Ã¢Å“â€¦ Indicar que NO debe cambiar el carrito actual
+        preserveCurrentCart: true  // âœ… Indicar que NO debe cambiar el carrito actual
       };
     } else {
       return {
@@ -357,7 +347,7 @@ async function agregarVariosArticulosAlCarrito(carritoId, Productos, opcion = "a
         productos: Productos, 
         carritoId,
         message: `Productos agregados al carrito correctamente`,
-        preserveCurrentCart: true  // Ã¢Å“â€¦ Indicar que NO debe cambiar el carrito actual
+        preserveCurrentCart: true  // âœ… Indicar que NO debe cambiar el carrito actual
       };
     }
   } catch (error) {
@@ -390,7 +380,7 @@ async function crearNuevoCarrito(productoId, cantidad) {
       carritoId: response.data.carrito_creado,
       folio: response.data.folio,
       message: `Producto agregado a un nuevo carrito correctamente`,
-      preserveCurrentCart: true  // Ã¢Å“â€¦ Indicar que NO debe cambiar el carrito actual
+      preserveCurrentCart: true  // âœ… Indicar que NO debe cambiar el carrito actual
     };
   } catch (error) {
     console.error('Error:', error.message);
@@ -420,7 +410,7 @@ async function crearNuevoCarritoConVariosArticulos(Productos) {
       carritoId: response.data.carrito_creado,
       folio: response.data.folio,
       message: `Productos agregados a un nuevo carrito correctamente`,
-      preserveCurrentCart: true  // Ã¢Å“â€¦ Indicar que NO debe cambiar el carrito actual
+      preserveCurrentCart: true  // âœ… Indicar que NO debe cambiar el carrito actual
     };
   } catch (error) {
     console.error('Error:', error.message);
@@ -439,7 +429,7 @@ async function obtenerCarritosDisponibles() {
         success: false,
         data: response.data,
         message: 'No tiene carritos disponibles',
-        preserveCurrentCart: true  // Ã¢Å“â€¦ Indicar que NO debe cambiar el carrito actual
+        preserveCurrentCart: true  // âœ… Indicar que NO debe cambiar el carrito actual
       };
     }else{
       evalError(response.data);
@@ -451,7 +441,7 @@ async function obtenerCarritosDisponibles() {
         success: true,
         data: response.data,
         message: 'Estos son tus carritos disponibles',
-        preserveCurrentCart: true  // Ã¢Å“â€¦ Indicar que NO debe cambiar el carrito actual
+        preserveCurrentCart: true  // âœ… Indicar que NO debe cambiar el carrito actual
       };
     }
   } catch (error) {
@@ -486,7 +476,7 @@ async function verCarrito(carrito_id) {
           message: response.data.message,
         },
         message: response.data.message,
-        preserveCurrentCart: true  // Ã¢Å“â€¦ Indicar que NO debe cambiar el carrito actual
+        preserveCurrentCart: true  // âœ… Indicar que NO debe cambiar el carrito actual
       };
     }else{
       // let i = 0;
@@ -505,8 +495,8 @@ async function verCarrito(carrito_id) {
         data: response.data,
         message: response.data.Carrito.length > 0 ? 
         `Tienes ${response.data.Carrito.length} productos en tu carrito` : 
-        "Tu carrito estÃƒÂ¡ vacÃƒÂ­o",
-        preserveCurrentCart: true  // Ã¢Å“â€¦ Indicar que NO debe cambiar el carrito actual
+        "Tu carrito estÃ¡ vacÃ­o",
+        preserveCurrentCart: true  // âœ… Indicar que NO debe cambiar el carrito actual
       };
     }
   } catch (error) {
@@ -594,14 +584,14 @@ async function cancelarCarrito(carrito_id) {
           cantidad: 0,
         },
         message: response.data.message,
-        preserveCurrentCart: true  // Ã¢Å“â€¦ Indicar que NO debe cambiar el carrito actual
+        preserveCurrentCart: true  // âœ… Indicar que NO debe cambiar el carrito actual
       };
     }else{
       return {
         success: true,
         data: response.data,
         message: `El carrito ha sido cancelado `,
-        preserveCurrentCart: true  // Ã¢Å“â€¦ Indicar que NO debe cambiar el carrito actual
+        preserveCurrentCart: true  // âœ… Indicar que NO debe cambiar el carrito actual
       };
     }
   } catch (error) {
@@ -688,7 +678,7 @@ async function generarPdf(carrito_id) {
     success: true,
     data: pdf,
     message: `El PDF ha sido creado`,
-    preserveCurrentCart: true  // Ã¢Å“â€¦ Indicar que NO debe cambiar el carrito actual
+    preserveCurrentCart: true  // âœ… Indicar que NO debe cambiar el carrito actual
   };
 
   /*
@@ -739,25 +729,25 @@ async function copiarArticulosEntreCarritos(carritoOrigenId, carritoDestinoId, a
       };
     }
 
-    // 2. Determinar quÃƒÂ© artÃƒÂ­culos copiar
+    // 2. Determinar quÃ© artÃ­culos copiar
     let articulosACopiar = [];
 
     if (modoCopia === 'todos') {
-      // Copiar TODOS los artÃƒÂ­culos del carrito origen
+      // Copiar TODOS los artÃ­culos del carrito origen
       articulosACopiar = carritoOrigen.data.Carrito.map(articulo => ({
         articulo_id: articulo.ARTICULO_ID,
         unidades: articulo.UNIDADES
       }));
     } else if (modoCopia === 'especificos' && articulosEspecificos && articulosEspecificos.length > 0) {
-      // Copiar solo los artÃƒÂ­culos especÃƒÂ­ficos
+      // Copiar solo los artÃ­culos especÃ­ficos
       for (const articuloEsp of articulosEspecificos) {
-        // Buscar el artÃƒÂ­culo en el carrito origen
+        // Buscar el artÃ­culo en el carrito origen
         const articuloEnOrigen = carritoOrigen.data.Carrito.find(
           a => a.ARTICULO_ID === articuloEsp.articulo_id
         );
 
         if (!articuloEnOrigen) {
-          console.warn(`Ã¢Å¡Â Ã¯Â¸Â  ArtÃƒÂ­culo ${articuloEsp.articulo_id} no encontrado en carrito origen`);
+          console.warn(`âš ï¸  ArtÃ­culo ${articuloEsp.articulo_id} no encontrado en carrito origen`);
           continue;
         }
 
@@ -771,26 +761,26 @@ async function copiarArticulosEntreCarritos(carritoOrigenId, carritoDestinoId, a
     } else {
       return {
         success: false,
-        message: 'Debes especificar artÃƒÂ­culos cuando usas modo "especificos"'
+        message: 'Debes especificar artÃ­culos cuando usas modo "especificos"'
       };
     }
 
-    // 3. Validar que hay artÃƒÂ­culos para copiar
+    // 3. Validar que hay artÃ­culos para copiar
     if (articulosACopiar.length === 0) {
       return {
         success: false,
-        message: 'No hay artÃƒÂ­culos para copiar'
+        message: 'No hay artÃ­culos para copiar'
       };
     }
 
 
-    // 4. Agregar los artÃƒÂ­culos al carrito destino
+    // 4. Agregar los artÃ­culos al carrito destino
     const resultado = await agregarVariosArticulosAlCarrito(carritoDestinoId, articulosACopiar);
 
     if (resultado.success) {
       return {
         success: true,
-        message: `Se copiaron ${articulosACopiar.length} artÃƒÂ­culo(s) del carrito ${carritoOrigenId} al carrito ${carritoDestinoId}`,
+        message: `Se copiaron ${articulosACopiar.length} artÃ­culo(s) del carrito ${carritoOrigenId} al carrito ${carritoDestinoId}`,
         data: {
           carrito_origen_id: carritoOrigenId,
           carrito_destino_id: carritoDestinoId,
@@ -801,15 +791,15 @@ async function copiarArticulosEntreCarritos(carritoOrigenId, carritoDestinoId, a
     } else {
       return {
         success: false,
-        message: `Error al agregar artÃƒÂ­culos al carrito destino: ${resultado.message}`
+        message: `Error al agregar artÃ­culos al carrito destino: ${resultado.message}`
       };
     }
 
   } catch (error) {
-    console.error('Ã¢ÂÅ’ Error en copiarArticulosEntreCarritos:', error);
+    console.error('âŒ Error en copiarArticulosEntreCarritos:', error);
     return {
       success: false,
-      message: `Error al copiar artÃƒÂ­culos: ${error.message}`
+      message: `Error al copiar artÃ­culos: ${error.message}`
     };
   }
 }
@@ -827,25 +817,25 @@ async function copiarArticulosDeUnCarritoExisenteAUnoNuevo(carritoOrigenId, arti
       };
     }
 
-    // 2. Determinar quÃƒÂ© artÃƒÂ­culos copiar
+    // 2. Determinar quÃ© artÃ­culos copiar
     let articulosACopiar = [];
 
     if (modoCopia === 'todos') {
-      // Copiar TODOS los artÃƒÂ­culos del carrito origen
+      // Copiar TODOS los artÃ­culos del carrito origen
       articulosACopiar = carritoOrigen.data.Carrito.map(articulo => ({
         articulo_id: articulo.ARTICULO_ID,
         unidades: articulo.UNIDADES
       }));
     } else if (modoCopia === 'especificos' && articulosEspecificos && articulosEspecificos.length > 0) {
-      // Copiar solo los artÃƒÂ­culos especÃƒÂ­ficos
+      // Copiar solo los artÃ­culos especÃ­ficos
       for (const articuloEsp of articulosEspecificos) {
-        // Buscar el artÃƒÂ­culo en el carrito origen
+        // Buscar el artÃ­culo en el carrito origen
         const articuloEnOrigen = carritoOrigen.data.Carrito.find(
           a => a.ARTICULO_ID === articuloEsp.articulo_id
         );
 
         if (!articuloEnOrigen) {
-          console.warn(`Ã¢Å¡Â Ã¯Â¸Â  ArtÃƒÂ­culo ${articuloEsp.articulo_id} no encontrado en carrito origen`);
+          console.warn(`âš ï¸  ArtÃ­culo ${articuloEsp.articulo_id} no encontrado en carrito origen`);
           continue;
         }
 
@@ -859,26 +849,26 @@ async function copiarArticulosDeUnCarritoExisenteAUnoNuevo(carritoOrigenId, arti
     } else {
       return {
         success: false,
-        message: 'Debes especificar artÃƒÂ­culos cuando usas modo "especificos"'
+        message: 'Debes especificar artÃ­culos cuando usas modo "especificos"'
       };
     }
 
-    // 3. Validar que hay artÃƒÂ­culos para copiar
+    // 3. Validar que hay artÃ­culos para copiar
     if (articulosACopiar.length === 0) {
       return {
         success: false,
-        message: 'No hay artÃƒÂ­culos para copiar'
+        message: 'No hay artÃ­culos para copiar'
       };
     }
 
-    // 4. Agregar los artÃƒÂ­culos al carrito destino
+    // 4. Agregar los artÃ­culos al carrito destino
     const resultado = await crearNuevoCarritoConVariosArticulos(articulosACopiar);
 
     if (resultado.success) {
       let carritoDestinoId = resultado.carritoId;
       return {
         success: true,
-        message: `Se copiaron ${articulosACopiar.length} artÃƒÂ­culo(s) del carrito ${carritoOrigenId} al carrito ${carritoDestinoId}`,
+        message: `Se copiaron ${articulosACopiar.length} artÃ­culo(s) del carrito ${carritoOrigenId} al carrito ${carritoDestinoId}`,
         data: {
           carrito_origen_id: carritoOrigenId,     
           carrito_destino_id: carritoDestinoId,
@@ -890,15 +880,15 @@ async function copiarArticulosDeUnCarritoExisenteAUnoNuevo(carritoOrigenId, arti
     } else {
       return {
         success: false,
-        message: `Error al agregar artÃƒÂ­culos al carrito destino: ${resultado.message}`
+        message: `Error al agregar artÃ­culos al carrito destino: ${resultado.message}`
       };
     }
 
   } catch (error) {
-    console.error('Ã¢ÂÅ’ Error en copiarArticulosEntreCarritos:', error);
+    console.error('âŒ Error en copiarArticulosEntreCarritos:', error);
     return {
       success: false,
-      message: `Error al copiar artÃƒÂ­culos: ${error.message}`
+      message: `Error al copiar artÃ­culos: ${error.message}`
     };
   }
 }
