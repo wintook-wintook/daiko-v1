@@ -209,48 +209,25 @@ async function obtenerCategorias() {
 async function buscarProductos(query, categoria = null, etiquetas = null, precioMax = null, current_page=1, per_page=25) {
   let data = { cliente_id: cliente_id, moneda_id: moneda_id, per_page };
   
-  // ✅ V17.9: ESTRATEGIA DE BÚSQUEDA COMBINADA
-  // Agregar TODOS los filtros disponibles - la API los combinará inteligentemente
-  // Esto resuelve el problema de catálogos inconsistentes donde:
-  // - Marca puede estar en descripción, categoría o etiquetas
-  // - Color, tamaño pueden estar en nombre o descripción
-  // - Categorías pueden usarse de forma diferente en cada catálogo
-  
   if (categoria) { data.categoria = categoria; }
   if (query) { data.query = query; }
   if (etiquetas && etiquetas.length > 0) { data.etiquetas = etiquetas; }
-  if (precioMax) { data.precio_max = precioMax; }
-  
   data = JSON.stringify(data);
   
-  // ✅ LÓGICA SIMPLIFICADA: Usar endpoint que acepta múltiples filtros
-  let url = `s`; // Default: /getProducts - acepta todos los filtros combinados
-  
-  if (query) {
-    // CASO 1: Búsqueda con texto
-    // Usar endpoint genérico que busca en descripción + nombre
-    // Y además filtra por categoria/etiquetas si están presentes
-    url = `s`; // /getProducts
-    
-  } else if (!query && categoria) {
-    // CASO 2: Solo categoría (sin búsqueda de texto)
-    // Útil para "productos de computación", "muéstrame abarrotes"
-    url = `ByCategory/${categoria}`;
-    
-  } else if (!query && !categoria && etiquetas && etiquetas.length > 0) {
-    // CASO 3: Solo etiquetas (sin query ni categoría)
-    url = `ByLabels/`;
+  // ✅ CORRECCIÓN: Priorizar búsqueda por query SIEMPRE que exista
+  // La búsqueda por texto es más precisa que filtrar por categoría
+  let url = `s`;  
+  if (query && (!etiquetas || etiquetas.length == 0)) { 
+    // Si hay query, usar búsqueda directa por texto (ignora categoría)
+    url = `Search/${query}`; 
+  } else if (!query && categoria && (!etiquetas || etiquetas.length == 0)) { 
+    // Solo si NO hay query, usar búsqueda por categoría
+    url = `ByCategory/${categoria}`; 
+  } else if (!query && !categoria && etiquetas && etiquetas.length > 0) { 
+    // Búsqueda solo por etiquetas
+    url = `ByLabels/`; 
   }
-  
   let config = getConfigApiDaiko('getProduct' + url, data);
-  
-  console.log(`🔍 BÚSQUEDA COMBINADA:`, {
-    endpoint: url,
-    query: query || 'null',
-    categoria: categoria || 'null',
-    etiquetas: etiquetas || 'null',
-    precio_max: precioMax || 'null'
-  });
   try {
     const response = await getApiData(config);
     evalError(response.data);
