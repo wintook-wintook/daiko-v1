@@ -209,48 +209,108 @@ async function obtenerCategorias() {
 async function buscarProductos(query, categoria = null, etiquetas = null, precioMax = null, current_page=1, per_page=25) {
   let data = { cliente_id: cliente_id, moneda_id: moneda_id, per_page };
   
-  // ✅ V17.9: ESTRATEGIA DE BÚSQUEDA COMBINADA
-  // Agregar TODOS los filtros disponibles - la API los combinará inteligentemente
-  // Esto resuelve el problema de catálogos inconsistentes donde:
-  // - Marca puede estar en descripción, categoría o etiquetas
-  // - Color, tamaño pueden estar en nombre o descripción
-  // - Categorías pueden usarse de forma diferente en cada catálogo
+  // ✅ V17.9: BÚSQUEDA EXHAUSTIVA EN CATÁLOGOS INCONSISTENTES
+  // CRÍTICO: En catálogos reales, "monitor" puede estar en:
+  // - Nombre: "Monitor LG 24 pulgadas"
+  // - Descripción: "Pantalla monitor profesional"
+  // - Categoría: Algunos catálogos usan "MONITORES" como categoría
+  // - Etiquetas: ["monitor", "pantalla", "display"]
+  //
+  // SOLUCIÓN: Enviar el término de búsqueda a TODOS los campos
   
-  if (categoria) { data.categoria = categoria; }
-  if (query) { data.query = query; }
-  if (etiquetas && etiquetas.length > 0) { data.etiquetas = etiquetas; }
+  // Preparar los filtros base
   if (precioMax) { data.precio_max = precioMax; }
   
-  data = JSON.stringify(data);
+  // ✅ ESTRATEGIA DE BÚSQUEDA SEGÚN TIPO
+  let url = `s`;
   
-  // ✅ LÓGICA SIMPLIFICADA: Usar endpoint que acepta múltiples filtros
-  let url = `s`; // Default: /getProducts - acepta todos los filtros combinados
-  
-  if (query) {
-    // CASO 1: Búsqueda con texto
-    // Usar endpoint genérico que busca en descripción + nombre
-    // Y además filtra por categoria/etiquetas si están presentes
-    url = `s`; // /getProducts
+  if (query && !etiquetas) {
+    // CASO 1: Búsqueda de PRODUCTO (query contiene producto/marca/color)
+    // Ejemplo: "monitor LG", "arroz blanco", "laptop roja"
     
-  } else if (!query && categoria) {
-    // CASO 2: Solo categoría (sin búsqueda de texto)
-    // Útil para "productos de computación", "muéstrame abarrotes"
+    data.query = query; // Busca en nombre + descripción
+    
+    // ✅ BÚSQUEDA EXHAUSTIVA: Enviar query también como categoría Y etiqueta
+    // para encontrar productos donde "monitor" esté en cualquier campo
+    if (!categoria) {
+      // Si NO tenemos categoría del contexto, usar el query como categoría también
+      data.categoria = query;
+    } else {
+      // Si SÍ tenemos categoría del contexto, usarla
+      data.categoria = categoria;
+    }
+    
+    // Enviar query como etiqueta para búsqueda semántica
+    data.etiquetas = [query];
+    
+    url = `Search/${query}`;
+    
+    console.log(`🔍 BÚSQUEDA EXHAUSTIVA DE PRODUCTO:`, {
+      strategy: 'PRODUCTO',
+      query: query,
+      categoria: data.categoria,
+      etiquetas: data.etiquetas,
+      reason: 'Buscar en nombre, descripción, categoría y etiquetas'
+    });
+    
+  } else if (!query && etiquetas && etiquetas.length > 0) {
+    // CASO 2: Búsqueda por NECESIDAD (etiquetas contienen necesidad/síntoma)
+    // Ejemplo: "tengo sed", "tengo gripa", "me duele la cabeza"
+    
+    data.etiquetas = etiquetas;
+    data.query = null;
+    data.categoria = categoria; // Puede ser null
+    
+    url = `ByLabels/`;
+    
+    console.log(`🔍 BÚSQUEDA POR NECESIDAD:`, {
+      strategy: 'NECESIDAD',
+      etiquetas: etiquetas,
+      categoria: categoria,
+      reason: 'Filtrar por intención/necesidad del usuario'
+    });
+    
+  } else if (query && etiquetas && etiquetas.length > 0) {
+    // CASO 3: Búsqueda COMBINADA (producto + necesidad)
+    // Ejemplo: "agua de manzana porque tengo sed"
+    //          query: "agua manzana", etiquetas: ["sed"]
+    
+    data.query = query;
+    data.categoria = categoria || query; // Si no hay categoría, usar query
+    data.etiquetas = [...etiquetas, query]; // Agregar query a las etiquetas también
+    
+    url = `Search/${query}`;
+    
+    console.log(`🔍 BÚSQUEDA COMBINADA:`, {
+      strategy: 'COMBINADA',
+      query: query,
+      categoria: data.categoria,
+      etiquetas: data.etiquetas,
+      reason: 'Combinar búsqueda de producto + filtro de necesidad'
+    });
+    
+  } else if (!query && categoria && !etiquetas) {
+    // CASO 4: Solo CATEGORÍA (sin query ni etiquetas)
+    // Ejemplo: "productos de computación", "muéstrame abarrotes"
+    
+    data.categoria = categoria;
+    
     url = `ByCategory/${categoria}`;
     
-  } else if (!query && !categoria && etiquetas && etiquetas.length > 0) {
-    // CASO 3: Solo etiquetas (sin query ni categoría)
-    url = `ByLabels/`;
+    console.log(`🔍 BÚSQUEDA POR CATEGORÍA:`, {
+      strategy: 'CATEGORIA',
+      categoria: categoria,
+      reason: 'Listar toda la categoría'
+    });
+    
+  } else {
+    // CASO 5: Sin filtros específicos (raro)
+    // Esto solo debería pasar en errores
+    console.warn(`⚠️ BÚSQUEDA SIN FILTROS - Revisar lógica del LLM`);
   }
   
+  data = JSON.stringify(data);
   let config = getConfigApiDaiko('getProduct' + url, data);
-  
-  console.log(`🔍 BÚSQUEDA COMBINADA:`, {
-    endpoint: url,
-    query: query || 'null',
-    categoria: categoria || 'null',
-    etiquetas: etiquetas || 'null',
-    precio_max: precioMax || 'null'
-  });
   try {
     const response = await getApiData(config);
     evalError(response.data);
