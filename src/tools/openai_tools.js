@@ -914,10 +914,6 @@ async function executeFunctionCall(name, args, userId) {
           message: `No encontré productos para "${args.query}" ni para "${sustantivo}".`,
           preserveCurrentCart: true
         };
-          success: true,
-          data: visibles,
-          preserveCurrentCart: true
-        };
       
       case "tienes_mas":
         console.log('📞 Ejecutando tienes_mas (mostrar siguientes productos)');
