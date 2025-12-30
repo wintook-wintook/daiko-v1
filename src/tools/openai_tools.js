@@ -794,24 +794,72 @@ async function executeFunctionCall(name, args, userId) {
         // ===== NIVEL 2: BÚSQUEDA SOLO SUSTANTIVO =====
         console.log(`⚠️ NIVEL 1 sin resultados - Intentando NIVEL 2 (solo sustantivo)`);
         
-        // Función para extraer sustantivo
+        // Función para extraer sustantivo (V18.1.2 - Con detección de contexto)
         function extraerSustantivo(query) {
           if (!query) return null;
           
-          // Artículos y palabras a ignorar
-          const palabrasIgnorar = ['el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 'de', 'del'];
+          // Convertir a minúsculas y limpiar
+          const queryLimpio = query.toLowerCase().trim();
           
-          const palabras = query.toLowerCase().trim().split(/\s+/);
+          // Detectar si es pregunta de precio/costo
+          const esPreguntaPrecio = /\b(cuanto|cuánto|cuesta|cuestan|precio|precios|vale|valen|valor|costar)\b/i.test(queryLimpio);
           
-          // Buscar primera palabra que NO sea artículo
-          for (const palabra of palabras) {
-            if (!palabrasIgnorar.includes(palabra) && palabra.length > 0) {
-              return palabra;
-            }
+          console.log(`🔍 Extrayendo sustantivo - Es pregunta de precio: ${esPreguntaPrecio}`);
+          
+          // Palabras base a filtrar (siempre)
+          const palabrasBaseFiltrar = [
+            // Artículos
+            'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas',
+            // Preposiciones
+            'de', 'del', 'a', 'al',
+            // Verbos comunes
+            'dame', 'quiero', 'necesito', 'busco', 'vendes', 'tienes',
+            // Palabras de precio (solo en búsqueda, no en extracción)
+            'cuanto', 'cuánto', 'cuesta', 'cuestan', 'precio', 'precios', 'vale', 'valen', 'valor', 'costar',
+            // Números (texto)
+            'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez'
+          ];
+          
+          // Unidades de medida (solo filtrar si NO es pregunta de precio)
+          const unidadesMedida = [
+            'litro', 'litros', 'kilo', 'kilos', 'gramo', 'gramos',
+            'metro', 'metros', 'centimetro', 'centimetros',
+            'pieza', 'piezas', 'unidad', 'unidades',
+            'kg', 'gr', 'ml', 'lt', 'cm', 'm', 'l'
+          ];
+          
+          // Decidir qué palabras filtrar según el contexto
+          const palabrasFiltrar = esPreguntaPrecio 
+            ? palabrasBaseFiltrar  // Solo palabras base (mantener unidades)
+            : [...palabrasBaseFiltrar, ...unidadesMedida];  // Todo (filtrar unidades)
+          
+          // Split por espacios
+          const palabras = queryLimpio.split(/\s+/);
+          
+          // Filtrar palabras
+          const palabrasFiltradas = palabras.filter(palabra => {
+            // Eliminar si es número (1, 2, 3, etc.) - SIEMPRE
+            if (/^\d+$/.test(palabra)) return false;
+            
+            // Eliminar si está en la lista de palabras a filtrar
+            if (palabrasFiltrar.includes(palabra)) return false;
+            
+            // Eliminar si es muy corta (< 2 caracteres)
+            if (palabra.length < 2) return false;
+            
+            return true;
+          });
+          
+          // Si no quedó nada, retornar la última palabra del original
+          if (palabrasFiltradas.length === 0) {
+            return palabras[palabras.length - 1];
           }
           
-          // Si todas eran artículos, retornar la primera
-          return palabras[0];
+          // Retornar todas las palabras filtradas unidas
+          const resultado = palabrasFiltradas.join(' ');
+          console.log(`✅ Sustantivo extraído: "${resultado}"`);
+          
+          return resultado;
         }
         
         // Extraer solo el sustantivo
