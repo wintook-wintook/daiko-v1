@@ -52,7 +52,7 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "obtener_categorias",
-        description: "Obtiene el catálogo de categorías de los artículos",
+        description: "Obtiene el catálogo de categorías de los artículos. Usar cuando el usuario pregunta de forma genérica sin mencionar producto específico: 'qué vendes', 'qué productos tienes', 'en qué me ayudas', 'qué me puedes ofrecer', 'muéstrame tu catálogo'",
         parameters: {
           type: "object",
           properties: {
@@ -83,44 +83,6 @@ const functionDefinitions = [
       }
     },
 
-    {
-      type: "function",
-      function: {
-        name: "que_vendes",
-        description: "Obtiene el catálogo de categorías de los artículos",
-        parameters: {
-          type: "object",
-          properties: {
-            query: {
-              type: "string",
-              description: "Filtro a aplicar al catálogo de categorias"
-            },          
-          },
-          required: ["query"],
-          additionalProperties: false
-        },
-        strict: true
-      }
-    },
-    {
-      type: "function",
-      function: {
-        name: "que_me_puedes_ofrecer",
-        description: "Obtiene el catálogo de categorías de los artículos",
-        parameters: {
-          type: "object",
-          properties: {
-            query: {
-              type: "string",
-              description: "Filtro a aplicar al catálogo de categorias"
-            },          
-          },
-          required: ["query"],
-          additionalProperties: false
-        },
-        strict: true
-      }
-    },
     {
       type: "function",
       function: {
@@ -679,11 +641,7 @@ async function executeFunctionCall(name, args, userId) {
       case "obtener_categorias":
         return obtenerCategorias();
         
-      case "que_vendes":
-        return obtenerCategorias();
-        
-      case "que_me_puedes_ofrecer":
-        return obtenerCategorias();
+      // ✅ ELIMINADOS: que_vendes y que_me_puedes_ofrecer (eran redundantes - usaban obtenerCategorias)
         
       case "seleccionar_categoria": 
         await userContext.addCategoria(args.category);     
