@@ -145,24 +145,65 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "buscar_productos",
-        description: "Busca productos en el catálogo",
+        description: `Busca productos en el catálogo usando BÚSQUEDA EXHAUSTIVA.
+
+CLASIFICACIÓN DE INTENCIÓN OBLIGATORIA:
+
+A) INTENCIÓN: PRODUCTO (monitor, arroz, cable, marca, etc.)
+   - Usar el MISMO VALOR en query, categoria y etiquetas
+   - Motivo: El producto puede estar en cualquiera de los 3 campos
+   Ejemplo: "vendes monitores"
+   → query: "monitor", categoria: "monitor", etiquetas: "monitor"
+
+B) INTENCIÓN: NECESIDAD (sed, hambre, dolor, gripa, etc.)
+   - query: null (NO buscar en descripción)
+   - categoria: valor de la necesidad
+   - etiquetas: valor de la necesidad
+   Ejemplo: "tengo sed"
+   → query: null, categoria: "sed", etiquetas: "sed"
+
+IMPORTANTE:
+- per_page SIEMPRE debe ser 25
+- Las categorías son flexibles (pueden ser marcas, proveedores, departamentos, necesidades, etc.)
+- Usar búsqueda exhaustiva para máxima cobertura`,
         parameters: {
           type: "object",
           properties: {
             query: {
-              type: "string",
-              description: "Término de búsqueda: SOLO el sustantivo principal en SINGULAR (ejemplo: 'azucar refinada' → 'azucar', 'leche entera' → 'leche', 'arroz blanco' → 'arroz'). NO incluir adjetivos ni modificadores."
+              type: ["string", "null"],
+              description: `Término de búsqueda para la DESCRIPCIÓN del producto.
+              
+REGLAS:
+- PRODUCTO: usar el término (ej: "monitor", "arroz", "cable HDMI")
+- NECESIDAD: usar null (NO buscar en descripción)
+
+El término debe incluir marca/características si se mencionan.
+Ejemplos: "monitor LG" → "monitor LG", "arroz blanco" → "arroz"`
             },
             categoria: {
               type: ["string", "null"],
-              description: "Categoría específica para filtrar productos"
+              description: `Categoría para filtrar productos.
+
+IMPORTANTE: Las categorías son FLEXIBLES y pueden ser:
+- Departamentos (002-COMPUTACION, 001-ABARROTES)
+- Marcas (LG, Samsung, Bimbo)
+- Proveedores (Nestlé, Coca-Cola)
+- Necesidades (sed, hambre, dolor)
+- O cualquier otra clasificación del cliente
+
+REGLAS:
+- PRODUCTO: usar el MISMO VALOR que query (ej: "monitor")
+- NECESIDAD: usar el valor de la necesidad (ej: "sed")
+- Búsqueda exhaustiva: cubre todas las organizaciones posibles`
             },
             etiquetas: {
-              type: ["array", "null"],
-              description: "Lista de etiquetas para filtrar productos",
-              items: {
-                type: "string"
-              }
+              type: ["string", "null"],
+              description: `Etiquetas para filtrar productos.
+
+REGLAS:
+- PRODUCTO: usar el MISMO VALOR que query (ej: "monitor")
+- NECESIDAD: usar el valor de la necesidad (ej: "sed")
+- Búsqueda exhaustiva: el producto puede estar etiquetado de cualquier forma`
             },
             precio_max: {
               type: ["number", "null"],
@@ -170,11 +211,11 @@ const functionDefinitions = [
             },
             current_page: {
               type: "integer",
-              description: "Página actual para el listado de los productos"
+              description: "Página actual - SIEMPRE usar 1 para primera búsqueda"
             },
             per_page: {
               type: "integer",
-              description: "Cantidad de productos a listar"
+              description: "Cantidad de productos a recuperar - DEBE SER SIEMPRE 25 (no 5, no 10, solo 25)"
             },
           },
           required: ["query", "categoria", "etiquetas", "precio_max", "current_page", "per_page"],
