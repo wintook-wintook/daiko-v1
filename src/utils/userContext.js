@@ -264,15 +264,12 @@ class UserContext {
     }
     
     /*
-    if (context.folio) {
-      contextStr += `- Carrito asignado FOLIO: ${context.folio}\\n`;
-    }
-    */
-
-
+    // ❌ DESHABILITADO: Las categorías de interés NO deben influir en las búsquedas
+    // El motor de búsqueda V18.0 usa búsqueda exhaustiva que no necesita este contexto
     if (prefs.categorias && prefs.categorias.length > 0) {
       contextStr += `- Categorías de interés: ${prefs.categorias.join(', ')}\\n`;
     }
+    */
     
     if (prefs.productos_vistos && prefs.productos_vistos.length > 0) {
       const ultimosVistos = prefs.productos_vistos.slice(-3);
