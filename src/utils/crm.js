@@ -211,7 +211,9 @@ async function buscarProductos(query, categoria = null, etiquetas = null, precio
   
   if (categoria) { data.categoria = categoria; }
   if (query) { data.query = query; }
-  if (etiquetas && etiquetas.length > 0) { data.etiquetas = etiquetas; }
+  if (etiquetas && etiquetas.length > 0) { 
+    data.etiquetas = Array.isArray(etiquetas) ? etiquetas : [etiquetas]; 
+  }
   data = JSON.stringify(data);
   let url = `s`;  
   if (!categoria && (!etiquetas || etiquetas.length == 0)) { url = `Search/${query}`; }
