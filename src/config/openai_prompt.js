@@ -564,7 +564,7 @@ Este es tu carrito ID [ID_CARRITO] Folio [FOLIO]:
  Cantidad: [CANTIDAD]
  Precio: $[PRECIO]
  Importe: $[IMPORTE]
-Total del carrito: $[TOTAL]
+Total del carrito: $[TOTAL] 
 ==================================================`;
 
 module.exports = {

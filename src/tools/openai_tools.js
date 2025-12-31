@@ -694,7 +694,6 @@ async function executeFunctionCall(name, args, userId) {
       case "buscar_productos":
         console.log(`🔍 BÚSQUEDA DE PRODUCTOS - Query: "${args.query}"`);
         
-        // ===== NIVEL 1: BÚSQUEDA COMPLETA =====
         const resultado = await buscarProductos(
           args.query, 
           args.categoria, 
@@ -704,7 +703,7 @@ async function executeFunctionCall(name, args, userId) {
           args.per_page
         );
         
-        console.log(`📊 RESULTADO NIVEL 1:`, {
+        console.log(`📊 RESULTADO DE BÚSQUEDA:`, {
           success: resultado.success,
           totalProductos: resultado.data?.length || 0,
           mensaje: resultado.message
@@ -720,25 +719,44 @@ async function executeFunctionCall(name, args, userId) {
           );
           
           if (productosConId.length === 0) {
-            console.warn(`⚠️ NIVEL 1: Todos los productos filtrados por falta de ARTICULO_ID`);
-            // No retornar aún, intentar NIVEL 2
-          } else {
-            // Actualizar resultado con solo productos válidos
-            resultado.data = productosConId;
-            
-            if (productosConId.length < resultado.data.length) {
-              console.warn(`⚠️ FILTRADOS ${resultado.data.length - productosConId.length} productos sin ARTICULO_ID`);
-            }
-            
-            // Log de productos válidos
-            console.log(`✅ Productos válidos NIVEL 1:`, productosConId.map(p => ({
-              id: p.ARTICULO_ID,
-              nombre: p.NOMBRE
-            })));
+            console.warn(`⚠️ ALERTA: Todos los productos fueron filtrados por falta de ARTICULO_ID`);
+            return {
+              success: false,
+              data: [],
+              message: "No encontré productos disponibles con información completa para esta búsqueda.",
+              preserveCurrentCart: true
+            };
           }
+          
+          if (productosConId.length < resultado.data.length) {
+            console.warn(`⚠️ FILTRADOS ${resultado.data.length - productosConId.length} productos sin ARTICULO_ID`);
+          }
+          
+          // Log de productos válidos para debugging
+          console.log(`✅ Productos válidos con ID:`, productosConId.map(p => ({
+            id: p.ARTICULO_ID,
+            nombre: p.NOMBRE
+          })));
+          
+          // Actualizar resultado con solo productos válidos
+          resultado.data = productosConId;
         }
         
-        // Estado de búsqueda activa NIVEL 1
+        // Guardar preferencias
+        if (args.categoria) {
+          await userContext.addCategoria(args.categoria);
+        }
+        
+        if (args.precio_max) {
+          await userContext.updateRangoPrecio(args.precio_max);
+        }
+        
+        // Guardar búsqueda en historial
+        await userContext.addBusqueda(args.query, { 
+          total_resultados: (resultado.data || []).length 
+        });
+
+        // Estado de búsqueda activa
         const productosApi = resultado.data || [];
         const productosNormalizados = productosApi
           .map(p => ({
@@ -753,121 +771,66 @@ async function executeFunctionCall(name, args, userId) {
             p.PRECIO !== undefined
           );
         
-        // ✅ Si NIVEL 1 encontró productos, retornar inmediatamente
-        if (productosNormalizados.length > 0) {
-          console.log(`✅ NIVEL 1 EXITOSO - ${productosNormalizados.length} productos encontrados`);
+        if (!productosNormalizados.length) {
+          console.warn(`⚠️ No hay productos normalizados válidos después del segundo filtro`);
           
-          // Guardar preferencias
-          if (args.categoria) {
-            await userContext.addCategoria(args.categoria);
+          // 🔄 FALLBACK SIMPLE V18.0.1: Intentar solo con última palabra
+          const palabras = args.query ? args.query.split(' ') : [];
+          const ultimaPalabra = palabras.length > 0 ? palabras[palabras.length - 1] : null;
+          
+          if (ultimaPalabra && ultimaPalabra !== args.query && palabras.length > 1) {
+            console.log(`🔄 FALLBACK - Intentando con última palabra: "${ultimaPalabra}"`);
+            
+            const resultadoFallback = await buscarProductos(
+              ultimaPalabra,
+              ultimaPalabra,
+              ultimaPalabra,
+              args.precio_max,
+              args.current_page,
+              args.per_page
+            );
+            
+            if (resultadoFallback.success && resultadoFallback.data && resultadoFallback.data.length > 0) {
+              const productosFallback = resultadoFallback.data
+                .filter(p => 
+                  p.ARTICULO_ID !== undefined && 
+                  p.ARTICULO_ID !== null && 
+                  p.ARTICULO_ID !== '' &&
+                  p.NOMBRE && 
+                  p.PRECIO !== undefined
+                )
+                .map(p => ({
+                  ARTICULO_ID: p.ARTICULO_ID,
+                  NOMBRE: p.NOMBRE,
+                  PRECIO: p.PRECIO
+                }))
+                .slice(0, 5);
+              
+              if (productosFallback.length > 0) {
+                console.log(`✅ FALLBACK exitoso - ${productosFallback.length} productos encontrados`);
+                
+                const totalFallback = resultadoFallback.meta?.count || productosFallback.length;
+                
+                await userContext.setBusquedaActiva({
+                  query: ultimaPalabra,
+                  total_resultados: totalFallback,
+                  mostrados: productosFallback.length
+                });
+                
+                return {
+                  success: true,
+                  data: productosFallback,
+                  busqueda_refinada: true,
+                  query_original: args.query,
+                  query_refinado: ultimaPalabra,
+                  mensaje_refinamiento: `No encontré "${args.query}" exactamente, pero encontré estos productos de "${ultimaPalabra}":`,
+                  preserveCurrentCart: true
+                };
+              }
+            }
           }
           
-          if (args.precio_max) {
-            await userContext.updateRangoPrecio(args.precio_max);
-          }
-          
-          // Guardar búsqueda en historial
-          await userContext.addBusqueda(args.query, { 
-            total_resultados: productosNormalizados.length 
-          });
-          
-          const LIMITE = 5;
-          const visibles = productosNormalizados.slice(0, LIMITE);
-          
-          const totalProductos = resultado.meta?.count || productosNormalizados.length;
-          
-          console.log(`📋 Productos a mostrar: ${visibles.length}/${totalProductos}`);
-          
-          await userContext.setBusquedaActiva({
-            query: args.query,
-            total_resultados: totalProductos,
-            mostrados: visibles.length
-          });
-          
-          return {
-            success: true,
-            data: visibles,
-            preserveCurrentCart: true
-          };
-        }
-        
-        // ===== NIVEL 2: BÚSQUEDA SOLO SUSTANTIVO =====
-        console.log(`⚠️ NIVEL 1 sin resultados - Intentando NIVEL 2 (solo sustantivo)`);
-        
-        // Función para extraer sustantivo (V18.1.2 - Con detección de contexto)
-        function extraerSustantivo(query) {
-          if (!query) return null;
-          
-          // Convertir a minúsculas y limpiar
-          const queryLimpio = query.toLowerCase().trim();
-          
-          // Detectar si es pregunta de precio/costo
-          const esPreguntaPrecio = /\b(cuanto|cuánto|cuesta|cuestan|precio|precios|vale|valen|valor|costar)\b/i.test(queryLimpio);
-          
-          console.log(`🔍 Extrayendo sustantivo - Es pregunta de precio: ${esPreguntaPrecio}`);
-          
-          // Palabras base a filtrar (siempre)
-          const palabrasBaseFiltrar = [
-            // Artículos
-            'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas',
-            // Preposiciones
-            'de', 'del', 'a', 'al',
-            // Verbos comunes
-            'dame', 'quiero', 'necesito', 'busco', 'vendes', 'tienes',
-            // Palabras de precio (solo en búsqueda, no en extracción)
-            'cuanto', 'cuánto', 'cuesta', 'cuestan', 'precio', 'precios', 'vale', 'valen', 'valor', 'costar',
-            // Números (texto)
-            'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez'
-          ];
-          
-          // Unidades de medida (solo filtrar si NO es pregunta de precio)
-          const unidadesMedida = [
-            'litro', 'litros', 'kilo', 'kilos', 'gramo', 'gramos',
-            'metro', 'metros', 'centimetro', 'centimetros',
-            'pieza', 'piezas', 'unidad', 'unidades',
-            'kg', 'gr', 'ml', 'lt', 'cm', 'm', 'l'
-          ];
-          
-          // Decidir qué palabras filtrar según el contexto
-          const palabrasFiltrar = esPreguntaPrecio 
-            ? palabrasBaseFiltrar  // Solo palabras base (mantener unidades)
-            : [...palabrasBaseFiltrar, ...unidadesMedida];  // Todo (filtrar unidades)
-          
-          // Split por espacios
-          const palabras = queryLimpio.split(/\s+/);
-          
-          // Filtrar palabras
-          const palabrasFiltradas = palabras.filter(palabra => {
-            // Eliminar si es número (1, 2, 3, etc.) - SIEMPRE
-            if (/^\d+$/.test(palabra)) return false;
-            
-            // Eliminar si está en la lista de palabras a filtrar
-            if (palabrasFiltrar.includes(palabra)) return false;
-            
-            // Eliminar si es muy corta (< 2 caracteres)
-            if (palabra.length < 2) return false;
-            
-            return true;
-          });
-          
-          // Si no quedó nada, retornar la última palabra del original
-          if (palabrasFiltradas.length === 0) {
-            return palabras[palabras.length - 1];
-          }
-          
-          // Retornar todas las palabras filtradas unidas
-          const resultado = palabrasFiltradas.join(' ');
-          console.log(`✅ Sustantivo extraído: "${resultado}"`);
-          
-          return resultado;
-        }
-        
-        // Extraer solo el sustantivo
-        const sustantivo = extraerSustantivo(args.query);
-        
-        // Verificar si ya era una sola palabra o si no se pudo extraer
-        if (!sustantivo || sustantivo === args.query || !args.query || args.query.split(/\s+/).length === 1) {
-          console.log(`❌ No hay refinamiento posible para "${args.query}"`);
+          // Si el fallback tampoco funcionó, retornar mensaje original
           return {
             success: false,
             data: [],
@@ -876,90 +839,25 @@ async function executeFunctionCall(name, args, userId) {
           };
         }
         
-        // NIVEL 2: Buscar solo sustantivo
-        console.log(`🔍 NIVEL 2 - Buscando solo sustantivo: "${sustantivo}"`);
+        console.log(`✅ Productos normalizados finales: ${productosNormalizados.length}`);
         
-        const resultadoNivel2 = await buscarProductos(
-          sustantivo,
-          sustantivo,  // categoria también con sustantivo
-          sustantivo,  // etiquetas también con sustantivo
-          args.precio_max,
-          args.current_page,
-          args.per_page
-        );
+        const LIMITE = 5;
+        const visibles = productosNormalizados.slice(0, LIMITE);
         
-        console.log(`📊 RESULTADO NIVEL 2:`, {
-          success: resultadoNivel2.success,
-          totalProductos: resultadoNivel2.data?.length || 0
+        // ✅ Usar el count total de la API, no el length del array
+        const totalProductos = resultado.meta?.count || productosNormalizados.length;
+        
+        console.log(`📋 Productos a mostrar al usuario: ${visibles.length}/${totalProductos}`);
+        
+        await userContext.setBusquedaActiva({
+          query: args.query,
+          total_resultados: totalProductos,  // ✅ Total real de la API
+          mostrados: visibles.length
         });
         
-        // Validar productos del NIVEL 2
-        const productosNivel2 = resultadoNivel2.data || [];
-        const productosValidosNivel2 = productosNivel2
-          .filter(p =>
-            p.ARTICULO_ID !== undefined &&
-            p.ARTICULO_ID !== null &&
-            p.ARTICULO_ID !== ''
-          )
-          .map(p => ({
-            ARTICULO_ID: p.ARTICULO_ID,
-            NOMBRE: p.NOMBRE,
-            PRECIO: p.PRECIO
-          }))
-          .filter(p =>
-            p.ARTICULO_ID !== undefined &&
-            p.ARTICULO_ID !== null &&
-            p.NOMBRE &&
-            p.PRECIO !== undefined
-          );
-        
-        if (productosValidosNivel2.length > 0) {
-          console.log(`✅ NIVEL 2 EXITOSO - ${productosValidosNivel2.length} productos encontrados`);
-          
-          // Guardar preferencias con sustantivo
-          await userContext.addCategoria(sustantivo);
-          
-          if (args.precio_max) {
-            await userContext.updateRangoPrecio(args.precio_max);
-          }
-          
-          // Guardar búsqueda refinada en historial
-          await userContext.addBusqueda(sustantivo, { 
-            total_resultados: productosValidosNivel2.length,
-            busqueda_original: args.query,
-            busqueda_refinada: true
-          });
-          
-          const LIMITE = 5;
-          const visiblesNivel2 = productosValidosNivel2.slice(0, LIMITE);
-          
-          const totalProductosNivel2 = resultadoNivel2.meta?.count || productosValidosNivel2.length;
-          
-          console.log(`📋 Productos NIVEL 2 a mostrar: ${visiblesNivel2.length}/${totalProductosNivel2}`);
-          
-          await userContext.setBusquedaActiva({
-            query: sustantivo,
-            total_resultados: totalProductosNivel2,
-            mostrados: visiblesNivel2.length
-          });
-          
-          return {
-            success: true,
-            data: visiblesNivel2,
-            busqueda_refinada: true,
-            query_original: args.query,
-            query_refinado: sustantivo,
-            mensaje_refinamiento: `No encontré "${args.query}" exactamente, pero encontré estos productos de "${sustantivo}":`,
-            preserveCurrentCart: true
-          };
-        }
-        
-        // ❌ NIVEL 2 también falló
-        console.log(`❌ NIVEL 2 también sin resultados`);
         return {
-          success: false,
-          data: [],
-          message: `No encontré productos para "${args.query}" ni para "${sustantivo}".`,
+          success: true,
+          data: visibles,
           preserveCurrentCart: true
         };
       
