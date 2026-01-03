@@ -774,7 +774,7 @@ async function executeFunctionCall(name, args, userId) {
         if (!productosNormalizados.length) {
           console.warn(`⚠️ No hay productos normalizados válidos después del segundo filtro`);
           
-          // 🔄 FALLBACK INTELIGENTE V18.2: Extraer sustantivo principal
+          // 🔄 FALLBACK INTELIGENTE V18.3: Extraer sustantivo principal
           const palabras = args.query ? args.query.split(' ').filter(p => p.trim()) : [];
           
           // Función para extraer sustantivo principal
