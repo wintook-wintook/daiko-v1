@@ -215,7 +215,7 @@ REGLAS:
             },
             per_page: {
               type: "integer",
-              description: "Cantidad de productos a recuperar - DEBE SER SIEMPRE 25 (no 5, no 10, solo 25)"
+              description: "Cantidad de productos a recuperar - DEBE SER SIEMPRE 100"
             },
           },
           required: ["query", "categoria", "etiquetas", "precio_max", "current_page", "per_page"],
@@ -774,7 +774,7 @@ async function executeFunctionCall(name, args, userId) {
         if (!productosNormalizados.length) {
           console.warn(`⚠️ No hay productos normalizados válidos después del segundo filtro`);
           
-          // 🔄 FALLBACK INTELIGENTE V18.1.1: Extraer sustantivo principal
+          // 🔄 FALLBACK INTELIGENTE V18.2: Extraer sustantivo principal
           const palabras = args.query ? args.query.split(' ').filter(p => p.trim()) : [];
           
           // Función para extraer sustantivo principal
@@ -888,7 +888,16 @@ async function executeFunctionCall(name, args, userId) {
         // ✅ Usar el count total de la API, no el length del array
         const totalProductos = resultado.meta?.count || productosNormalizados.length;
         
+        // ✅ CONTROL DE LISTADOS GRANDES - Detectar si sugerir agrupación
+        let sugerirAgrupacion = false;
+        if (totalProductos > 6) {
+          sugerirAgrupacion = true;
+        }
+        
         console.log(`📋 Productos a mostrar al usuario: ${visibles.length}/${totalProductos}`);
+        if (sugerirAgrupacion) {
+          console.log(`⚠️ LISTADO GRANDE - ${totalProductos} productos encontrados - Sugerir agrupación`);
+        }
         
         await userContext.setBusquedaActiva({
           query: args.query,
@@ -899,6 +908,8 @@ async function executeFunctionCall(name, args, userId) {
         return {
           success: true,
           data: visibles,
+          total_disponibles: totalProductos,
+          sugerir_agrupacion: sugerirAgrupacion,
           preserveCurrentCart: true
         };
       
