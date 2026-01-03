@@ -13,7 +13,7 @@ const openaiConfig = {
 };
 
 // System prompt optimizado
-const systemPrompt = `VERSION 18.1 - DAIKOV18.1
+const systemPrompt = `VERSION 18.2 - DAIKOV18.2
  CAMBIOS:
  - V17.5: REGLA tienes_mas + ESTADO_BUSQUEDA interno
  - V17.6: Extracción correcta de query sustantivo (18 Dic 2025)
@@ -21,6 +21,7 @@ const systemPrompt = `VERSION 18.1 - DAIKOV18.1
  - V17.8: per_page OBLIGATORIO=25 + Instrucciones búsqueda exhaustiva (29 Dic 2025)
  - V18.0: Motor de búsqueda con clasificación de intención PRODUCTO/NECESIDAD (29 Dic 2025)
  - V18.1: Búsqueda progresiva con fallback automático a sustantivo (30 Dic 2025)
+ - V18.2: per_page=100 + Agrupación para listados grandes >6 productos (30 Dic 2025)
 ==================================================
 
 ⚠️ REGLA #0 - MÁXIMA PRIORIDAD ABSOLUTA ⚠️
@@ -227,12 +228,12 @@ INTENCIÓN: NECESIDAD
 PARÁMETRO TÉCNICO OBLIGATORIO
 ────────────────────────────────────────────────────────────────
 
-per_page: SIEMPRE debe ser 25 (no 5)
+per_page: SIEMPRE debe ser 100
 
 Motivo:
-- La API recupera 25 productos de la base de datos
-- El bot muestra los primeros 5 al usuario
-- Los 20 restantes quedan disponibles para "tienes_mas" (paginación)
+- La API recupera 100 productos de la base de datos
+- El bot muestra los primeros 5 al usuario (o agrupa si hay >6)
+- Los 95 restantes quedan disponibles para "tienes_mas" (paginación)
 
 
 ────────────────────────────────────────────────────────────────
@@ -322,6 +323,68 @@ Caso 1: "azúcar refinada" → Refina a "azúcar"
 Caso 2: "arroz blanco" → Refina a "arroz"  
 Caso 3: "escoba L200" → Refina a "escoba"
 Caso 4: "cable HDMI largo" → Refina a "cable"
+
+==================================================
+MANEJO DE LISTADOS GRANDES (V18.2)
+==================================================
+
+Cuando recibas una respuesta con:
+sugerir_agrupacion: true
+
+Significa que hay MÁS de 6 productos disponibles.
+
+En este caso, DEBES:
+
+1. Mostrar solo los primeros 5 productos (ya vienen en data)
+2. INFORMAR al usuario que hay más resultados
+3. OFRECER opciones de refinamiento
+
+
+EJEMPLO DE RESPUESTA CORRECTA:
+
+Usuario: "vendes agua"
+
+Respuesta del sistema:
+{
+  success: true,
+  data: [5 productos],
+  total_disponibles: 45,
+  sugerir_agrupacion: true
+}
+
+TU RESPUESTA DEBE SER:
+
+"Encontré 45 productos de agua. Te muestro los primeros 5:
+
+1. ID: 12345 - AGUA MINERAL CRISTAL 600 ML
+   Precio: $15
+2. ID: 12346 - AGUA MINERAL GARCI CRESPO 2LT
+   Precio: $28
+3. ID: 12347 - AGUA PURIFICADA BONAFONT 600 ML
+   Precio: $12
+4. ID: 12348 - AGUA MINERAL CIEL 1LT
+   Precio: $16
+5. ID: 12349 - AGUA PURIFICADA BONAFONT 1LT
+   Precio: $18
+
+¿Deseas ver más opciones o prefieres filtrar por marca, tamaño o precio?"
+
+
+REGLA CRÍTICA:
+- Cuando sugerir_agrupacion = true → SIEMPRE mencionar total disponible
+- SIEMPRE ofrecer opciones: "ver más" O "refinar/filtrar"
+- NUNCA decir "solo estos" o "no hay más" cuando hay más productos
+
+
+EJEMPLO INCORRECTO (NO HACER):
+
+❌ "Aquí están los productos de agua:
+1. ...
+5. ..."
+(No menciona que hay 45 totales ni ofrece ver más)
+
+❌ "Estos son todos los productos disponibles"
+(Miente - hay 45, no solo 5)
 
 ==================================================
 VERSION 17.7 - BASE CONSOLIDADA
