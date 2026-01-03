@@ -774,17 +774,58 @@ async function executeFunctionCall(name, args, userId) {
         if (!productosNormalizados.length) {
           console.warn(`⚠️ No hay productos normalizados válidos después del segundo filtro`);
           
-          // 🔄 FALLBACK SIMPLE V18.0.1: Intentar solo con última palabra
-          const palabras = args.query ? args.query.split(' ') : [];
-          const ultimaPalabra = palabras.length > 0 ? palabras[palabras.length - 1] : null;
+          // 🔄 FALLBACK INTELIGENTE V18.1.1: Extraer sustantivo principal
+          const palabras = args.query ? args.query.split(' ').filter(p => p.trim()) : [];
           
-          if (ultimaPalabra && ultimaPalabra !== args.query && palabras.length > 1) {
-            console.log(`🔄 FALLBACK - Intentando con última palabra: "${ultimaPalabra}"`);
+          // Función para extraer sustantivo principal
+          function extraerSustantivo(palabras) {
+            if (!palabras || palabras.length === 0) return null;
+            if (palabras.length === 1) return palabras[0].toLowerCase();
+            
+            const palabrasNoSustantivas = [
+              // Artículos
+              'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas',
+              // Verbos comunes
+              'busco', 'buscar', 'quiero', 'necesito', 'dame', 'vendeme',
+              'tienes', 'hay', 'vende', 'vendes', 'tiene',
+              // Preposiciones
+              'de', 'con', 'para', 'por', 'sin', 'en',
+              // Adjetivos de tamaño
+              'grande', 'pequeño', 'chico', 'mediano',
+              // Números escritos
+              'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 
+              'ocho', 'nueve', 'diez',
+              // Unidades de medida
+              'kilo', 'kilos', 'kg', 'gramo', 'gramos', 'gr', 'g',
+              'litro', 'litros', 'lt', 'l', 'ml', 'mililitro', 'mililitros',
+              'metro', 'metros', 'm', 'cm', 'centimetro', 'centimetros',
+              'pieza', 'piezas', 'pza', 'pzas', 'unidad', 'unidades'
+            ];
+            
+            const palabrasFiltradas = palabras.filter(palabra => {
+              const p = palabra.toLowerCase();
+              return !palabrasNoSustantivas.includes(p) && isNaN(Number(p));
+            });
+            
+            if (palabrasFiltradas.length > 0) {
+              return palabrasFiltradas[0].toLowerCase();
+            }
+            
+            return palabras[0].toLowerCase();
+          }
+          
+          const sustantivo = extraerSustantivo(palabras);
+          
+          if (sustantivo && sustantivo !== args.query.toLowerCase() && palabras.length > 1) {
+            console.log(`🔄 FALLBACK INTELIGENTE - Extrayendo sustantivo`);
+            console.log(`   Query original: "${args.query}"`);
+            console.log(`   Palabras: [${palabras.join(', ')}]`);
+            console.log(`   Sustantivo extraído: "${sustantivo}"`);
             
             const resultadoFallback = await buscarProductos(
-              ultimaPalabra,
-              ultimaPalabra,
-              ultimaPalabra,
+              sustantivo,
+              sustantivo,
+              sustantivo,
               args.precio_max,
               args.current_page,
               args.per_page
@@ -812,7 +853,7 @@ async function executeFunctionCall(name, args, userId) {
                 const totalFallback = resultadoFallback.meta?.count || productosFallback.length;
                 
                 await userContext.setBusquedaActiva({
-                  query: ultimaPalabra,
+                  query: sustantivo,
                   total_resultados: totalFallback,
                   mostrados: productosFallback.length
                 });
@@ -822,8 +863,8 @@ async function executeFunctionCall(name, args, userId) {
                   data: productosFallback,
                   busqueda_refinada: true,
                   query_original: args.query,
-                  query_refinado: ultimaPalabra,
-                  mensaje_refinamiento: `No encontré "${args.query}" exactamente, pero encontré estos productos de "${ultimaPalabra}":`,
+                  query_refinado: sustantivo,
+                  mensaje_refinamiento: `No encontré "${args.query}" exactamente, pero encontré estos productos de "${sustantivo}":`,
                   preserveCurrentCart: true
                 };
               }
