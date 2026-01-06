@@ -114,7 +114,7 @@ Ejecutando función: buscar_productos {
  },
  precio_max: null,
  current_page: 1,
- per_page: 6
+ per_page: 100
  }
 REGLAS CRÍTICAS DEL CONTRATO
 query / categoria / etiquetas
