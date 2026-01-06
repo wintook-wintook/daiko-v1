@@ -206,6 +206,47 @@ class UserContext {
     await this.setPreferencias(prefs);
   }
 
+
+  // ✅ NUEVO V19.0: Guardar filtros activos
+  async setFiltrosActivos(filtros) {
+    await redis.hset(this.key, 'filtros_activos', JSON.stringify(filtros));
+    await redis.expire(this.key, this.ttl);
+    console.log(`💾 Filtros guardados en Redis para ${this.userId}:`, filtros);
+  }
+
+  // ✅ NUEVO V19.0: Obtener filtros activos
+  async getFiltrosActivos() {
+    const data = await redis.hget(this.key, 'filtros_activos');
+    
+    const filtrosPorDefecto = {
+      marca: [],
+      medida: [],
+      caracteristicas: [],
+      tipo: [],
+      compatibilidad: []
+    };
+    
+    if (!data) {
+      return filtrosPorDefecto;
+    }
+    
+    try {
+      const parsed = JSON.parse(data);
+      // Asegurar que todos los campos existan
+      return {
+        marca: parsed.marca || [],
+        medida: parsed.medida || [],
+        caracteristicas: parsed.caracteristicas || [],
+        tipo: parsed.tipo || [],
+        compatibilidad: parsed.compatibilidad || []
+      };
+    } catch (error) {
+      console.error('❌ Error parseando filtros_activos:', error);
+      return filtrosPorDefecto;
+    }
+  }
+
+
   // Actualizar rango de precio
   async updateRangoPrecio(precioMax) {
     const prefs = await this.getPreferencias();
@@ -290,6 +331,29 @@ class UserContext {
     if (prefs.marcas_interes && prefs.marcas_interes.length > 0) {
       contextStr += `- Marcas de interés: ${prefs.marcas_interes.join(', ')}\\n`;
     }
+
+    // ✅ NUEVO V19.0: Información de filtros activos
+    const filtrosActivos = await this.getFiltrosActivos();
+    const hayFiltros = Object.values(filtrosActivos).some(arr => arr.length > 0);
+        
+    if (hayFiltros) {
+      contextStr += `\n📦 FILTROS ACTIVOS:\n`;
+      if (filtrosActivos.marca.length > 0) {
+        contextStr += `- Marca: ${filtrosActivos.marca.join(', ')}\n`;
+      }
+      if (filtrosActivos.medida.length > 0) {
+        contextStr += `- Medida: ${filtrosActivos.medida.join(', ')}\n`;
+      }
+      if (filtrosActivos.caracteristicas.length > 0) {
+        contextStr += `- Características: ${filtrosActivos.caracteristicas.join(', ')}\n`;
+      }
+      if (filtrosActivos.tipo.length > 0) {
+        contextStr += `- Tipo: ${filtrosActivos.tipo.join(', ')}\n`;
+      }
+      if (filtrosActivos.compatibilidad.length > 0) {
+        contextStr += `- Compatibilidad: ${filtrosActivos.compatibilidad.join(', ')}\n`;
+      }
+    }
 /*    
     if (context.ultima_categoria) {
       contextStr += `- Última categoría vista: ${context.ultima_categoria}\\n`;
@@ -358,6 +422,8 @@ console.log({obj: "UserContext", contextStr});
     console.log('🗑️ Limpiando busqueda_activa de Redis');
     pipeline.hdel(this.key, 'busqueda_activa');
     
+    pipeline.hdel(this.key, 'filtros_activos');  // ← NUEVO: Limpiar filtros
+
     // Establecer valores básicos
     pipeline.hset(this.key, 'nombre_usuario', '');
     pipeline.hset(this.key, 'cliente', JSON.stringify({}));
@@ -397,14 +463,52 @@ console.log({obj: "UserContext", contextStr});
 
   async setBusquedaActiva(data) {
     console.log(`💾 GUARDANDO búsqueda activa:`, data);
-    await redis.hset(this.key, 'busqueda_activa', JSON.stringify(data));
+    
+    // ✅ Asegurar que filtros esté incluido
+    const dataConFiltros = {
+      query: data.query,
+      filtros: data.filtros || {
+        marca: [],
+        medida: [],
+        caracteristicas: [],
+        tipo: [],
+        compatibilidad: []
+      },
+      total_resultados: data.total_resultados,
+      mostrados: data.mostrados
+    };
+    
+    await redis.hset(this.key, 'busqueda_activa', JSON.stringify(dataConFiltros));
     await redis.expire(this.key, this.ttl);
-    console.log(`✅ Búsqueda guardada en Redis para ${this.userId}`);
+    console.log(`✅ Búsqueda guardada en Redis para ${this.userId} con filtros`);
   }
 
   async getBusquedaActiva() {
     const v = await redis.hget(this.key, 'busqueda_activa');
-    return v ? JSON.parse(v) : null;
+    
+    if (!v) {
+      return null;
+    }
+    
+    try {
+      const parsed = JSON.parse(v);
+      
+      // ✅ Asegurar que filtros esté incluido
+      if (!parsed.filtros) {
+        parsed.filtros = {
+          marca: [],
+          medida: [],
+          caracteristicas: [],
+          tipo: [],
+          compatibilidad: []
+        };
+      }
+      
+      return parsed;
+    } catch (error) {
+      console.error('❌ Error parseando busqueda_activa:', error);
+      return null;
+    }
   }
 
   async clearBusquedaActiva() {

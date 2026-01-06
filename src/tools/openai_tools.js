@@ -145,80 +145,69 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "buscar_productos",
-        description: `Busca productos en el catálogo usando BÚSQUEDA EXHAUSTIVA.
-
-CLASIFICACIÓN DE INTENCIÓN OBLIGATORIA:
-
-A) INTENCIÓN: PRODUCTO (monitor, arroz, cable, marca, etc.)
-   - Usar el MISMO VALOR en query, categoria y etiquetas
-   - Motivo: El producto puede estar en cualquiera de los 3 campos
-   Ejemplo: "vendes monitores"
-   → query: "monitor", categoria: "monitor", etiquetas: "monitor"
-
-B) INTENCIÓN: NECESIDAD (sed, hambre, dolor, gripa, etc.)
-   - query: null (NO buscar en descripción)
-   - categoria: valor de la necesidad
-   - etiquetas: valor de la necesidad
-   Ejemplo: "tengo sed"
-   → query: null, categoria: "sed", etiquetas: "sed"
-
-IMPORTANTE:
-- per_page SIEMPRE debe ser 25
-- Las categorías son flexibles (pueden ser marcas, proveedores, departamentos, necesidades, etc.)
-- Usar búsqueda exhaustiva para máxima cobertura`,
+        description: "Busca productos en el catálogo. IMPORTANTE: query/categoria/etiquetas SOLO llevan el SUSTANTIVO. Todo lo demás (marca, medida, características) va en filtros.",
         parameters: {
           type: "object",
           properties: {
             query: {
-              type: ["string", "null"],
-              description: `Término de búsqueda para la DESCRIPCIÓN del producto.
-              
-REGLAS:
-- PRODUCTO: usar el término (ej: "monitor", "arroz", "cable HDMI")
-- NECESIDAD: usar null (NO buscar en descripción)
-
-El término debe incluir marca/características si se mencionan.
-Ejemplos: "monitor LG" → "monitor LG", "arroz blanco" → "arroz"`
+              type: "string",
+              description: "SOLO el sustantivo principal normalizado en SINGULAR (ejemplo: 'monitor', 'azucar', 'tuberia'). NUNCA incluir marca, medida ni características."
             },
             categoria: {
               type: ["string", "null"],
-              description: `Categoría para filtrar productos.
-
-IMPORTANTE: Las categorías son FLEXIBLES y pueden ser:
-- Departamentos (002-COMPUTACION, 001-ABARROTES)
-- Marcas (LG, Samsung, Bimbo)
-- Proveedores (Nestlé, Coca-Cola)
-- Necesidades (sed, hambre, dolor)
-- O cualquier otra clasificación del cliente
-
-REGLAS:
-- PRODUCTO: usar el MISMO VALOR que query (ej: "monitor")
-- NECESIDAD: usar el valor de la necesidad (ej: "sed")
-- Búsqueda exhaustiva: cubre todas las organizaciones posibles`
+              description: "SOLO el sustantivo principal (igual que query)"
             },
             etiquetas: {
               type: ["string", "null"],
-              description: `Etiquetas para filtrar productos.
-
-REGLAS:
-- PRODUCTO: usar el MISMO VALOR que query (ej: "monitor")
-- NECESIDAD: usar el valor de la necesidad (ej: "sed")
-- Búsqueda exhaustiva: el producto puede estar etiquetado de cualquier forma`
+              description: "SOLO el sustantivo principal (igual que query)"
+            },
+            filtros: {
+              type: "object",
+              description: "Objeto con filtros estructurados. Cada campo es un array de strings normalizados en MAYUSCULAS.",
+              properties: {
+                marca: {
+                  type: "array",
+                  description: "Marcas (MAYUSCULAS): ['SAMSUNG', 'QIAN']",
+                  items: { type: "string" }
+                },
+                medida: {
+                  type: "array",
+                  description: "Medidas normalizadas (MAYUSCULAS): ['450 GR', '2 LT', '24 PULGADAS']",
+                  items: { type: "string" }
+                },
+                caracteristicas: {
+                  type: "array",
+                  description: "Características técnicas (MAYUSCULAS): ['VGA', 'HDMI', 'LED']",
+                  items: { type: "string" }
+                },
+                tipo: {
+                  type: "array",
+                  description: "Tipos/variantes (MAYUSCULAS): ['MORENA', 'GALVANIZADA', 'ENTERA']",
+                  items: { type: "string" }
+                },
+                compatibilidad: {
+                  type: "array",
+                  description: "Compatibilidad (MAYUSCULAS): ['WINDOWS 10', 'ANDROID']",
+                  items: { type: "string" }
+                }
+              },
+              required: ["marca", "medida", "caracteristicas", "tipo", "compatibilidad"],
+              additionalProperties: false
             },
             precio_max: {
               type: ["number", "null"],
-              description: "Precio máximo en USD"
+              description: "Precio maximo en USD"
             },
             current_page: {
               type: "integer",
-              description: "Página actual - SIEMPRE usar 1 para primera búsqueda"
+              description: "Pagina actual - SIEMPRE usar 1 para primera busqueda"
             },
             per_page: {
               type: "integer",
-              description: "Cantidad de productos a recuperar - DEBE SER SIEMPRE 100"
+              description: "Cantidad de productos a recuperar - DEBE SER SIEMPRE 6"
             },
           },
-          required: ["query", "categoria", "etiquetas", "precio_max", "current_page", "per_page"],
+          required: ["query", "categoria", "etiquetas", "filtros", "precio_max", "current_page", "per_page"],
           additionalProperties: false
         },
         strict: true
@@ -692,289 +681,150 @@ async function executeFunctionCall(name, args, userId) {
         return buscarProductos(args.query, args.category, args.etiquetas, args.precio_max, args.current_page, args.per_page);
         
       case "buscar_productos":
-        console.log(`🔍 BÚSQUEDA DE PRODUCTOS - Query: "${args.query}"`);
-        
-        const resultado = await buscarProductos(
-          args.query, 
-          args.categoria, 
-          args.etiquetas, 
-          args.precio_max, 
-          args.current_page, 
-          args.per_page
-        );
-        
-        console.log(`📊 RESULTADO DE BÚSQUEDA:`, {
-          success: resultado.success,
-          totalProductos: resultado.data?.length || 0,
-          mensaje: resultado.message
-        });
-        
-        // ✅ VALIDACIÓN CRÍTICA ADICIONAL
-        // Verificar que TODOS los productos tengan ARTICULO_ID válido
-        if (resultado.success && resultado.data && Array.isArray(resultado.data)) {
-          const productosConId = resultado.data.filter(p => 
-            p.ARTICULO_ID !== undefined && 
-            p.ARTICULO_ID !== null && 
-            p.ARTICULO_ID !== ''
-          );
+          console.log(`🔍 BÚSQUEDA DE PRODUCTOS - Query: "${args.query}"`);
+          console.log(`📦 Filtros recibidos:`, JSON.stringify(args.filtros, null, 2));
           
-          if (productosConId.length === 0) {
-            console.warn(`⚠️ ALERTA: Todos los productos fueron filtrados por falta de ARTICULO_ID`);
+          // ✅ Validar que filtros sea un objeto
+          if (!args.filtros || typeof args.filtros !== 'object') {
+            console.error('❌ ERROR: filtros debe ser un objeto');
             return {
               success: false,
-              data: [],
-              message: "No encontré productos disponibles con información completa para esta búsqueda.",
+              message: "Error interno: filtros invalido",
               preserveCurrentCart: true
             };
           }
           
-          if (productosConId.length < resultado.data.length) {
-            console.warn(`⚠️ FILTRADOS ${resultado.data.length - productosConId.length} productos sin ARTICULO_ID`);
-          }
+          // ✅ Normalizar filtros vacíos a arrays vacíos
+          const filtrosNormalizados = {
+            marca: Array.isArray(args.filtros.marca) ? args.filtros.marca : [],
+            medida: Array.isArray(args.filtros.medida) ? args.filtros.medida : [],
+            caracteristicas: Array.isArray(args.filtros.caracteristicas) ? args.filtros.caracteristicas : [],
+            tipo: Array.isArray(args.filtros.tipo) ? args.filtros.tipo : [],
+            compatibilidad: Array.isArray(args.filtros.compatibilidad) ? args.filtros.compatibilidad : []
+          };
           
-          // Log de productos válidos para debugging
-          console.log(`✅ Productos válidos con ID:`, productosConId.map(p => ({
-            id: p.ARTICULO_ID,
-            nombre: p.NOMBRE
-          })));
+          console.log(`✅ Filtros normalizados:`, JSON.stringify(filtrosNormalizados, null, 2));
           
-          // Actualizar resultado con solo productos válidos
-          resultado.data = productosConId;
-        }
-        
-        // Guardar preferencias
-        if (args.categoria) {
-          await userContext.addCategoria(args.categoria);
-        }
-        
-        if (args.precio_max) {
-          await userContext.updateRangoPrecio(args.precio_max);
-        }
-        
-        // Guardar búsqueda en historial
-        await userContext.addBusqueda(args.query, { 
-          total_resultados: (resultado.data || []).length 
-        });
-
-        // Estado de búsqueda activa
-        const productosApi = resultado.data || [];
-        const productosNormalizados = productosApi
-          .map(p => ({
-            ARTICULO_ID: p.ARTICULO_ID,
-            NOMBRE: p.NOMBRE,
-            PRECIO: p.PRECIO
-          }))
-          .filter(p =>
-            p.ARTICULO_ID !== undefined &&
-            p.ARTICULO_ID !== null &&
-            p.NOMBRE &&
-            p.PRECIO !== undefined
+          // ✅ Pasar filtros a buscarProductos
+          const resultado = await buscarProductos(
+            args.query, 
+            args.categoria, 
+            args.etiquetas, 
+            args.precio_max, 
+            args.current_page, 
+            args.per_page,
+            filtrosNormalizados  // ← NUEVO PARÁMETRO
           );
-        
-        if (!productosNormalizados.length) {
-          console.warn(`⚠️ No hay productos normalizados válidos después del segundo filtro`);
           
-          // 🔄 FALLBACK INTELIGENTE V18.2: Extraer sustantivo principal
-          const palabras = args.query ? args.query.split(' ').filter(p => p.trim()) : [];
+          // Log de búsqueda con filtros
+          console.log(`📊 RESULTADO DE BÚSQUEDA:`, {
+            success: resultado.success,
+            totalProductos: resultado.data?.length || 0,
+            mensaje: resultado.message,
+            filtrosAplicados: Object.keys(filtrosNormalizados)
+              .filter(k => filtrosNormalizados[k].length > 0)
+          });
           
-          // Función para extraer sustantivo principal
-          function extraerSustantivo(palabras) {
-            if (!palabras || palabras.length === 0) return null;
-            if (palabras.length === 1) return palabras[0].toLowerCase();
-            
-            const palabrasNoSustantivas = [
-              // Artículos
-              'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas',
-              // Verbos comunes
-              'busco', 'buscar', 'quiero', 'necesito', 'dame', 'vendeme',
-              'tienes', 'hay', 'vende', 'vendes', 'tiene',
-              // Preposiciones
-              'de', 'con', 'para', 'por', 'sin', 'en',
-              // Adjetivos de tamaño
-              'grande', 'pequeño', 'chico', 'mediano',
-              // Números escritos
-              'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 
-              'ocho', 'nueve', 'diez',
-              // Unidades de medida
-              'kilo', 'kilos', 'kg', 'gramo', 'gramos', 'gr', 'g',
-              'litro', 'litros', 'lt', 'l', 'ml', 'mililitro', 'mililitros',
-              'metro', 'metros', 'm', 'cm', 'centimetro', 'centimetros',
-              'pieza', 'piezas', 'pza', 'pzas', 'unidad', 'unidades'
-            ];
-            
-            const palabrasFiltradas = palabras.filter(palabra => {
-              const p = palabra.toLowerCase();
-              return !palabrasNoSustantivas.includes(p) && isNaN(Number(p));
-            });
-            
-            if (palabrasFiltradas.length > 0) {
-              return palabrasFiltradas[0].toLowerCase();
-            }
-            
-            return palabras[0].toLowerCase();
-          }
-          
-          const sustantivo = extraerSustantivo(palabras);
-          
-          if (sustantivo && sustantivo !== args.query.toLowerCase() && palabras.length > 1) {
-            console.log(`🔄 FALLBACK INTELIGENTE - Extrayendo sustantivo`);
-            console.log(`   Query original: "${args.query}"`);
-            console.log(`   Palabras: [${palabras.join(', ')}]`);
-            console.log(`   Sustantivo extraído: "${sustantivo}"`);
-            
-            const resultadoFallback = await buscarProductos(
-              sustantivo,
-              sustantivo,
-              sustantivo,
-              args.precio_max,
-              args.current_page,
-              args.per_page
+          // ✅ VALIDACIÓN CRÍTICA ADICIONAL
+          // Verificar que TODOS los productos tengan ARTICULO_ID válido
+          if (resultado.success && resultado.data && Array.isArray(resultado.data)) {
+            const productosConId = resultado.data.filter(p => 
+              p.ARTICULO_ID !== undefined && 
+              p.ARTICULO_ID !== null && 
+              p.ARTICULO_ID !== ''
             );
             
-            if (resultadoFallback.success && resultadoFallback.data && resultadoFallback.data.length > 0) {
-              const productosFallback = resultadoFallback.data
-                .filter(p => 
-                  p.ARTICULO_ID !== undefined && 
-                  p.ARTICULO_ID !== null && 
-                  p.ARTICULO_ID !== '' &&
-                  p.NOMBRE && 
-                  p.PRECIO !== undefined
-                )
-                .map(p => ({
-                  ARTICULO_ID: p.ARTICULO_ID,
-                  NOMBRE: p.NOMBRE,
-                  PRECIO: p.PRECIO
-                }))
-                .slice(0, 5);
-              
-              if (productosFallback.length > 0) {
-                console.log(`✅ FALLBACK exitoso - ${productosFallback.length} productos encontrados`);
-                
-                const totalFallback = resultadoFallback.meta?.count || productosFallback.length;
-                
-                await userContext.setBusquedaActiva({
-                  query: sustantivo,
-                  total_resultados: totalFallback,
-                  mostrados: productosFallback.length
-                });
-                
-                return {
-                  success: true,
-                  data: productosFallback,
-                  busqueda_refinada: true,
-                  query_original: args.query,
-                  query_refinado: sustantivo,
-                  mensaje_refinamiento: `No encontré "${args.query}" exactamente, pero encontré estos productos de "${sustantivo}":`,
-                  preserveCurrentCart: true
-                };
-              }
+            if (productosConId.length === 0) {
+              console.warn(`⚠️ ALERTA: Todos los productos fueron filtrados por falta de ARTICULO_ID`);
+              return {
+                success: false,
+                data: [],
+                message: "No encontré productos disponibles con información completa para esta búsqueda.",
+                preserveCurrentCart: true
+              };
             }
+            
+            if (productosConId.length < resultado.data.length) {
+              console.warn(`⚠️ FILTRADOS ${resultado.data.length - productosConId.length} productos sin ARTICULO_ID`);
+            }
+            
+            // Log de productos válidos para debugging
+            console.log(`✅ Productos válidos con ID:`, productosConId.map(p => ({
+              id: p.ARTICULO_ID,
+              nombre: p.NOMBRE
+            })));
+            
+            // Actualizar resultado con solo productos válidos
+            resultado.data = productosConId;
           }
           
-          // Si el fallback tampoco funcionó, retornar mensaje original
-          return {
-            success: false,
-            data: [],
-            message: "No encontré productos disponibles para esta búsqueda.",
-            preserveCurrentCart: true
-          };
-        }
-        
-        console.log(`✅ Productos normalizados finales: ${productosNormalizados.length}`);
-        
-        const LIMITE = 5;
-        const visibles = productosNormalizados.slice(0, LIMITE);
-        
-        // ✅ Usar el count total de la API, no el length del array
-        const totalProductos = resultado.meta?.count || productosNormalizados.length;
-        
-        // ✅ CONTROL DE LISTADOS GRANDES - Detectar si sugerir agrupación
-        let sugerirAgrupacion = false;
-        if (totalProductos > 6) {
-          sugerirAgrupacion = true;
-        }
-        
-        console.log(`📋 Productos a mostrar al usuario: ${visibles.length}/${totalProductos}`);
-        if (sugerirAgrupacion) {
-          console.log(`⚠️ LISTADO GRANDE - ${totalProductos} productos encontrados - Sugerir agrupación`);
-        }
-        
-        await userContext.setBusquedaActiva({
-          query: args.query,
-          total_resultados: totalProductos,  // ✅ Total real de la API
-          mostrados: visibles.length
-        });
-        
+          // Guardar preferencias
+          if (args.categoria) {
+            await userContext.addCategoria(args.categoria);
+          }
+          
+          if (args.precio_max) {
+            await userContext.updateRangoPrecio(args.precio_max);
+          }
+          
+          // ✅ NUEVO: Guardar filtros en contexto
+          if (Object.values(filtrosNormalizados).some(arr => arr.length > 0)) {
+            await userContext.setFiltrosActivos(filtrosNormalizados);
+          }
+          
+          // Guardar búsqueda en historial
+          await userContext.addBusqueda(args.query, { 
+            total_resultados: (resultado.data || []).length,
+            filtros: filtrosNormalizados  // ← Guardar filtros aplicados
+          });
+  
+          // Estado de búsqueda activa
+          const productosApi = resultado.data || [];
+          const productosNormalizados = productosApi
+            .map(p => ({
+              ARTICULO_ID: p.ARTICULO_ID,
+              NOMBRE: p.NOMBRE,
+              PRECIO: p.PRECIO
+            }))
+            .filter(p =>
+              p.ARTICULO_ID !== undefined &&
+              p.ARTICULO_ID !== null &&
+              p.NOMBRE &&
+              p.PRECIO !== undefined
+            );
+          
+          if (!productosNormalizados.length) {
+            console.warn(`⚠️ No hay productos normalizados válidos después del segundo filtro`);
+            return {
+              success: false,
+              data: [],
+              message: "No encontré productos disponibles para esta búsqueda.",
+              preserveCurrentCart: true
+            };
+          }
+          
+          console.log(`✅ Productos normalizados finales: ${productosNormalizados.length}`);
+          
+          const LIMITE = 6;  // ← Cambió de 5 a 6 para V19.0
+          const visibles = productosNormalizados.slice(0, LIMITE);
+          
+          // ✅ Usar el count total de la API, no el length del array
+          const totalProductos = resultado.meta?.count || productosNormalizados.length;
+          
+          console.log(`📋 Productos a mostrar al usuario: ${visibles.length}/${totalProductos}`);
+          
+          await userContext.setBusquedaActiva({
+            query: args.query,
+            filtros: filtrosNormalizados,  // ← NUEVO: guardar filtros en estado
+            total_resultados: totalProductos,  // ✅ Total real de la API
+            mostrados: visibles.length
+          });
+          
         return {
           success: true,
           data: visibles,
           total_disponibles: totalProductos,
-          sugerir_agrupacion: sugerirAgrupacion,
-          preserveCurrentCart: true
-        };
-      
-      case "tienes_mas":
-        console.log('📞 Ejecutando tienes_mas (mostrar siguientes productos)');
-        
-        const estado = await userContext.getBusquedaActiva();
-
-        if (!estado || !estado.query) {
-          console.warn('⚠️ tienes_mas: No hay búsqueda activa en el estado');
-          return {
-            success: false,
-            message: "No hay una búsqueda activa para mostrar más productos.",
-            preserveCurrentCart: true
-          };
-        }
-        
-        console.log(`🔍 tienes_mas: Continuando búsqueda "${estado.query}" desde producto ${estado.mostrados + 1}`);
-      
-        const resultadoTM = await buscarProductos(
-          estado.query,
-          null,
-          null,
-          null,
-          1,
-          1000
-        );
-      
-        const productosTM = resultadoTM.data || [];
-        
-        // ✅ Usar el total del estado (que viene del meta.count original)
-        const total = estado.total_resultados;
-      
-        if (estado.mostrados >= total) {
-          return {
-            success: true,
-            data: [],
-            message: "No hay más productos disponibles para esta búsqueda.",
-            preserveCurrentCart: true
-          };
-        }
-      
-        const LIMITETM = 5;
-        const inicio = estado.mostrados;
-        const fin = inicio + LIMITETM;
-      
-        const visiblesTM = productosTM.slice(inicio, fin);
-      
-        // ✅ Mantener el total_resultados del estado (NO sobrescribir)
-        await userContext.setBusquedaActiva({
-          query: estado.query,
-          total_resultados: estado.total_resultados,  // ✅ Mantener el original
-          mostrados: estado.mostrados + visiblesTM.length
-        });
-      
-        return {
-          success: true,
-          data: visiblesTM,
-          metadata: {
-            inicio_numeracion: inicio + 1,  // ✅ Número del primer producto
-            fin_numeracion: inicio + visiblesTM.length,  // ✅ Número del último producto
-            total_disponibles: total,
-            mostrados_hasta_ahora: estado.mostrados + visiblesTM.length
-          },
-          message: `Mostrando productos ${inicio + 1} al ${inicio + visiblesTM.length} de ${total} disponibles`,
+          filtros_aplicados: filtrosNormalizados,  // ← NUEVO: informar filtros aplicados
           preserveCurrentCart: true
         };
 

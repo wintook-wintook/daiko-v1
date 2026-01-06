@@ -206,7 +206,7 @@ async function obtenerCategorias() {
   }
 }
   
-async function buscarProductos(query, categoria = null, etiquetas = null, precioMax = null, current_page=1, per_page=25) {
+async function buscarProductos(query, categoria = null, etiquetas = null, precioMax = null, current_page=1, per_page=6, filtros = null) {
   let data = { cliente_id: cliente_id, moneda_id: moneda_id, per_page };
   
   if (categoria) { data.categoria = categoria; }
@@ -214,6 +214,46 @@ async function buscarProductos(query, categoria = null, etiquetas = null, precio
   if (etiquetas && etiquetas.length > 0) { 
     data.etiquetas = Array.isArray(etiquetas) ? etiquetas : [etiquetas]; 
   }
+
+  if (filtros) {
+    console.log('📦 Filtros recibidos en buscarProductos:', filtros);
+    
+    if (filtros.marca && filtros.marca.length > 0) {
+      data.marca = filtros.marca;
+      console.log('  → Filtro marca aplicado:', filtros.marca);
+    }
+    
+    if (filtros.medida && filtros.medida.length > 0) {
+      data.medida = filtros.medida;
+      console.log('  → Filtro medida aplicado:', filtros.medida);
+    }
+    
+    if (filtros.caracteristicas && filtros.caracteristicas.length > 0) {
+      data.caracteristicas = filtros.caracteristicas;
+      console.log('  → Filtro características aplicado:', filtros.caracteristicas);
+    }
+    
+    if (filtros.tipo && filtros.tipo.length > 0) {
+      data.tipo = filtros.tipo;
+      console.log('  → Filtro tipo aplicado:', filtros.tipo);
+    }
+    
+    if (filtros.compatibilidad && filtros.compatibilidad.length > 0) {
+      data.compatibilidad = filtros.compatibilidad;
+      console.log('  → Filtro compatibilidad aplicado:', filtros.compatibilidad);
+    }
+    
+    console.log('✅ Data con filtros aplicados:', {
+      query: data.query,
+      categoria: data.categoria,
+      marca: data.marca,
+      medida: data.medida,
+      caracteristicas: data.caracteristicas,
+      tipo: data.tipo,
+      compatibilidad: data.compatibilidad
+    });
+  }
+
   data = JSON.stringify(data);
   let url = `s`;  
   if (!categoria && (!etiquetas || etiquetas.length == 0)) { url = `Search/${query}`; }
