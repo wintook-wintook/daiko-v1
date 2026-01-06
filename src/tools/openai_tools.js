@@ -33,16 +33,11 @@ const functionDefinitions = [
       type: "function",
       function: {
         name: "reiniciar",
-        description: "Reinicia la conversacion",
+        description: "Reinicia la conversación y limpia el estado (Redis/contexto/paginación/filtros).",
         parameters: {
           type: "object",
-          properties: {
-            query: {
-              type: "string",
-              description: "Filtro a aplicar"
-            },          
-          },
-          required: ["query"],
+          properties: {},
+          required: [],
           additionalProperties: false
         },
         strict: true
