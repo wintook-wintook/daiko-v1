@@ -204,7 +204,7 @@ const functionDefinitions = [
             },
             per_page: {
               type: "integer",
-              description: "Cantidad de productos a recuperar - DEBE SER SIEMPRE 6"
+              description: "Cantidad de productos a recuperar - DEBE SER SIEMPRE 100"
             },
           },
           required: ["query", "categoria", "etiquetas", "filtros", "precio_max", "current_page", "per_page"],
@@ -805,7 +805,7 @@ async function executeFunctionCall(name, args, userId) {
           
           console.log(`✅ Productos normalizados finales: ${productosNormalizados.length}`);
           
-          const LIMITE = 6;  // ← Cambió de 5 a 6 para V19.0
+          const LIMITE = 100;  // ← V19.0: Recuperar 100 productos de la API
           const visibles = productosNormalizados.slice(0, LIMITE);
           
           // ✅ Usar el count total de la API, no el length del array
@@ -826,7 +826,7 @@ async function executeFunctionCall(name, args, userId) {
           total_disponibles: totalProductos,
           filtros_aplicados: filtrosNormalizados,  // ← NUEVO: informar filtros aplicados
           preserveCurrentCart: true
-        };
+        };  
 
       case "obtener_detalle_producto":
         const detalle = await obtenerDetalleProducto(args.id);

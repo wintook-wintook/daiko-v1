@@ -206,7 +206,7 @@ async function obtenerCategorias() {
   }
 }
   
-async function buscarProductos(query, categoria = null, etiquetas = null, precioMax = null, current_page=1, per_page=6, filtros = null) {
+async function buscarProductos(query, categoria = null, etiquetas = null, precioMax = null, current_page=1, per_page=100, filtros = null) {
   let data = { cliente_id: cliente_id, moneda_id: moneda_id, per_page };
   
   if (categoria) { data.categoria = categoria; }
@@ -215,6 +215,7 @@ async function buscarProductos(query, categoria = null, etiquetas = null, precio
     data.etiquetas = Array.isArray(etiquetas) ? etiquetas : [etiquetas]; 
   }
 
+  // ✅ NUEVO V19.0: Aplicar filtros si existen
   if (filtros) {
     console.log('📦 Filtros recibidos en buscarProductos:', filtros);
     
@@ -253,6 +254,7 @@ async function buscarProductos(query, categoria = null, etiquetas = null, precio
       compatibilidad: data.compatibilidad
     });
   }
+
 
   data = JSON.stringify(data);
   let url = `s`;  
