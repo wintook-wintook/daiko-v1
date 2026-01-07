@@ -165,6 +165,11 @@ const functionDefinitions = [
                   description: "Marcas (MAYUSCULAS): ['SAMSUNG', 'QIAN']",
                   items: { type: "string" }
                 },
+                tipo: {
+                  type: "array",
+                  description: "Tipos/variantes (MAYUSCULAS): ['MORENA', 'GALVANIZADA', 'ENTERA']",
+                  items: { type: "string" }
+                },
                 medida: {
                   type: "array",
                   description: "Medidas normalizadas (MAYUSCULAS): ['450 GR', '2 LT', '24 PULGADAS']",
@@ -173,11 +178,6 @@ const functionDefinitions = [
                 caracteristicas: {
                   type: "array",
                   description: "Características técnicas (MAYUSCULAS): ['VGA', 'HDMI', 'LED']",
-                  items: { type: "string" }
-                },
-                tipo: {
-                  type: "array",
-                  description: "Tipos/variantes (MAYUSCULAS): ['MORENA', 'GALVANIZADA', 'ENTERA']",
                   items: { type: "string" }
                 },
                 compatibilidad: {
