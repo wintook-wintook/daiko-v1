@@ -247,15 +247,17 @@ async function buscarProductos(query, categoria = null, etiquetas = null, precio
     console.log('✅ Data con filtros aplicados:', {
       query: data.query,
       categoria: data.categoria,
-      marca: data.marca,
-      medida: data.medida,
-      caracteristicas: data.caracteristicas,
-      tipo: data.tipo,
-      compatibilidad: data.compatibilidad
+      filtros: {
+        marca: data.marca,
+        medida: data.medida,
+        caracteristicas: data.caracteristicas,
+        tipo: data.tipo,
+        compatibilidad: data.compatibilidad
+      }
     });
   }
 
-
+  data.filtros = filtros;
   data = JSON.stringify(data);
   let url = `s`;  
   if (!categoria && (!etiquetas || etiquetas.length == 0)) { url = `Search/${query}`; }
