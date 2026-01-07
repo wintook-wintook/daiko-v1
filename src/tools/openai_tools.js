@@ -800,28 +800,69 @@ async function executeFunctionCall(name, args, userId) {
           
           console.log(`✅ Productos normalizados finales: ${productosNormalizados.length}`);
           
-          const LIMITE = 100;  // ← V19.0: Recuperar 100 productos de la API
-          const visibles = productosNormalizados.slice(0, LIMITE);
-          
-          // ✅ Usar el count total de la API, no el length del array
           const totalProductos = resultado.meta?.count || productosNormalizados.length;
+        
+          console.log(`📋 Total de productos encontrados: ${totalProductos}`);
           
-          console.log(`📋 Productos a mostrar al usuario: ${visibles.length}/${totalProductos}`);
+          // ✅ LÓGICA DE DECISIÓN CRÍTICA: ≤6 lista, >6 solo metadata
+          const UMBRAL_LISTADO = 6;
           
-          await userContext.setBusquedaActiva({
-            query: args.query,
-            filtros: filtrosNormalizados,  // ← NUEVO: guardar filtros en estado
-            total_resultados: totalProductos,  // ✅ Total real de la API
-            mostrados: visibles.length
-          });
+          let responseData = {};
           
-        return {
-          success: true,
-          data: visibles,
-          total_disponibles: totalProductos,
-          filtros_aplicados: filtrosNormalizados,  // ← NUEVO: informar filtros aplicados
-          preserveCurrentCart: true
-        };  
+          if (totalProductos <= UMBRAL_LISTADO) {
+            // ========================================
+            // CASO A: Total ≤ 6 → LISTAR PRODUCTOS
+            // ========================================
+            console.log(`✅ CASO A: ${totalProductos} ≤ ${UMBRAL_LISTADO} - Listar productos directamente`);
+            
+            responseData = {
+              success: true,
+              data: productosNormalizados,  // ← Retorna TODOS los productos (máx 6)
+              total_disponibles: totalProductos,
+              filtros_aplicados: filtrosNormalizados,
+              facets: resultado.facets || null,
+              debe_listar: true,  // ← Instrucción explícita para el LLM
+              preserveCurrentCart: true
+            };
+            
+            await userContext.setBusquedaActiva({
+              query: args.query,
+              filtros: filtrosNormalizados,
+              total_resultados: totalProductos,
+              mostrados: totalProductos  // ← Se mostraron todos
+            });
+            
+            console.log(`📤 Retornando ${totalProductos} productos al LLM para listar`);
+            
+          } else {
+            // ========================================
+            // CASO B: Total > 6 → NO LISTAR, ENVIAR FACETS
+            // ========================================
+            console.log(`⚠️ CASO B: ${totalProductos} > ${UMBRAL_LISTADO} - NO listar, aplicar refinamiento con facets`);
+            
+            responseData = {
+              success: true,
+              data: [],  // ← ❌ NO enviar productos al LLM
+              total_disponibles: totalProductos,
+              filtros_aplicados: filtrosNormalizados,
+              facets: resultado.facets || null,  // ← CRÍTICO: Enviar facets para refinamiento
+              debe_agrupar: true,  // ← Instrucción explícita para el LLM
+              mensaje_sistema: `Total > ${UMBRAL_LISTADO}: Aplicar REFINAMIENTO GUIADO POR FACETS (3 PASOS OBLIGATORIOS)`,
+              preserveCurrentCart: true
+            };
+            
+            await userContext.setBusquedaActiva({
+              query: args.query,
+              filtros: filtrosNormalizados,
+              total_resultados: totalProductos,
+              mostrados: 0  // ← No se mostraron productos
+            });
+            
+            console.log(`📤 Retornando metadata + facets (SIN productos) al LLM`);
+            console.log(`📦 Facets disponibles:`, Object.keys(resultado.facets || {}).join(', '));
+          }
+          
+        return responseData;  
 
       case "obtener_detalle_producto":
         const detalle = await obtenerDetalleProducto(args.id);
