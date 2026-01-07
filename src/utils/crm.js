@@ -541,6 +541,100 @@ function calcularFacets(productos) {
   return facetsFinales;
 }
 
+
+// ============================================================================
+// FUNCIÓN OPTIMIZADA DE CÁLCULO DE FACETS
+// ============================================================================
+
+function calcularFacetsOptimizado(productos) {
+  if (!productos || productos.length === 0) {
+    console.log('⚠️ calcularFacetsOptimizado: No hay productos para analizar');
+    return null;
+  }
+  
+  console.log(`🚀 Calculando facets optimizado de ${productos.length} productos...`);
+  const inicio = Date.now();
+  
+  // Sets para almacenar únicos (más rápido que Map)
+  const facets = {
+    marca: new Set(),
+    medida: new Set(),
+    tipo: new Set(),
+    caracteristicas: new Set()
+  };
+  
+  // Regex precompilado (fuera del loop para mejor performance)
+  const REGEX_MEDIDA = /(\d+\.?\d*)\s*(PULGADAS?|PULG|"|GR?A?M?O?S?|KG|LT?R?O?S?|ML|METROS?|CM|MM|OZ|LB)/i;
+  
+  // Procesamiento simplificado y rápido
+  productos.forEach(producto => {
+    const nombre = (producto.NOMBRE || '').toUpperCase();
+    if (!nombre || nombre.length < 3) return;
+    
+    const palabras = nombre.split(/\s+/).filter(p => p.length > 1);
+    
+    // Extraer medidas (regex)
+    const matchMedida = nombre.match(REGEX_MEDIDA);
+    if (matchMedida) {
+      let unidad = matchMedida[2].toUpperCase();
+      
+      // Normalizar unidades
+      if (unidad.match(/PULGADAS?|PULG|"/)) unidad = 'PULGADAS';
+      else if (unidad.match(/GR?A?M?O?S?/)) unidad = 'GR';
+      else if (unidad.match(/KG/)) unidad = 'KG';
+      else if (unidad.match(/LT?R?O?S?/)) unidad = 'LT';
+      else if (unidad.match(/ML/)) unidad = 'ML';
+      else if (unidad.match(/METROS?/)) unidad = 'METROS';
+      else if (unidad.match(/CM/)) unidad = 'CM';
+      
+      facets.medida.add(`${matchMedida[1]} ${unidad}`);
+    }
+    
+    // Extraer palabras relevantes (posibles marcas/tipos)
+    palabras.forEach((palabra, idx) => {
+      // Ignorar palabras comunes
+      if (['DE', 'LA', 'EL', 'CON', 'SIN', 'PARA'].includes(palabra)) return;
+      
+      // Segunda palabra suele ser marca
+      if (idx === 1 && palabra.length >= 3) {
+        facets.marca.add(palabra);
+      }
+      
+      // Palabras largas después de posición 2 pueden ser tipos
+      if (idx > 1 && palabra.length >= 4) {
+        facets.tipo.add(palabra);
+      }
+      
+      // Siglas de 2-6 letras son características
+      if (palabra.length >= 2 && palabra.length <= 6 && /^[A-Z]+$/.test(palabra)) {
+        facets.caracteristicas.add(palabra);
+      }
+    });
+  });
+  
+  // Convertir a arrays y limitar (top 10 más frecuentes)
+  const resultado = {
+    marca: [...facets.marca].sort().slice(0, 10),
+    medida: [...facets.medida].sort((a, b) => {
+      const numA = parseFloat(a);
+      const numB = parseFloat(b);
+      return numA - numB;
+    }).slice(0, 10),
+    tipo: [...facets.tipo].sort().slice(0, 10),
+    caracteristicas: [...facets.caracteristicas].sort().slice(0, 10)
+  };
+  
+  const tiempo = Date.now() - inicio;
+  console.log(`⚡ Facets optimizado calculado en ${tiempo}ms:`, {
+    marcas: resultado.marca.length,
+    medidas: resultado.medida.length,
+    tipos: resultado.tipo.length,
+    caracteristicas: resultado.caracteristicas.length
+  });
+  
+  return resultado;
+}
+
 async function buscarProductos(query, categoria = null, etiquetas = null, precioMax = null, current_page=1, per_page=100, filtros = null) {
   let data = { cliente_id: cliente_id, moneda_id: moneda_id, per_page };
   
