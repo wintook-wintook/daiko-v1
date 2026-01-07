@@ -208,31 +208,295 @@ async function obtenerCategorias() {
 
 // Función helper para calcular facets:
 function calcularFacets(productos) {
-  if (!productos || productos.length === 0) return null;
+  // Validación inicial
+  if (!productos || productos.length === 0) {
+    console.log('⚠️ calcularFacets: No hay productos para analizar');
+    return null;
+  }
   
-  const facets = {
-    marca: [],
-    medida: [],
-    tipo: [],
-    caracteristicas: []
+  console.log(`🔧 Calculando facets automáticamente de ${productos.length} productos...`);
+  
+  // ====================================================================
+  // ESTRUCTURAS PARA ACUMULAR DATOS
+  // ====================================================================
+  
+  // Usamos Maps para contar frecuencias
+  const frecuencias = {
+    palabras: new Map(),      // Todas las palabras con su frecuencia
+    medidas: new Map(),       // Medidas detectadas
+    numeros: new Map()        // Números encontrados (para tamaños)
   };
   
-  productos.forEach(producto => {
-    // Extraer facets del nombre del producto
-    // Esto es un ejemplo básico - ajustar según estructura real
+  // Sets finales para facets únicos
+  const facets = {
+    marca: new Set(),
+    medida: new Set(),
+    tipo: new Set(),
+    caracteristicas: new Set()
+  };
+  
+  // ====================================================================
+  // PALABRAS DE RUIDO A IGNORAR (Stop words)
+  // ====================================================================
+  // Estas son palabras comunes que NO son facets útiles
+  
+  const PALABRAS_IGNORAR = new Set([
+    // Artículos y preposiciones
+    'EL', 'LA', 'LOS', 'LAS', 'UN', 'UNA', 'DE', 'DEL', 'AL', 'CON', 'SIN',
+    'PARA', 'POR', 'EN', 'A', 'Y', 'O', 'E',
+    
+    // Palabras genéricas de productos
+    'PRODUCTO', 'ARTICULO', 'ITEM', 'UNIDAD', 'PIEZA', 'PIEZAS',
+    
+    // Otras palabras comunes no útiles
+    'NUEVO', 'NUEVA', 'ORIGINAL', 'GENERICO', 'GENERICA',
+    'ESTANDAR', 'NORMAL', 'REGULAR', 'COMUN'
+  ]);
+  
+  // ====================================================================
+  // PATRONES REGEX PARA DETECCIÓN AUTOMÁTICA
+  // ====================================================================
+  
+  // Patrón para medidas: número + unidad
+  const REGEX_MEDIDA = /(\d+\.?\d*)\s*(PULGADAS?|PULG|"|PULGADA|GR?A?M?O?S?|KG|KILOGRAMO?S?|LT?R?O?S?|LITRO?S?|ML|MILILITRO?S?|METROS?|MTS?|CM|CENTIMETRO?S?|MM|MILIMETRO?S?|OZ|ONZAS?|LB|LIBRAS?)/i;
+  
+  // Patrón para siglas (posibles características técnicas)
+  const REGEX_SIGLA = /^[A-Z]{2,6}$/;  // 2-6 letras mayúsculas (VGA, HDMI, USB, etc.)
+  
+  // Patrón para números sueltos (posibles tamaños)
+  const REGEX_NUMERO_SUELTO = /^(\d+\.?\d*)$/;
+  
+  // ====================================================================
+  // FASE 1: ANÁLISIS Y RECOLECCIÓN DE DATOS
+  // ====================================================================
+  
+  productos.forEach((producto, index) => {
     const nombre = producto.NOMBRE || '';
     
-    // Ejemplo: "MONITOR SAMSUNG 24 PULGADAS VGA LED"
-    // Extraer marca (segunda palabra normalmente)
-    // Extraer medida (números + unidad)
-    // Etc.
+    if (!nombre) {
+      return; // Saltar productos sin nombre
+    }
+    
+    // Normalizar nombre
+    const nombreNormalizado = nombre
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")  // Eliminar acentos
+      .replace(/[^\w\s.]/g, ' ')         // Reemplazar puntuación con espacios
+      .replace(/\s+/g, ' ')              // Normalizar espacios
+      .trim();
+    
+    // ----------------------------------------------------------------
+    // 1.1 EXTRAER MEDIDAS (tienen prioridad)
+    // ----------------------------------------------------------------
+    
+    let match;
+    let textoRestante = nombreNormalizado;
+    
+    while ((match = REGEX_MEDIDA.exec(textoRestante)) !== null) {
+      const numero = match[1];
+      let unidad = match[2].toUpperCase();
+      
+      // Normalizar unidades comunes
+      if (unidad.match(/^(PULGADAS?|PULG|")$/)) unidad = 'PULGADAS';
+      else if (unidad.match(/^(GR?A?M?O?S?)$/)) unidad = 'GR';
+      else if (unidad.match(/^(KG|KILOGRAMO?S?)$/)) unidad = 'KG';
+      else if (unidad.match(/^(LT?R?O?S?|LITRO?S?)$/)) unidad = 'LT';
+      else if (unidad.match(/^(ML|MILILITRO?S?)$/)) unidad = 'ML';
+      else if (unidad.match(/^(METROS?|MTS?)$/)) unidad = 'METROS';
+      else if (unidad.match(/^(CM|CENTIMETRO?S?)$/)) unidad = 'CM';
+      else if (unidad.match(/^(MM|MILIMETRO?S?)$/)) unidad = 'MM';
+      else if (unidad.match(/^(OZ|ONZAS?)$/)) unidad = 'OZ';
+      else if (unidad.match(/^(LB|LIBRAS?)$/)) unidad = 'LB';
+      
+      const medidaCompleta = `${numero} ${unidad}`;
+      
+      // Contar frecuencia de esta medida
+      frecuencias.medidas.set(
+        medidaCompleta, 
+        (frecuencias.medidas.get(medidaCompleta) || 0) + 1
+      );
+      
+      facets.medida.add(medidaCompleta);
+      
+      textoRestante = textoRestante.substring(match.index + match[0].length);
+    }
+    
+    // ----------------------------------------------------------------
+    // 1.2 EXTRAER PALABRAS Y CONTAR FRECUENCIAS
+    // ----------------------------------------------------------------
+    
+    const palabras = nombreNormalizado.split(/\s+/).filter(p => p.length > 0);
+    
+    palabras.forEach((palabra, posicion) => {
+      // Ignorar palabras de ruido
+      if (PALABRAS_IGNORAR.has(palabra)) {
+        return;
+      }
+      
+      // Ignorar palabras muy cortas (menos de 2 letras)
+      if (palabra.length < 2) {
+        return;
+      }
+      
+      // Ignorar números sueltos sin contexto
+      if (REGEX_NUMERO_SUELTO.test(palabra)) {
+        frecuencias.numeros.set(palabra, (frecuencias.numeros.get(palabra) || 0) + 1);
+        return;
+      }
+      
+      // Contar frecuencia de la palabra
+      const infoActual = frecuencias.palabras.get(palabra) || {
+        count: 0,
+        posiciones: [],
+        esSigla: REGEX_SIGLA.test(palabra)
+      };
+      
+      infoActual.count++;
+      infoActual.posiciones.push(posicion);
+      
+      frecuencias.palabras.set(palabra, infoActual);
+    });
   });
   
-  // Eliminar duplicados y ordenar
-  facets.marca = [...new Set(facets.marca)].sort();
-  facets.medida = [...new Set(facets.medida)].sort();
+  // ====================================================================
+  // FASE 2: CLASIFICACIÓN INTELIGENTE DE PALABRAS
+  // ====================================================================
   
-  return facets;
+  console.log(`📊 Análisis: ${frecuencias.palabras.size} palabras únicas encontradas`);
+  
+  // Convertir Map a Array para facilitar procesamiento
+  const palabrasArray = Array.from(frecuencias.palabras.entries())
+    .map(([palabra, info]) => ({
+      palabra,
+      frecuencia: info.count,
+      posiciones: info.posiciones,
+      esSigla: info.esSigla,
+      posicionPromedio: info.posiciones.reduce((a, b) => a + b, 0) / info.posiciones.length
+    }))
+    .sort((a, b) => b.frecuencia - a.frecuencia); // Ordenar por frecuencia descendente
+  
+  // ----------------------------------------------------------------
+  // 2.1 IDENTIFICAR MARCAS
+  // ----------------------------------------------------------------
+  // Heurística: Palabras que aparecen en posición 1-2 con frecuencia moderada-alta
+  // y tienen longitud >= 3 caracteres
+  
+  const totalProductos = productos.length;
+  const UMBRAL_MARCA_MIN = Math.max(2, totalProductos * 0.02);  // Al menos 2% de productos
+  const UMBRAL_MARCA_MAX = totalProductos * 0.40;  // Máximo 40% (para evitar palabras genéricas)
+  
+  palabrasArray.forEach(item => {
+    const esSegundaPalabra = item.posicionPromedio >= 0.8 && item.posicionPromedio <= 2.2;
+    const frecuenciaAdecuada = item.frecuencia >= UMBRAL_MARCA_MIN && item.frecuencia <= UMBRAL_MARCA_MAX;
+    const longitudAdecuada = item.palabra.length >= 3;
+    
+    if (esSegundaPalabra && frecuenciaAdecuada && longitudAdecuada) {
+      facets.marca.add(item.palabra);
+    }
+  });
+  
+  // ----------------------------------------------------------------
+  // 2.2 IDENTIFICAR CARACTERÍSTICAS TÉCNICAS
+  // ----------------------------------------------------------------
+  // Heurística: Siglas de 2-6 letras que aparecen frecuentemente
+  
+  const UMBRAL_CARACTERISTICA = Math.max(2, totalProductos * 0.05); // 5% de productos
+  
+  palabrasArray.forEach(item => {
+    if (item.esSigla && item.frecuencia >= UMBRAL_CARACTERISTICA) {
+      facets.caracteristicas.add(item.palabra);
+    }
+  });
+  
+  // ----------------------------------------------------------------
+  // 2.3 IDENTIFICAR TIPOS/VARIANTES
+  // ----------------------------------------------------------------
+  // Heurística: Palabras que NO son marcas ni características,
+  // tienen frecuencia moderada y longitud >= 4
+  
+  const UMBRAL_TIPO_MIN = Math.max(2, totalProductos * 0.03);  // 3% de productos
+  const UMBRAL_TIPO_MAX = totalProductos * 0.50;  // 50% máximo
+  
+  palabrasArray.forEach(item => {
+    // Evitar duplicados con otras categorías
+    if (facets.marca.has(item.palabra) || facets.caracteristicas.has(item.palabra)) {
+      return;
+    }
+    
+    const frecuenciaAdecuada = item.frecuencia >= UMBRAL_TIPO_MIN && item.frecuencia <= UMBRAL_TIPO_MAX;
+    const longitudAdecuada = item.palabra.length >= 4;
+    const noEsPrimeraPalabra = item.posicionPromedio > 1.5; // Evitar categorías genéricas
+    
+    if (frecuenciaAdecuada && longitudAdecuada && noEsPrimeraPalabra) {
+      facets.tipo.add(item.palabra);
+    }
+  });
+  
+  // ====================================================================
+  // FASE 3: LIMITAR Y ORDENAR RESULTADOS
+  // ====================================================================
+  
+  // Limitar cada facet a un máximo razonable (top más frecuentes)
+  const MAX_POR_FACET = 20;
+  
+  // Función helper para obtener top N por frecuencia
+  const obtenerTopN = (palabrasSet, maxItems) => {
+    return palabrasArray
+      .filter(item => palabrasSet.has(item.palabra))
+      .slice(0, maxItems)
+      .map(item => item.palabra);
+  };
+  
+  // Ordenar medidas numéricamente
+  const medidasOrdenadas = [...facets.medida].sort((a, b) => {
+    const numA = parseFloat(a);
+    const numB = parseFloat(b);
+    return numA - numB;
+  }).slice(0, MAX_POR_FACET);
+  
+  // ====================================================================
+  // FASE 4: CONSTRUIR RESULTADO FINAL
+  // ====================================================================
+  
+  const facetsFinales = {
+    marca: obtenerTopN(facets.marca, MAX_POR_FACET),
+    medida: medidasOrdenadas,
+    tipo: obtenerTopN(facets.tipo, MAX_POR_FACET),
+    caracteristicas: obtenerTopN(facets.caracteristicas, MAX_POR_FACET)
+  };
+  
+  // ====================================================================
+  // LOGGING Y VALIDACIÓN
+  // ====================================================================
+  
+  console.log('📊 Facets calculados automáticamente:');
+  console.log(`  - Marcas: ${facetsFinales.marca.length} encontradas`, facetsFinales.marca.slice(0, 5));
+  console.log(`  - Medidas: ${facetsFinales.medida.length} encontradas`, facetsFinales.medida.slice(0, 5));
+  console.log(`  - Tipos: ${facetsFinales.tipo.length} encontrados`, facetsFinales.tipo.slice(0, 5));
+  console.log(`  - Características: ${facetsFinales.caracteristicas.length} encontradas`, facetsFinales.caracteristicas.slice(0, 5));
+  
+  // Estadísticas adicionales
+  console.log('📈 Estadísticas:');
+  console.log(`  - Total productos analizados: ${totalProductos}`);
+  console.log(`  - Palabras únicas: ${palabrasArray.length}`);
+  console.log(`  - Medidas únicas: ${facets.medida.size}`);
+  
+  // Validar que al menos haya algo
+  const hayAlgunFacet = facetsFinales.marca.length > 0 || 
+                        facetsFinales.medida.length > 0 || 
+                        facetsFinales.tipo.length > 0 || 
+                        facetsFinales.caracteristicas.length > 0;
+  
+  if (!hayAlgunFacet) {
+    console.warn('⚠️ ADVERTENCIA: No se encontraron facets automáticamente');
+    console.warn('   Posibles causas:');
+    console.warn('   - Productos tienen NOMBRE muy cortos o genéricos');
+    console.warn('   - Frecuencias muy bajas (pocos productos)');
+    console.warn('   - Formato inconsistente en NOMBRE');
+  }
+  
+  return facetsFinales;
 }
 
 async function buscarProductos(query, categoria = null, etiquetas = null, precioMax = null, current_page=1, per_page=100, filtros = null) {
