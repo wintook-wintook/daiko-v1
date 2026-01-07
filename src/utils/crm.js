@@ -13,6 +13,48 @@ let url_crm_zeus = '';     // process.env.CRMZEUS_URL; // 'https://app.chatzeus.
 const { getApiData } = require('./functions');
 const { generarPDFCotizacion } = require('./pdf-make');
 
+
+
+const MAX_PRODUCTOS_PARA_FACETS = 100;  // Procesar máximo 100 productos
+const facetsCache = new Map();           // Caché en memoria
+const CACHE_TTL = 5 * 60 * 1000;        // 5 minutos
+
+// ============================================================================
+// FUNCIONES HELPER DE CACHÉ
+// ============================================================================
+
+function getCacheKey(query, categoria, etiquetas, filtros) {
+  return JSON.stringify({ query, categoria, etiquetas, filtros });
+}
+
+function getFacetsFromCache(cacheKey) {
+  const cached = facetsCache.get(cacheKey);
+  if (!cached) return null;
+  
+  const ahora = Date.now();
+  if (ahora - cached.timestamp > CACHE_TTL) {
+    facetsCache.delete(cacheKey);
+    return null;
+  }
+  
+  console.log('✓ Facets recuperados de caché (0ms)');
+  return cached.facets;
+}
+
+function saveFacetsToCache(cacheKey, facets) {
+  facetsCache.set(cacheKey, {
+    facets: facets,
+    timestamp: Date.now()
+  });
+  
+  // Limitar tamaño de caché
+  if (facetsCache.size > 100) {
+    const firstKey = facetsCache.keys().next().value;
+    facetsCache.delete(firstKey);
+  }
+}
+
+
 let evalError = (data, title = '') => {
   if (data.error && data.error === true) {
     data.success = false;
@@ -601,21 +643,48 @@ async function buscarProductos(query, categoria = null, etiquetas = null, precio
       };
     }
 
-    console.log('📦 Respuesta completa de la API:', JSON.stringify(response.data, null, 2));
-    // Calcular facets desde los productos filtrados
-    const facetsCalculados = calcularFacets(productos);
-
+    //console.log('📦 Respuesta completa de la API:', JSON.stringify(response.data, null, 2));
+    // Calcular facets desde los productos filtrados    
+    let facetsCalculados = null;
+    
+    // ✅ OPTIMIZACIÓN 1: Solo calcular si total > 6
+    if (totalProductos > 6) {
+      const tiempoInicio = Date.now();
+      
+      // ✅ OPTIMIZACIÓN 3: Intentar obtener de caché
+      const cacheKey = getCacheKey(query, categoria, etiquetas, filtros);
+      facetsCalculados = getFacetsFromCache(cacheKey);
+      
+      if (!facetsCalculados) {
+        // ✅ OPTIMIZACIÓN 2: Limitar productos a procesar
+        const productosParaFacets = productos.slice(0, MAX_PRODUCTOS_PARA_FACETS);
+        
+        console.log(`📊 Calculando facets de ${productosParaFacets.length}/${totalProductos} productos...`);
+        
+        // ✅ OPTIMIZACIÓN 4: Usar versión optimizada
+        facetsCalculados = calcularFacetsOptimizado(productosParaFacets);
+        
+        // Guardar en caché
+        saveFacetsToCache(cacheKey, facetsCalculados);
+        
+        const tiempoTotal = Date.now() - tiempoInicio;
+        console.log(`⚡ Facets calculados en ${tiempoTotal}ms`);
+      }
+    } else {
+      console.log(`✓ Total ${totalProductos} ≤ 6, omitiendo cálculo de facets (ahorro: 100%)`);
+    }
+    
     return {
       success: true,
       data: productos,
       meta: {
-        count: totalProductos,  // ✅ Total de productos (de la API)
-        count_filtered: productos.length,  // Productos después del filtro
+        count: totalProductos,
+        count_filtered: productos.length,
         current_page: current_page,
         per_page: per_page,
         total_pages: Math.ceil(totalProductos / per_page)
       },
-      facets: facetsCalculados || null,  // ← NUEVO: Pasar facets de la API
+      facets: facetsCalculados,
       message: `Encontré ${productos.length} productos que coinciden con tu búsqueda`,
       preserveCurrentCart: true
     };
