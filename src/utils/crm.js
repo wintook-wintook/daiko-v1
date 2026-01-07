@@ -205,36 +205,7 @@ async function obtenerCategorias() {
     console.error('Error:', error.message);
   }
 }
-
-// Función helper para calcular facets:
-function calcularFacets(productos) {
-  if (!productos || productos.length === 0) return null;
   
-  const facets = {
-    marca: [],
-    medida: [],
-    tipo: [],
-    caracteristicas: []
-  };
-  
-  productos.forEach(producto => {
-    // Extraer facets del nombre del producto
-    // Esto es un ejemplo básico - ajustar según estructura real
-    const nombre = producto.NOMBRE || '';
-    
-    // Ejemplo: "MONITOR SAMSUNG 24 PULGADAS VGA LED"
-    // Extraer marca (segunda palabra normalmente)
-    // Extraer medida (números + unidad)
-    // Etc.
-  });
-  
-  // Eliminar duplicados y ordenar
-  facets.marca = [...new Set(facets.marca)].sort();
-  facets.medida = [...new Set(facets.medida)].sort();
-  
-  return facets;
-}
-
 async function buscarProductos(query, categoria = null, etiquetas = null, precioMax = null, current_page=1, per_page=100, filtros = null) {
   let data = { cliente_id: cliente_id, moneda_id: moneda_id, per_page };
   
@@ -337,10 +308,6 @@ async function buscarProductos(query, categoria = null, etiquetas = null, precio
       };
     }
 
-    console.log('📦 Respuesta completa de la API:', JSON.stringify(response.data, null, 2));
-    // Calcular facets desde los productos filtrados
-    const facetsCalculados = calcularFacets(productos);
-
     return {
       success: true,
       data: productos,
@@ -351,9 +318,8 @@ async function buscarProductos(query, categoria = null, etiquetas = null, precio
         per_page: per_page,
         total_pages: Math.ceil(totalProductos / per_page)
       },
-      facets: facetsCalculados || null,  // ← NUEVO: Pasar facets de la API
       message: `Encontré ${productos.length} productos que coinciden con tu búsqueda`,
-      preserveCurrentCart: true
+      preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
     };
   } catch (error) {
     console.error('Error:', error.message);
