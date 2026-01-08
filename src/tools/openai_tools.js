@@ -675,7 +675,7 @@ async function executeFunctionCall(name, args, userId) {
       case "buscar_por_etiquetas":      
         return buscarProductos(args.query, args.category, args.etiquetas, args.precio_max, args.current_page, args.per_page);
         
-      case "tienes_mas":
+      case "tienes_mas": {
         console.log('📄 FUNCIÓN tienes_mas - Mostrando siguiente página');
         
         // Recuperar búsqueda activa de Redis
@@ -793,8 +793,9 @@ async function executeFunctionCall(name, args, userId) {
           total_disponibles: busquedaActiva.total_resultados,
           preserveCurrentCart: true
         };
+      }
         
-      case "buscar_productos":
+      case "buscar_productos": {
           console.log(`🔍 BÚSQUEDA DE PRODUCTOS - Query: "${args.query}"`);
           console.log(`📦 Filtros recibidos:`, JSON.stringify(args.filtros, null, 2));
           
@@ -960,9 +961,10 @@ async function executeFunctionCall(name, args, userId) {
           filtros_aplicados: filtrosNormalizados,
           descripciones_completas: descripcionesParaAnalisis,  // ✅ V22.0: Para análisis del LLM
           preserveCurrentCart: true
-        };  
+        };
+      }
 
-      case "obtener_detalle_producto":
+      case "obtener_detalle_producto": {
         const detalle = await obtenerDetalleProducto(args.id);
       
         if (detalle.success) {
@@ -977,8 +979,9 @@ async function executeFunctionCall(name, args, userId) {
         }
         
         return detalle;
+      }
 
-      case "agregar_al_carrito":
+      case "agregar_al_carrito": {
         const carritoId = args.carrito_id || await userContext.getCarrito();
         
         if (!carritoId) {
@@ -990,6 +993,7 @@ async function executeFunctionCall(name, args, userId) {
         }
         
         return await agregarAlCarrito(args.producto_id, args.cantidad, carritoId);
+      }
       
       case "agregar_varios_articulos_al_carrito":
         return agregarVariosArticulosAlCarrito(args.carrito_id, args.productos);
