@@ -6,7 +6,7 @@ class UserContext {
   constructor(userId) {
     this.userId = userId;
     this.key = `user:${userId}:context`;
-    this.ttl = 3600 * 24 * 7; // 7 días
+    this.ttl = 1800; // ✅ V22.0: 30 minutos (antes: 7 días)
   }
 
   // Obtener todo el contexto
@@ -464,7 +464,7 @@ console.log({obj: "UserContext", contextStr});
   async setBusquedaActiva(data) {
     console.log(`💾 GUARDANDO búsqueda activa:`, data);
     
-    // ✅ Asegurar que filtros esté incluido
+    // ✅ Asegurar que filtros y current_page estén incluidos
     const dataConFiltros = {
       query: data.query,
       filtros: data.filtros || {
@@ -475,12 +475,13 @@ console.log({obj: "UserContext", contextStr});
         compatibilidad: []
       },
       total_resultados: data.total_resultados,
-      mostrados: data.mostrados
+      mostrados: data.mostrados,
+      current_page: data.current_page || 1  // ✅ V22.0: Guardar página actual
     };
     
     await redis.hset(this.key, 'busqueda_activa', JSON.stringify(dataConFiltros));
     await redis.expire(this.key, this.ttl);
-    console.log(`✅ Búsqueda guardada en Redis para ${this.userId} con filtros`);
+    console.log(`✅ Búsqueda guardada en Redis para ${this.userId} - Página ${dataConFiltros.current_page}`);
   }
 
   async getBusquedaActiva() {

@@ -675,6 +675,125 @@ async function executeFunctionCall(name, args, userId) {
       case "buscar_por_etiquetas":      
         return buscarProductos(args.query, args.category, args.etiquetas, args.precio_max, args.current_page, args.per_page);
         
+      case "tienes_mas":
+        console.log('📄 FUNCIÓN tienes_mas - Mostrando siguiente página');
+        
+        // Recuperar búsqueda activa de Redis
+        const busquedaActiva = await userContext.getBusquedaActiva();
+        
+        if (!busquedaActiva) {
+          console.warn('⚠️ No hay búsqueda activa en Redis');
+          return {
+            success: false,
+            message: "No hay búsqueda activa. Por favor, realiza una nueva búsqueda.",
+            preserveCurrentCart: true
+          };
+        }
+        
+        console.log('🔍 Búsqueda activa encontrada:', {
+          query: busquedaActiva.query,
+          current_page: busquedaActiva.current_page,
+          total: busquedaActiva.total_resultados,
+          mostrados: busquedaActiva.mostrados
+        });
+        
+        // Calcular siguiente página
+        const paginaActual = busquedaActiva.current_page || 1;
+        const siguientePagina = paginaActual + 1;
+        
+        // ✅ V22.0: Límite de 3 páginas
+        if (siguientePagina > 3) {
+          console.warn(`⚠️ Límite de páginas alcanzado (${siguientePagina} > 3)`);
+          return {
+            success: false,
+            message: "Has alcanzado el límite de 3 páginas. Por favor, refina tu búsqueda para obtener resultados más específicos.",
+            preserveCurrentCart: true
+          };
+        }
+        
+        console.log(`➡️ Avanzando a página ${siguientePagina}`);
+        
+        // Ejecutar búsqueda con mismos parámetros + nueva página
+        const resultadoMas = await buscarProductos(
+          busquedaActiva.query,
+          busquedaActiva.query,  // categoria
+          busquedaActiva.query,  // etiquetas
+          null,  // precio_max
+          siguientePagina,
+          100,
+          busquedaActiva.filtros || {
+            marca: [],
+            medida: [],
+            caracteristicas: [],
+            tipo: [],
+            compatibilidad: []
+          }
+        );
+        
+        if (!resultadoMas.success) {
+          return resultadoMas;
+        }
+        
+        // Normalizar productos
+        const productosNormalizados = (resultadoMas.data || [])
+          .map(p => ({
+            ARTICULO_ID: p.ARTICULO_ID,
+            NOMBRE: p.NOMBRE,
+            PRECIO: p.PRECIO
+          }))
+          .filter(p =>
+            p.ARTICULO_ID !== undefined &&
+            p.ARTICULO_ID !== null &&
+            p.NOMBRE &&
+            p.PRECIO !== undefined
+          );
+        
+        if (!productosNormalizados.length) {
+          return {
+            success: false,
+            message: "No hay más productos disponibles.",
+            preserveCurrentCart: true
+          };
+        }
+        
+        // Recuperar hasta 100 productos
+        const productosRecuperados = productosNormalizados.slice(0, 100);
+        
+        // ✅ V22.0: Calcular ventana de 6 productos para la página solicitada
+        const PRODUCTOS_POR_PAGINA = 6;
+        const startIndex = (siguientePagina - 1) * PRODUCTOS_POR_PAGINA;
+        const endIndex = startIndex + PRODUCTOS_POR_PAGINA;
+        const productosVentana = productosRecuperados.slice(startIndex, endIndex);
+        
+        console.log(`📦 Mostrando productos ${startIndex + 1}-${endIndex} (página ${siguientePagina})`);
+        
+        if (productosVentana.length === 0) {
+          return {
+            success: false,
+            message: "No hay más productos en esta página.",
+            preserveCurrentCart: true
+          };
+        }
+        
+        // Actualizar página en búsqueda activa
+        await userContext.setBusquedaActiva({
+          query: busquedaActiva.query,
+          filtros: busquedaActiva.filtros,
+          total_resultados: busquedaActiva.total_resultados,
+          mostrados: endIndex,
+          current_page: siguientePagina  // ✅ V22.0: Actualizar página
+        });
+        
+        console.log(`✅ Página actualizada a ${siguientePagina} en Redis`);
+        
+        return {
+          success: true,
+          data: productosVentana,
+          current_page: siguientePagina,
+          total_disponibles: busquedaActiva.total_resultados,
+          preserveCurrentCart: true
+        };
+        
       case "buscar_productos":
           console.log(`🔍 BÚSQUEDA DE PRODUCTOS - Query: "${args.query}"`);
           console.log(`📦 Filtros recibidos:`, JSON.stringify(args.filtros, null, 2));
@@ -800,26 +919,46 @@ async function executeFunctionCall(name, args, userId) {
           
           console.log(`✅ Productos normalizados finales: ${productosNormalizados.length}`);
           
-          const LIMITE = 100;  // ← V19.0: Recuperar 100 productos de la API
-          const visibles = productosNormalizados.slice(0, LIMITE);
+          // ✅ V22.0: Paginación de 6 productos
+          const PRODUCTOS_POR_PAGINA = 6;
+          const currentPage = args.current_page || 1;
+          
+          // Recuperar hasta 100 productos para análisis
+          const productosRecuperados = productosNormalizados.slice(0, 100);
+          
+          // Calcular índices para la ventana de 6 productos
+          const startIndex = (currentPage - 1) * PRODUCTOS_POR_PAGINA;
+          const endIndex = startIndex + PRODUCTOS_POR_PAGINA;
+          
+          // Obtener solo los 6 productos de la página actual
+          const visibles = productosRecuperados.slice(startIndex, endIndex);
           
           // ✅ Usar el count total de la API, no el length del array
           const totalProductos = resultado.meta?.count || productosNormalizados.length;
           
-          console.log(`📋 Productos a mostrar al usuario: ${visibles.length}/${totalProductos}`);
+          console.log(`📋 V22.0 - Página ${currentPage}: Mostrando productos ${startIndex + 1}-${Math.min(endIndex, totalProductos)} de ${totalProductos} totales`);
+          
+          // ✅ V22.0: Preparar descripciones para análisis semántico (solo si total > 6)
+          let descripcionesParaAnalisis = null;
+          if (totalProductos > 6) {
+            descripcionesParaAnalisis = productosRecuperados.map(p => p.NOMBRE);
+            console.log(`🔍 Enviando ${descripcionesParaAnalisis.length} descripciones al LLM para análisis semántico`);
+          }
           
           await userContext.setBusquedaActiva({
             query: args.query,
-            filtros: filtrosNormalizados,  // ← NUEVO: guardar filtros en estado
-            total_resultados: totalProductos,  // ✅ Total real de la API
-            mostrados: visibles.length
+            filtros: filtrosNormalizados,
+            total_resultados: totalProductos,
+            mostrados: endIndex,
+            current_page: currentPage  // ✅ V22.0: Guardar página actual
           });
           
         return {
           success: true,
-          data: visibles,
+          data: visibles,  // Solo 6 productos para mostrar
           total_disponibles: totalProductos,
-          filtros_aplicados: filtrosNormalizados,  // ← NUEVO: informar filtros aplicados
+          filtros_aplicados: filtrosNormalizados,
+          descripciones_completas: descripcionesParaAnalisis,  // ✅ V22.0: Para análisis del LLM
           preserveCurrentCart: true
         };  
 
