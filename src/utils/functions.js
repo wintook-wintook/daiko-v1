@@ -11,7 +11,7 @@ let getApiData = async (config, retryCount = 1) => {
     if (retryCount < 1) {
     }
     if (config.url.includes('/api/Daiko/')) {
-      console.log({ fn: 'getApiData', url: config.url, data: config.data, response: response.data || response });
+      console.log({ fn: 'getApiData', config, url: config.url, data: config.data, response: response.data || response });
     }
     return response;
   } catch (error) {
