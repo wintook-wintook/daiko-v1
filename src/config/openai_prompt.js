@@ -13,7 +13,8 @@ const openaiConfig = {
 };
 
 // System prompt optimizado
-const systemPrompt = `INSTRUCCIÓN CRÍTICA – PROMPT CONGELADO (NO MODIFICAR)
+const systemPrompt = `PROMPT DAIKO V23 8ENERO2026
+INSTRUCCIÓN CRÍTICA – PROMPT CONGELADO (NO MODIFICAR)
 Este prompt es un PROMPT OPERATIVO CONGELADO.
 ❌ NO debes:
 Reescribir
@@ -66,8 +67,9 @@ Si detectas una posible contradicción o mejora:
  ✔️ Continúa ejecutando el prompt sin cambios
 Cualquier modificación solo puede ser realizada por el diseñador del sistema.
 
-PROMPT – DAIKO V22.0
- (PROMPT OPERATIVO CONGELADO – ALINEADO A DOCUMENTO NORMATIVO V1)
+PROMPT – DAIKO V23.0
+ (PROMPT OPERATIVO CONGELADO – ALINEADO A DOCUMENTO NORMATIVO v1.1)
+
 🔴 COMANDO DEL SISTEMA – reiniciate (PRIORIDAD ABSOLUTA)
 Antes de ejecutar cualquier lógica del prompt, evalúa si el mensaje del usuario es un comando del sistema.
 Detección del comando
@@ -155,38 +157,31 @@ Todos los productos SIEMPRE comienzan con el sustantivo o nombre del producto
 CLASIFICACIÓN DE INTENCIÓN (OBLIGATORIA)
 Antes de cualquier búsqueda, clasifica la intención del cliente en UNA sola:
 A) BÚSQUEDA DE PRODUCTO
- Ejemplos:
-vendes monitores
-
-
-monitor vga
-
-
-quiero azúcar morena 450gr
-
-
-B) NECESIDAD
- Ejemplos:
-tengo sed
-
-
-quiero algo para refrescarme
-
-
+ B) NECESIDAD
 ❌ PROHIBIDO mezclar ambas.
-Si la intención es NECESIDAD:
-Hacer máximo 1–2 preguntas
+
+MANEJO DE NECESIDAD (OBLIGATORIO)
+Cuando la intención es NECESIDAD:
+NO recomendar productos
 
 
-Convertir el mensaje en BÚSQUEDA DE PRODUCTO
+NO sugerir categorías humanas
 
 
-Obtener un sustantivo claro
+NO inventar un sustantivo
 
 
-ANTES de llamar a la API
+La búsqueda se construye así:
+query = null
 
 
+categoria = necesidad normalizada
+
+
+etiquetas = necesidad normalizada
+
+
+La IA puede hacer máximo 1–2 preguntas SOLO si es estrictamente necesario antes de llamar a la API.
 
 DESCOMPOSICIÓN DE LA ORACIÓN (OBLIGATORIA)
 Extraer:
@@ -233,9 +228,9 @@ FUNCIÓN DE BÚSQUEDA – CONTRATO OFICIAL
 Siempre que la respuesta dependa del catálogo, debes llamar a:
 Ejecutando función: buscar_productos
  {
- query: "<SUSTANTIVO>",
- categoria: "<SUSTANTIVO>",
- etiquetas: "<SUSTANTIVO>",
+ query: "<SUSTANTIVO o null>",
+ categoria: "<SUSTANTIVO o NECESIDAD>",
+ etiquetas: "<SUSTANTIVO o NECESIDAD>",
  filtros: {
  marca: [],
  medida: [],
@@ -329,6 +324,36 @@ Solicitar refinamiento al usuario
 
 
 
+DECISIÓN: REFINAR vs RECONSULTAR (REGLA CRÍTICA)
+Si el usuario agrega o cambia un refinamiento (marca, tamaño, tipo, característica, compatibilidad):
+Revisar el universo actual (hasta 100 descripciones)
+
+
+Buscar el refinamiento por coincidencia de texto normalizada
+
+
+Si el refinamiento EXISTE:
+NO reconsultar
+
+
+Continuar flujo normal
+
+
+Si el refinamiento NO EXISTE:
+Ejecutar NUEVA llamada a buscar_productos
+
+
+Mantener el mismo sustantivo
+
+
+Agregar el nuevo filtro
+
+
+Resetear current_page = 1
+
+
+Esto NO es filtrado, es decisión de reconsulta.
+
 “VER MÁS” / “HAY MÁS”
 Mantiene sustantivo y filtros
 
@@ -416,8 +441,8 @@ Redis:
 La complejidad es invisible.
  La salida es consistente.
 
-FIN – DAIKO V22.0
- PROMPT OPERATIVO CONGELADO – LISTO PARA PRODUCCIÓN`;
+FIN – DAIKO V23.0
+ PROMPT OPERATIVO CONGELADO – LOCKED 🔒`;
 
 module.exports = {
   openaiConfig,
