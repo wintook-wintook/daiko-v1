@@ -689,8 +689,16 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
         console.log(`🔍 V23.3.0 - Resolviendo token canónico: "${args.token}" (account: ${accountId})`);
         
         try {
-          // Llamar a resolverCanonico con token y accountId del contexto (webhookData)
-          const resultado = await resolverCanonico(args.token, accountId);
+          // ✅ TIMEOUT DE 2 SEGUNDOS - FAIL-OPEN
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout en resolver_canonico')), 2000)
+          );
+          
+          // Ejecutar con timeout
+          const resultado = await Promise.race([
+            resolverCanonico(args.token, accountId),
+            timeoutPromise
+          ]);
           
           console.log(`✅ Resultado canonización:`, {
             original: resultado.token_original,
@@ -698,6 +706,7 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
             encontrado: resultado.encontrado
           });
           
+          // ✅ SIEMPRE success:true para no bloquear el flujo
           return {
             success: true,
             token_original: resultado.token_original,
@@ -707,13 +716,14 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
             preserveCurrentCart: true
           };
         } catch (error) {
-          console.error('❌ Error en resolver_canonico:', error);
+          // ✅ FAIL-OPEN: Timeout o error → retornar token original con canonico=null
+          console.warn(`⚠️ resolver_canonico ${error.message} - Continuando con token original: "${args.token}"`);
           return {
-            success: false,
+            success: true,  // ✅ CRÍTICO: success:true para NO bloquear flujo
             token_original: args.token,
             token_canonico: null,
             encontrado: false,
-            error: error.message,
+            source: 'timeout_or_error',
             preserveCurrentCart: true
           };
         }

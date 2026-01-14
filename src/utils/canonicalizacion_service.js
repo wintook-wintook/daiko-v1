@@ -1,8 +1,14 @@
 // daiko/src/utils/canonicalizacion_service.js
 // Servicio de Canonización de Sinónimos - PostgreSQL
 // V23.3.0 - Implementación con tabla wintook.palabras_sinonimos
+// ACTUALIZADO: Con timeout y fail-open
 
 const { executeQuery } = require('../config/database');
+
+/**
+ * Timeout para queries PostgreSQL (2 segundos)
+ */
+const QUERY_TIMEOUT_MS = 2000;
 
 /**
  * Normaliza un token para búsqueda
@@ -20,6 +26,37 @@ function normalizarToken(token) {
 }
 
 /**
+ * Ejecuta una query con timeout
+ * @param {string} query - Query SQL
+ * @param {Array} params - Parámetros
+ * @param {number} timeoutMs - Timeout en milisegundos
+ * @returns {Promise<Object>} Resultado o timeout
+ */
+async function executeQueryWithTimeout(query, params, timeoutMs = QUERY_TIMEOUT_MS) {
+  const timeoutPromise = new Promise((_, reject) => 
+    setTimeout(() => reject(new Error('Query timeout')), timeoutMs)
+  );
+  
+  try {
+    return await Promise.race([
+      executeQuery(query, params),
+      timeoutPromise
+    ]);
+  } catch (error) {
+    if (error.message === 'Query timeout') {
+      console.warn(`⚠️ Query timeout después de ${timeoutMs}ms`);
+      return {
+        success: false,
+        error: 'timeout',
+        rows: [],
+        rowCount: 0
+      };
+    }
+    throw error;
+  }
+}
+
+/**
  * Resuelve un token a su forma canónica consultando PostgreSQL
  * 
  * Flujo:
@@ -28,6 +65,8 @@ function normalizarToken(token) {
  * 3. Si existe, obtener palabra_sinonimo_id
  * 4. Buscar la palabra principal WHERE palabra_id = palabra_sinonimo_id AND palabra_id = palabra_sinonimo_id
  * 5. Retornar la palabra principal o null
+ * 
+ * FAIL-OPEN: Si hay timeout o error, retorna null y el flujo continúa
  * 
  * @param {string} token - Token a resolver
  * @param {number} accountId - ID de la cuenta (desde webhookData)
@@ -61,7 +100,7 @@ async function resolverCanonico(token, accountId = 0) {
 
     console.log(`🔍 resolver_canonico: Buscando "${token}" (normalizado: "${tokenNormalizado}") para account_id: ${accountId}`);
 
-    // PASO 1: Buscar el token en la tabla
+    // PASO 1: Buscar el token en la tabla (CON TIMEOUT)
     const queryBusqueda = `
       SELECT palabra_id, palabra, palabra_sinonimo_id, account_id
       FROM wintook.palabras_sinonimos
@@ -70,7 +109,7 @@ async function resolverCanonico(token, accountId = 0) {
       LIMIT 1
     `;
     
-    const resultadoBusqueda = await executeQuery(queryBusqueda, [tokenNormalizado, accountId]);
+    const resultadoBusqueda = await executeQueryWithTimeout(queryBusqueda, [tokenNormalizado, accountId]);
     
     // PASO 2: Verificar si se encontró el token
     if (!resultadoBusqueda.success || resultadoBusqueda.rowCount === 0) {
@@ -88,7 +127,7 @@ async function resolverCanonico(token, accountId = 0) {
     
     console.log(`✅ resolver_canonico: Token encontrado. palabra_id=${registro.palabra_id}, palabra_sinonimo_id=${palabraSinonimoId}`);
 
-    // PASO 3: Resolver la palabra principal
+    // PASO 3: Resolver la palabra principal (CON TIMEOUT)
     // La palabra principal es aquella donde palabra_id == palabra_sinonimo_id
     const queryPrincipal = `
       SELECT palabra
@@ -99,7 +138,7 @@ async function resolverCanonico(token, accountId = 0) {
       LIMIT 1
     `;
     
-    const resultadoPrincipal = await executeQuery(queryPrincipal, [palabraSinonimoId, accountId]);
+    const resultadoPrincipal = await executeQueryWithTimeout(queryPrincipal, [palabraSinonimoId, accountId]);
     
     // PASO 4: Retornar resultado
     if (!resultadoPrincipal.success || resultadoPrincipal.rowCount === 0) {
@@ -128,12 +167,12 @@ async function resolverCanonico(token, accountId = 0) {
   } catch (error) {
     console.error('❌ Error en resolver_canonico:', error);
     
-    // Fail-safe: retornar null en caso de error de BD
+    // FAIL-OPEN: Retornar null en caso de error de BD o timeout
     return {
       token_original: token,
       token_canonico: null,
       encontrado: false,
-      source: null,
+      source: 'error',
       error: error.message
     };
   }
@@ -167,57 +206,6 @@ async function resolverMultiplesCanonico(tokens, accountId = 0) {
 }
 
 /**
- * Agrega un nuevo sinónimo a la tabla (función auxiliar para administración)
- * @param {string} palabra - Palabra sinónimo
- * @param {number} palabraSinonimoId - ID de la palabra principal
- * @param {number} accountId - ID de la cuenta
- * @returns {Promise<Object>} Resultado de la operación
- */
-/*
-async function agregarSinonimo(palabra, palabraSinonimoId, accountId = 0) {
-  try {
-    const palabraNormalizada = normalizarToken(palabra);
-    
-    if (!palabraNormalizada || !palabraSinonimoId) {
-      console.warn('⚠️ agregarSinonimo: Palabra o palabraSinonimoId inválido');
-      return {
-        success: false,
-        message: 'Parámetros inválidos'
-      };
-    }
-
-    const query = `
-      INSERT INTO wintook.palabras_sinonimos (palabra, palabra_sinonimo_id, account_id)
-      VALUES ($1, $2, $3)
-      RETURNING palabra_id, palabra, palabra_sinonimo_id, account_id
-    `;
-    
-    const resultado = await executeQuery(query, [palabraNormalizada, palabraSinonimoId, accountId]);
-    
-    if (resultado.success && resultado.rowCount > 0) {
-      console.log(`✅ Sinónimo agregado: "${palabra}" -> palabra_sinonimo_id=${palabraSinonimoId} (account: ${accountId})`);
-      return {
-        success: true,
-        data: resultado.rows[0],
-        message: 'Sinónimo agregado exitosamente'
-      };
-    }
-    
-    return {
-      success: false,
-      message: 'No se pudo agregar el sinónimo'
-    };
-  } catch (error) {
-    console.error('❌ Error al agregar sinónimo:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-}
-*/
-
-/**
  * Obtiene todos los sinónimos de una cuenta
  * @param {number} accountId - ID de la cuenta
  * @returns {Promise<Array>} Lista de sinónimos
@@ -231,7 +219,7 @@ async function obtenerSinonimos(accountId = 0) {
       ORDER BY palabra_sinonimo_id, palabra
     `;
     
-    const resultado = await executeQuery(query, [accountId]);
+    const resultado = await executeQueryWithTimeout(query, [accountId]);
     
     if (resultado.success) {
       return {
@@ -257,51 +245,9 @@ async function obtenerSinonimos(accountId = 0) {
   }
 }
 
-/**
- * Elimina un sinónimo de la tabla
- * @param {number} palabraId - ID de la palabra a eliminar
- * @param {number} accountId - ID de la cuenta
- * @returns {Promise<Object>} Resultado de la operación
- */
-/*
-async function eliminarSinonimo(palabraId, accountId = 0) {
-  try {
-    const query = `
-      DELETE FROM wintook.palabras_sinonimos
-      WHERE palabra_id = $1 AND account_id = $2
-      RETURNING palabra_id, palabra
-    `;
-    
-    const resultado = await executeQuery(query, [palabraId, accountId]);
-    
-    if (resultado.success && resultado.rowCount > 0) {
-      console.log(`✅ Sinónimo eliminado: palabra_id=${palabraId} (account: ${accountId})`);
-      return {
-        success: true,
-        data: resultado.rows[0],
-        message: 'Sinónimo eliminado exitosamente'
-      };
-    }
-    
-    return {
-      success: false,
-      message: 'Sinónimo no encontrado o no se pudo eliminar'
-    };
-  } catch (error) {
-    console.error('❌ Error al eliminar sinónimo:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-}
-*/
-
 module.exports = {
   resolverCanonico,
   resolverMultiplesCanonico,
-  // agregarSinonimo,
   obtenerSinonimos,
-  // eliminarSinonimo,
   normalizarToken
 };
