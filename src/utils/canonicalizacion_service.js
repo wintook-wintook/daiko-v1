@@ -93,7 +93,8 @@ async function resolverCanonico(token, accountId = 0) {
     const queryPrincipal = `
       SELECT palabra
       FROM wintook.palabras_sinonimos
-      WHERE palabra_id = palabra_sinonimo_id
+      WHERE palabra_id = $1
+        AND palabra_id = palabra_sinonimo_id
         AND account_id = $2
       LIMIT 1
     `;
