@@ -56,166 +56,157 @@ function extraerDatosWebhook(webhookData) {
     }
   }
   
-  async function procesarMensajeWebhook(webhookData) {
-    try {
-      let sender = webhookData.conversation.meta.sender;
-      let OPENAI_APIKEY = await getOPENAI_APIKEY(webhookData.token, webhookData.account_id);
-//console.log({sender: sender, webhookData});
+// ============================================================
+// HANDLER CORREGIDO - procesarMensajeWebhook()
+// Tool-Calling Loop Real - DAIKO V23.3.0
+// ============================================================
 
+async function procesarMensajeWebhook(webhookData) {
+  try {
+    let sender = webhookData.conversation.meta.sender;
+    let OPENAI_APIKEY = await getOPENAI_APIKEY(webhookData.token, webhookData.account_id);
 
-      // Extraer datos del webhook
-      const extractedData = extraerDatosWebhook(webhookData);
+    const extractedData = extraerDatosWebhook(webhookData);
+    if (!extractedData.success) {
+      return extractedData;
+    }
+    
+    // Inicializar OpenAI
+    openai = new OpenAI({
+      apiKey: OPENAI_APIKEY[0].settings.api_key
+    });
 
-      // Buscar el inboxid, si no coincide o está vacio no responder el mensaje a Wintook
+    const { conversationId, messageContent, senderId, senderName, messageType, inboxId } = extractedData.data;
+    let url_crm_zeus = ''; 
+    let api_access_token = '';
+    let almacen_id = '';
+    let contact_id = '';
 
-      if (!extractedData.success) {
-        return extractedData;
-      }
+    let hooks = await getHooksCrm(webhookData.token, webhookData.account_id);
+    const item = await (hooks.length >= 1 ? hooks.find((element) => element.inbox.id === inboxId) : []);
+    
+    if (!inboxId || !item) {
+      return {
+        success: false,
+        message: "Mensaje no procesable - no hay hooks que concuerden con el inbox_id"
+      };
+    }
+
+    url_crm_zeus = item.settings.api_url_base+'/';
+    api_access_token = item.settings.api_access_token;
+    contact_id = item.settings.contact_id;
+    almacen_id = item.settings.almacen_id;
+
+    if (messageType !== 'incoming' || !messageContent) {
+      return {
+        success: false,
+        message: "Mensaje no procesable - solo se procesan mensajes entrantes con contenido"
+      };
+    }
+    
+    // Preparar contexto
+    const userId = `chatwoot_${conversationId}`;
+    const userContext = new UserContext(userId);
+    const contextStr = await userContext.toSystemContext();
+
+    let Cliente = await buscarcliente2(url_crm_zeus, api_access_token, {
+        email: sender.email, 
+        phone_number: sender.phone_number, 
+        contact_id: contact_id, 
+        almacen_id: almacen_id,
+        userContext
+      });  
+
+    if (Cliente.data.NOMBRE_COMERCIAL) {
+      await userContext.setNombre(Cliente.data.NOMBRE_COMERCIAL);
+    }
+
+    const systemPromptWithContext = systemPrompt;
+    
+    if (!conversations.has(userId)) {
+      conversations.set(userId, []);
+    }
+    
+    const conversationHistory = await getMessages(webhookData.token, webhookData.account_id, webhookData.conversation_id, contextStr);
+
+    // ============================================================
+    // TOOL-CALLING LOOP - IMPLEMENTACIÓN CORRECTA
+    // ============================================================
+    
+    const MAX_ITERATIONS = 10; // Límite de seguridad
+    let iteration = 0;
+    let continueLoop = true;
+    let isGetPDF = false;
+    
+    while (continueLoop && iteration < MAX_ITERATIONS) {
+      iteration++;
+      console.log(`\n🔄 Tool-calling loop - Iteración ${iteration}/${MAX_ITERATIONS}`);
       
-      //console.log({OPENAI_APIKEY: OPENAI_APIKEY[0].settings.api_key});  
-      
-      openai = new OpenAI({
-        apiKey: OPENAI_APIKEY[0].settings.api_key
-      });
-
-      const { conversationId, messageContent, senderId, senderName, messageType, inboxId } = extractedData.data;
-      let url_crm_zeus = ''; 
-      let api_access_token = '';
-      let almacen_id = '';
-      let contact_id = '';
-
-      
-      let hooks = await getHooksCrm(webhookData.token, webhookData.account_id); // hooks[]
-      const item = await (hooks.length >= 1 ? hooks.find((element) => element.inbox.id === inboxId) : []);
-      
-      // Solo procesar mensajes entrantes (incoming) de contactos
-      if (!inboxId || !item) {
-        return {
-          success: false,
-          message: "Mensaje no procesable - no hay hooks que concuerden con el inbox_id"
-        };
-      }
-
-      url_crm_zeus = item.settings.api_url_base+'/';
-      api_access_token = item.settings.api_access_token;
-      contact_id = item.settings.contact_id;
-      almacen_id = item.settings.almacen_id;
-
-      //console.log({url_crm_zeus, api_access_token, contact_id, sender});
-
-
-      // console.log({Cliente});
-
-      // Solo procesar mensajes entrantes (incoming) de contactos
-      if (messageType !== 'incoming' || !messageContent) {
-        return {
-          success: false,
-          message: "Mensaje no procesable - solo se procesan mensajes entrantes con contenido"
-        };
-      }
-      
-
-      //await buscarcliente(senderName);
-  
-      // Usar el conversation ID como userId para mantener contexto
-      const userId = `chatwoot_${conversationId}`;
-      
-      // console.log(`📨 Webhook recibido - Conversación ${conversationId} de ${senderName}: ${messageContent}`);
-
-      
-      // 1. Obtener contexto del usuario desde Redis
-      const userContext = new UserContext(userId);
-      console.log({userContext});
-      const contextStr = await userContext.toSystemContext();
-
-      let Cliente = await buscarcliente2(url_crm_zeus, api_access_token, {
-          email: sender.email, 
-          phone_number: sender.phone_number, 
-          contact_id: contact_id, 
-          almacen_id: almacen_id,
-          userContext
-        });  
-
-      // Guardar nombre si lo proporciona
-      if (Cliente.data.NOMBRE_COMERCIAL) {
-        await userContext.setNombre(Cliente.data.NOMBRE_COMERCIAL);
-      }
-
-      // 2. Inyectar contexto en el system prompt
-      const systemPromptWithContext = systemPrompt; // + contextStr;
-      
-      // Obtener historial de conversación
-      if (!conversations.has(userId)) {
-        conversations.set(userId, []);
-      }
-      
-      // const conversationHistory = conversations.get(userId);
-      const conversationHistory = await getMessages(webhookData.token, webhookData.account_id, webhookData.conversation_id, contextStr);
-
-/* // conversaciones de respuesta
-      const conversationAssistants = conversationHistory.filter(conversation => conversation.role === 'assistant');
-      const conversationAssistant  = conversationAssistants[conversationAssistants.length - 1];
-console.log({conversationAssistant});
-*/
-      
-      // // Agregar mensaje del usuario
-      // conversationHistory.push({
-      //   role: "user",
-      //   content: messageContent
-      // });
-  
-      // Crear input para OpenAI
+      // Preparar input con historial actualizado
       const input = [
         { role: "system", content: systemPromptWithContext },
         ...conversationHistory
       ];
-      //console.log({input});
-      // Llamar a OpenAI
+
+      // ✅ LLAMAR AL MODELO CON TOOLS EN CADA ITERACIÓN
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4o",  // ✅ MISMO MODELO EN TODAS LAS RONDAS
         messages: input,
-        tools: functionDefinitions,
+        tools: functionDefinitions,  // ✅ TOOLS DISPONIBLES EN CADA RONDA
         tool_choice: "auto",
-        temperature: 0.3  // ✅ Cambiar de 0.7 a 0.3 para más precisión
+        temperature: 0.3
       });
-  
+
       const assistantMessage = response.choices[0].message;
-      let finalResponse = assistantMessage.content || "";
-      let functionResult;
-      let isGetPDF = false;
-      // Procesar tool calls si existen
-      let showSourceMessage = false;
+      
+      // ============================================================
+      // VERIFICAR SI HAY TOOL CALLS
+      // ============================================================
       if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
-        console.log(`🛠️ Procesando ${assistantMessage.tool_calls.length} function calls para webhook`);
+        console.log(`🛠️ Procesando ${assistantMessage.tool_calls.length} tool calls en iteración ${iteration}`);
         
-        // Agregar el mensaje del asistente con tool calls al historial
+        // Agregar mensaje del asistente al historial
         conversationHistory.push(assistantMessage);
-  
-        
-        // Ejecutar cada function call
+
+        // ============================================================
+        // EJECUTAR CADA TOOL CALL
+        // ============================================================
         for (const toolCall of assistantMessage.tool_calls) {
           const { id, function: func } = toolCall;
           const { name, arguments: args } = func;
-          if (name == 'buscar_informacion_externa') { showSourceMessage = true; }
-          try {            
+          
+          console.log(`  📌 Ejecutando tool: ${name}`);
+          
+          try {
             const functionArgs = JSON.parse(args);
-            // Pasar accountId desde webhookData al executeFunctionCall
-            functionResult = await executeFunctionCall(name, functionArgs, userId, webhookData.account_id);
             
-            if(name==='generar_pdf' && !functionResult.error){isGetPDF=true; finalResponse = functionResult.data; }
+            // ✅ EJECUTAR TOOL con account_id desde webhookData
+            const functionResult = await executeFunctionCall(
+              name, 
+              functionArgs, 
+              userId, 
+              webhookData.account_id
+            );
+            
+            // Manejo especial para generar_pdf
+            if (name === 'generar_pdf' && !functionResult.error) {
+              isGetPDF = true;
+            }
 
-            // Agregar el resultado de la función al historial
+            // ✅ AGREGAR RESULTADO AL HISTORIAL
             conversationHistory.push({
               role: "tool",
               tool_call_id: id,
               content: JSON.stringify(functionResult)
             });
-  
+            
+            console.log(`  ✅ Tool ${name} ejecutada exitosamente`);
+
           } catch (error) {
-            console.error(`❌ Error ejecutando ${name} en webhook:`, error);
+            console.error(`  ❌ Error ejecutando ${name}:`, error);
             
             conversationHistory.push({
-              role: "tool", 
+              role: "tool",
               tool_call_id: id,
               content: JSON.stringify({
                 success: false,
@@ -224,80 +215,131 @@ console.log({conversationAssistant});
             });
           }
         }
-        if(!isGetPDF){
-          // Obtener respuesta final del asistente
-          const finalInput = [
-            { role: "system", content: systemPromptWithContext },
-            ...conversationHistory
-          ];
-    
-          const finalOpenAIResponse = await openai.chat.completions.create({
-            model: "gpt-3.5-turbo",
-            messages: finalInput,
-            temperature: 0.3  // ✅ Cambiar de 0.7 a 0.3 para más precisión
-          });
-          finalResponse = finalOpenAIResponse.choices[0].message.content;
-          console.log({ functionResult, finalResponse });
-
-          
-          // Agregar respuesta final al historial
-          conversationHistory.push({
-            role: "assistant",
-            content: finalResponse
-          });
-        }else{
-
-        }
-
+        
+        // ✅ CONTINUAR LOOP - El modelo puede pedir más tools
+        continueLoop = true;
+        
       } else {
-        showSourceMessage = true;
-        // Si no hay tool calls, agregar directamente la respuesta
+        // ============================================================
+        // NO HAY MÁS TOOL CALLS - GENERAR RESPUESTA FINAL
+        // ============================================================
+        console.log(`✅ No hay más tool calls. Generando respuesta final.`);
+        
+        const finalResponse = assistantMessage.content || "";
+        
+        // Agregar respuesta final al historial
         conversationHistory.push({
-          role: "assistant", 
+          role: "assistant",
           content: finalResponse
         });
-      }
-      if (showSourceMessage && false) { finalResponse += `\r\n${fuenteWeb}`; }
-
-      // Mantener solo los últimos 20 mensajes
-      //console.log({ length: conversationHistory.length, firtsRole: conversationHistory[0].role, question: messageContent });
-      if (conversationHistory.length > 20) {
-        conversationHistory.splice(0, conversationHistory.length - 20);
-        //console.log({ msg: 'lenght before splice', length: conversationHistory.length, firtsRole: conversationHistory[0].role });
-        if (conversationHistory[0].role != 'user') {
-          console.log(typeof conversationHistory); // "object"
-          console.log(Array.isArray(conversationHistory)); // false
-          let firstUser = conversationHistory.find(element => element.role ==  'user');
-          conversationHistory.splice(0, conversationHistory.indexOf(firstUser));
+        
+        // ✅ TERMINAR LOOP
+        continueLoop = false;
+        
+        // Mantener solo los últimos 20 mensajes
+        if (conversationHistory.length > 20) {
+          conversationHistory.splice(0, conversationHistory.length - 20);
+          if (conversationHistory[0].role !== 'user') {
+            let firstUser = conversationHistory.find(element => element.role === 'user');
+            if (firstUser) {
+              conversationHistory.splice(0, conversationHistory.indexOf(firstUser));
+            }
+          }
         }
-        console.log({ msg: 'lenght after splice', length: conversationHistory.length, firtsRole: conversationHistory[0].role });
+        
+        console.log(`🤖 Respuesta final: ${finalResponse}`);
+        
+        // ============================================================
+        // RETORNAR RESPUESTA
+        // ============================================================
+        return {
+          success: true,
+          data: {
+            conversationId,
+            response: isGetPDF ? finalResponse.content : finalResponse,
+            fileName: isGetPDF ? finalResponse.name : "",
+            userId: userId,
+            senderName,
+            originalMessage: messageContent
+          },
+          message: "Mensaje procesado correctamente"
+        };
       }
-  
-      console.log(`🤖 Alex respuesta webhook: ${finalResponse}`, finalResponse);
-  
-      return {
-        success: true,
-        data: {
-          conversationId,
-          response: isGetPDF ? finalResponse.content : finalResponse,
-          fileName: isGetPDF ? finalResponse.name : "",
-          userId: userId,
-          senderName,
-          originalMessage: messageContent
-        },
-        message: "Mensaje procesado correctamente"
-      };
-  
-    } catch (error) {
-      console.error('❌ Error procesando webhook:', error);
-      sendMessage(webhookData.token, webhookData.account_id, webhookData.conversation_id, error.message );
+    }
+    
+    // ============================================================
+    // LÍMITE DE ITERACIONES ALCANZADO
+    // ============================================================
+    if (iteration >= MAX_ITERATIONS) {
+      console.error(`⚠️ Límite de ${MAX_ITERATIONS} iteraciones alcanzado`);
       return {
         success: false,
-        error: "Disculpa, tuve un problema técnico procesando tu mensaje.",
-        details: error.message
+        error: "Se alcanzó el límite de procesamiento. Por favor, intenta reformular tu pregunta.",
+        details: `Límite de ${MAX_ITERATIONS} iteraciones alcanzado`
       };
     }
+
+  } catch (error) {
+    console.error('❌ Error procesando webhook:', error);
+    sendMessage(webhookData.token, webhookData.account_id, webhookData.conversation_id, error.message);
+    return {
+      success: false,
+      error: "Disculpa, tuve un problema técnico procesando tu mensaje.",
+      details: error.message
+    };
   }
+}
+
+// ============================================================
+// NOTAS DE IMPLEMENTACIÓN
+// ============================================================
+/*
+
+CAMBIOS CLAVE:
+
+1. ✅ TOOL-CALLING LOOP REAL
+   - Permite múltiples rondas de tool calls
+   - Ronda 1: resolver_canonico
+   - Ronda 2: buscar_productos
+   - Ronda N: generar respuesta final
+
+2. ✅ MISMO MODELO EN TODAS LAS RONDAS
+   - model: "gpt-4o" en TODAS las llamadas
+   - No hay cambio a gpt-3.5-turbo
+
+3. ✅ TOOLS REGISTRADAS EN CADA ITERACIÓN
+   - tools: functionDefinitions en cada llamada
+   - tool_choice: "auto" siempre
+
+4. ✅ TERMINA CUANDO NO HAY MÁS TOOL CALLS
+   - El modelo decide cuándo generar respuesta final
+   - No hay "segunda llamada" hardcodeada
+
+5. ✅ LÍMITE DE SEGURIDAD
+   - MAX_ITERATIONS = 10 para evitar loops infinitos
+
+FLUJO ESPERADO:
+
+Usuario: "vendes azucar"
+
+Iteración 1:
+  GPT-4o → tool_calls: [resolver_canonico("azucar")]
+  Ejecutar → { token_canonico: "AZUCAR" }
+  Continuar loop
+
+Iteración 2:
+  GPT-4o → tool_calls: [buscar_productos("AZUCAR")]
+  Ejecutar → { data: [...productos] }
+  Continuar loop
+
+Iteración 3:
+  GPT-4o → sin tool_calls
+  Generar respuesta: "Aquí están los productos de azúcar: 1) ..."
+  Terminar loop
+  
+✅ Retornar respuesta
+
+*/
 
 const getHooksCrm = async (token, account_id) => {
     let url = `${urlWA}api/v1/accounts/${account_id}/integrations/apps/daiko`;
