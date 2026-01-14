@@ -60,8 +60,7 @@ function extraerDatosWebhook(webhookData) {
     try {
       let sender = webhookData.conversation.meta.sender;
       let OPENAI_APIKEY = await getOPENAI_APIKEY(webhookData.token, webhookData.account_id);
-console.log({sender: sender, webhookData});
-console.log({account_id: webhookData.account_id});
+//console.log({sender: sender, webhookData});
 
       // Extraer datos del webhook
       const extractedData = extraerDatosWebhook(webhookData);
