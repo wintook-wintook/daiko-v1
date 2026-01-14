@@ -1,7 +1,9 @@
 // daiko/src/tools/openai_tools.js
+// ACTUALIZADO: V23.3.0 - Incluye función resolver_canonico con PostgreSQL
 
 const { obtenerCategorias, buscarProductos, obtenerDetalleProducto, agregarAlCarrito, agregarVariosArticulosAlCarrito, crearNuevoCarrito, crearNuevoCarritoConVariosArticulos, obtenerCarritosDisponibles, verCarrito, crearOrden, cancelarCarrito, generarPdf, copiarArticulosEntreCarritos, copiarArticulosDeUnCarritoExisenteAUnoNuevo } = require('../utils/crm');
 const { ejecutarBusquedaExterna } = require('../utils/busqueda_externa_service');
+const { resolverCanonico, resolverMultiplesCanonico } = require('../utils/canonicalizacion_service');
 const UserContext = require('../utils/userContext');
 
 const functionDefinitions = [
@@ -38,6 +40,25 @@ const functionDefinitions = [
           type: "object",
           properties: {},
           required: [],
+          additionalProperties: false
+        },
+        strict: true
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "resolver_canonico",
+        description: "OBLIGATORIO V23.3.0: Resuelve un token individual a su forma canónica mediante consulta a PostgreSQL (tabla wintook.palabras_sinonimos). Ejecutar PARA CADA token detectado (sustantivo, marca, tipo, característica, compatibilidad) ANTES de construir buscar_productos. NO recibe account_id como parámetro (se obtiene del contexto). Ejemplo: 'monitor' → 'MONITOR', 'samsum' → 'SAMSUNG'",
+        parameters: {
+          type: "object",
+          properties: {
+            token: {
+              type: "string",
+              description: "Token individual a canonizar (NUNCA una frase completa). Ejemplos: 'monitor', 'samsung', 'hdmi', '24 pulgadas'"
+            }
+          },
+          required: ["token"],
           additionalProperties: false
         },
         strict: true
@@ -630,8 +651,9 @@ const functionDefinitions = [
 
   
 // ===== ROUTER PARA MANEJAR FUNCTION CALLS =====
-async function executeFunctionCall(name, args, userId) {
+async function executeFunctionCall(name, args, userId, accountId = 0) {
     console.log(`🔧 Ejecutando función: ${name}`, args);
+    console.log(`📋 Context: userId=${userId}, accountId=${accountId}`);
 
     // Crear instancia de contexto para este usuario
     const userContext = new UserContext(userId);
@@ -662,6 +684,40 @@ async function executeFunctionCall(name, args, userId) {
           message: `Claro, a partir de este momento inicia una conversación nueva`,
           preserveCurrentCart: false
         };
+
+      case "resolver_canonico": {
+        console.log(`🔍 V23.3.0 - Resolviendo token canónico: "${args.token}" (account: ${accountId})`);
+        
+        try {
+          // Llamar a resolverCanonico con token y accountId del contexto (webhookData)
+          const resultado = await resolverCanonico(args.token, accountId);
+          
+          console.log(`✅ Resultado canonización:`, {
+            original: resultado.token_original,
+            canonico: resultado.token_canonico,
+            encontrado: resultado.encontrado
+          });
+          
+          return {
+            success: true,
+            token_original: resultado.token_original,
+            token_canonico: resultado.token_canonico,
+            encontrado: resultado.encontrado,
+            source: resultado.source,
+            preserveCurrentCart: true
+          };
+        } catch (error) {
+          console.error('❌ Error en resolver_canonico:', error);
+          return {
+            success: false,
+            token_original: args.token,
+            token_canonico: null,
+            encontrado: false,
+            error: error.message,
+            preserveCurrentCart: true
+          };
+        }
+      }
         
       case "obtener_categorias":
         return obtenerCategorias();

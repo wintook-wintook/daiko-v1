@@ -62,6 +62,7 @@ function extraerDatosWebhook(webhookData) {
       let OPENAI_APIKEY = await getOPENAI_APIKEY(webhookData.token, webhookData.account_id);
 //console.log({sender: sender, webhookData});
 
+
       // Extraer datos del webhook
       const extractedData = extraerDatosWebhook(webhookData);
 
@@ -198,7 +199,8 @@ console.log({conversationAssistant});
           if (name == 'buscar_informacion_externa') { showSourceMessage = true; }
           try {            
             const functionArgs = JSON.parse(args);
-            functionResult = await executeFunctionCall(name, functionArgs, userId);
+            // Pasar accountId desde webhookData al executeFunctionCall
+            functionResult = await executeFunctionCall(name, functionArgs, userId, webhookData.account_id);
             
             if(name==='generar_pdf' && !functionResult.error){isGetPDF=true; finalResponse = functionResult.data; }
 
