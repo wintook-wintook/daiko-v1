@@ -1,5 +1,6 @@
 // daiko/src/tools/openai_tools.js
-// ACTUALIZADO: V23.3.0 - Incluye función resolver_canonico con PostgreSQL
+// ACTUALIZADO: V24.0 - PASO 8 (Normalización) + PASO 9 (Canonización) separados
+// Según documento normativo MBC01 v2.2
 
 const { obtenerCategorias, buscarProductos, obtenerDetalleProducto, agregarAlCarrito, agregarVariosArticulosAlCarrito, crearNuevoCarrito, crearNuevoCarritoConVariosArticulos, obtenerCarritosDisponibles, verCarrito, crearOrden, cancelarCarrito, generarPdf, copiarArticulosEntreCarritos, copiarArticulosDeUnCarritoExisenteAUnoNuevo } = require('../utils/crm');
 const { ejecutarBusquedaExterna } = require('../utils/busqueda_externa_service');
@@ -45,17 +46,36 @@ const functionDefinitions = [
         strict: true
       }
     },
+    // ============================================================
+    // V24.0 - resolver_canonico ACTUALIZADO
+    // Ejecuta PASO 8 (Normalización) + PASO 9 (Canonización)
+    // ============================================================
     {
       type: "function",
       function: {
         name: "resolver_canonico",
-        description: "OBLIGATORIO V23.3.0: Resuelve un token individual a su forma canónica mediante consulta a PostgreSQL (tabla wintook.palabras_sinonimos). Ejecutar PARA CADA token detectado (sustantivo, marca, tipo, característica, compatibilidad) ANTES de construir buscar_productos. NO recibe account_id como parámetro (se obtiene del contexto). Ejemplo: 'monitor' → 'MONITOR', 'samsum' → 'SAMSUNG'",
+        description: `V24.0: Ejecuta PASO 8 (Normalización) + PASO 9 (Canonización) según documento normativo v2.2.
+
+PASO 8 (interno): Normaliza el token (trim, lowercase, singular, unidades)
+PASO 9 (interno): Busca sinónimo en BD
+
+Retorna:
+- token_original: lo que envió el usuario
+- token_normalizado: después de PASO 8
+- token_canonico: después de PASO 9 (o null si no existe)
+- token_final: el que debe usarse (canónico si existe, normalizado si no)
+
+REGLAS (9.4):
+- Si canonico ≠ null → usar canónico
+- Si canonico = null → conservar normalizado
+- NUNCA bloquea el flujo
+- NUNCA produce errores`,
         parameters: {
           type: "object",
           properties: {
             token: {
               type: "string",
-              description: "Token individual a canonizar (NUNCA una frase completa). Ejemplos: 'monitor', 'samsung', 'hdmi', '24 pulgadas'"
+              description: "Token individual a procesar. Puede ser crudo (la función ejecuta normalización internamente)."
             }
           },
           required: ["token"],
@@ -685,57 +705,87 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
           preserveCurrentCart: false
         };
 
+      // ============================================================
+      // V24.0 - resolver_canonico ACTUALIZADO
+      // Ejecuta PASO 8 (Normalización) + PASO 9 (Canonización)
+      // ============================================================
       case "resolver_canonico": {
-        console.log(`🔍 V23.3.0 - Resolviendo token canónico: "${args.token}" (account: ${accountId})`);
+        console.log(`🔍 V24.0 - Procesando token: "${args.token}" (account: ${accountId})`);
         
         try {
-          // ✅ TIMEOUT DE 2 SEGUNDOS - FAIL-OPEN
+          // Timeout de 2 segundos - FAIL-OPEN
           const timeoutPromise = new Promise((_, reject) => 
             setTimeout(() => reject(new Error('Timeout en resolver_canonico')), 2000)
           );
           
-          // Ejecutar con timeout
+          // Ejecutar PASO 8 + PASO 9 (internos en resolverCanonico)
           const resultado = await Promise.race([
             resolverCanonico(args.token, accountId),
             timeoutPromise
           ]);
           
-          console.log(`✅ Resultado canonización:`, {
+          console.log(`✅ Resultado V24.0:`, {
             original: resultado.token_original,
+            normalizado: resultado.token_normalizado,
             canonico: resultado.token_canonico,
+            final: resultado.token_final,
             encontrado: resultado.encontrado
           });
           
-          // ✅ MENSAJE EXPLÍCITO PARA EL MODELO
+          // Construir instrucción para el modelo (PASO 10)
           let instruction = "";
-          if (resultado.token_canonico === null || !resultado.encontrado) {
-            // Token NO tiene sinónimo → DEBE continuar con token original
-            instruction = `INSTRUCCIÓN: El token "${resultado.token_original}" no tiene sinónimo registrado. DEBES ejecutar buscar_productos("${resultado.token_original}") inmediatamente usando el token original. NO pidas confirmación. NO te disculpes. EJECUTA la búsqueda.`;
+          
+          if (resultado.token_canonico) {
+            // Caso: Se encontró sinónimo canónico
+            instruction = `INSTRUCCIÓN PASO 10: Usar "${resultado.token_final}" en buscar_productos. Token "${resultado.token_original}" → normalizado "${resultado.token_normalizado}" → canónico "${resultado.token_canonico}". EJECUTAR búsqueda inmediatamente.`;
           } else {
-            // Token SÍ tiene sinónimo → usar el canónico
-            instruction = `INSTRUCCIÓN: El token "${resultado.token_original}" se resolvió a "${resultado.token_canonico}". DEBES ejecutar buscar_productos("${resultado.token_canonico}") inmediatamente. NO pidas confirmación.`;
+            // Caso: No hay sinónimo, usar normalizado
+            instruction = `INSTRUCCIÓN PASO 10: Usar "${resultado.token_final}" en buscar_productos. Token "${resultado.token_original}" → normalizado "${resultado.token_normalizado}" (sin sinónimo registrado). EJECUTAR búsqueda inmediatamente.`;
           }
           
-          // ✅ SIEMPRE success:true para no bloquear el flujo
+          // SIEMPRE success:true - NUNCA bloquear flujo (regla 9.4)
           return {
             success: true,
+            
+            // Datos del proceso completo
             token_original: resultado.token_original,
+            token_normalizado: resultado.token_normalizado,
             token_canonico: resultado.token_canonico,
+            token_final: resultado.token_final,
+            
+            // Metadata
             encontrado: resultado.encontrado,
             source: resultado.source,
-            instruction: instruction,  // ← CRÍTICO: Instrucción explícita para el modelo
+            cambios_normalizacion: resultado.cambios_normalizacion,
+            
+            // Instrucción para PASO 10
+            instruction: instruction,
+            
             preserveCurrentCart: true
           };
+          
         } catch (error) {
-          // ✅ FAIL-OPEN: Timeout o error → retornar token original con canonico=null
-          console.warn(`⚠️ resolver_canonico ${error.message} - Continuando con token original: "${args.token}"`);
+          // FAIL-OPEN: Timeout o error → normalización básica de emergencia
+          console.warn(`⚠️ resolver_canonico error: ${error.message}`);
+          console.log(`   → FAIL-OPEN: Aplicando normalización básica`);
+          
+          // Normalización mínima de emergencia
+          const tokenNormalizado = args.token ? args.token.toLowerCase().trim() : args.token;
+          
           return {
-            success: true,  // ✅ CRÍTICO: success:true para NO bloquear flujo
+            success: true,  // CRÍTICO: success:true para NO bloquear flujo
+            
             token_original: args.token,
+            token_normalizado: tokenNormalizado,
             token_canonico: null,
+            token_final: tokenNormalizado,
+            
             encontrado: false,
             source: 'timeout_or_error',
-            instruction: `INSTRUCCIÓN: Hubo un timeout/error al buscar sinónimo para "${args.token}". DEBES ejecutar buscar_productos("${args.token}") inmediatamente usando el token original. NO pidas confirmación. NO te disculpes. EJECUTA la búsqueda.`,
+            cambios_normalizacion: ['emergency_trim_lowercase'],
+            
+            instruction: `INSTRUCCIÓN PASO 10: Usar "${tokenNormalizado}" en buscar_productos (FAIL-OPEN por ${error.message}). EJECUTAR búsqueda inmediatamente.`,
+            
             preserveCurrentCart: true
           };
         }
@@ -754,7 +804,7 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
         return buscarProductos(args.query, args.category, args.etiquetas, args.precio_max, args.current_page, args.per_page);
         
       case "tienes_mas": {
-        console.log('📄 FUNCIÓN tienes_mas - Mostrando siguiente página');
+        console.log('🔄 FUNCIÓN tienes_mas - Mostrando siguiente página');
         
         // Recuperar búsqueda activa de Redis
         const busquedaActiva = await userContext.getBusquedaActiva();
@@ -973,7 +1023,7 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
   
           // Estado de búsqueda activa
           const productosApi = resultado.data || [];
-          const productosNormalizados = productosApi
+          const productosNormalizadosBusqueda = productosApi
             .map(p => ({
               ARTICULO_ID: p.ARTICULO_ID,
               NOMBRE: p.NOMBRE,
@@ -986,7 +1036,7 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
               p.PRECIO !== undefined
             );
           
-          if (!productosNormalizados.length) {
+          if (!productosNormalizadosBusqueda.length) {
             console.warn(`⚠️ No hay productos normalizados válidos después del segundo filtro`);
             return {
               success: false,
@@ -996,14 +1046,14 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
             };
           }
           
-          console.log(`✅ Productos normalizados finales: ${productosNormalizados.length}`);
+          console.log(`✅ Productos normalizados finales: ${productosNormalizadosBusqueda.length}`);
           
           // ✅ V22.0: Paginación de 6 productos
           const PRODUCTOS_POR_PAGINA = 6;
           const currentPage = args.current_page || 1;
           
           // Recuperar hasta 100 productos para análisis
-          const productosRecuperados = productosNormalizados.slice(0, 100);
+          const productosRecuperados = productosNormalizadosBusqueda.slice(0, 100);
           
           // Calcular índices para la ventana de 6 productos
           const startIndex = (currentPage - 1) * PRODUCTOS_POR_PAGINA;
@@ -1013,7 +1063,7 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
           const visibles = productosRecuperados.slice(startIndex, endIndex);
           
           // ✅ Usar el count total de la API, no el length del array
-          const totalProductos = resultado.meta?.count || productosNormalizados.length;
+          const totalProductos = resultado.meta?.count || productosNormalizadosBusqueda.length;
           
           console.log(`📋 V22.0 - Página ${currentPage}: Mostrando productos ${startIndex + 1}-${Math.min(endIndex, totalProductos)} de ${totalProductos} totales`);
           

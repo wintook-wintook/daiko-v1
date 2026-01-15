@@ -1,7 +1,7 @@
 // daiko/src/utils/canonicalizacion_service.js
-// Servicio de Canonización de Sinónimos - PostgreSQL
-// V23.3.0 - Implementación con tabla wintook.palabras_sinonimos
-// ACTUALIZADO: Con timeout y fail-open
+// V24.0 - PASO 8 y PASO 9 como procesos SEPARADOS
+// Según documento normativo MBC01 v2.2
+// SIN HARDCODE - Solo reglas genéricas
 
 const { executeQuery } = require('../config/database');
 
@@ -10,27 +10,197 @@ const { executeQuery } = require('../config/database');
  */
 const QUERY_TIMEOUT_MS = 2000;
 
+// ============================================================
+// PASO 8 – NORMALIZACIÓN (PROCESO TEXTUAL - SIN BD)
+// Según documento normativo v2.2, punto 8
+// ============================================================
+
 /**
- * Normaliza un token para búsqueda
- * - Convierte a minúsculas
- * - Elimina espacios al inicio y fin
- * @param {string} token - Token a normalizar
- * @returns {string} Token normalizado
+ * PASO 8.2.1 - Normalización de unidades (GENÉRICA)
+ * Usa regex para detectar patrones numéricos seguidos de unidades
+ * NO usa diccionarios hardcoded
+ * 
+ * @param {string} texto - Texto a normalizar
+ * @returns {string} Texto con unidades normalizadas
  */
-function normalizarToken(token) {
-  if (!token || typeof token !== 'string') return '';
+function normalizarUnidades(texto) {
+  if (!texto) return texto;
   
-  return token
-    .toLowerCase()
-    .trim();
+  let resultado = texto;
+  
+  // Patrones genéricos: número + unidad (sin espacio o con espacio)
+  const patrones = [
+    // Peso
+    { regex: /(\d+(?:\.\d+)?)\s*(kg|kilos?|kilogramos?)/gi, formato: '$1 KG' },
+    { regex: /(\d+(?:\.\d+)?)\s*(gr|grs|gramos?)/gi, formato: '$1 GR' },
+    { regex: /(\d+(?:\.\d+)?)\s*(lb|lbs|libras?)/gi, formato: '$1 LB' },
+    { regex: /(\d+(?:\.\d+)?)\s*(oz|onzas?)/gi, formato: '$1 OZ' },
+    
+    // Volumen
+    { regex: /(\d+(?:\.\d+)?)\s*(lt|lts|litros?)/gi, formato: '$1 LT' },
+    { regex: /(\d+(?:\.\d+)?)\s*(ml|mililitros?)/gi, formato: '$1 ML' },
+    { regex: /(\d+(?:\.\d+)?)\s*(gal|galones?)/gi, formato: '$1 GAL' },
+    
+    // Longitud
+    { regex: /(\d+(?:\.\d+)?)\s*(mm|milimetros?|milímetros?)/gi, formato: '$1 MM' },
+    { regex: /(\d+(?:\.\d+)?)\s*(cm|centimetros?|centímetros?)/gi, formato: '$1 CM' },
+    { regex: /(\d+(?:\.\d+)?)\s*(mts?|metros?)/gi, formato: '$1 M' },
+    { regex: /(\d+(?:\.\d+)?)\s*(pulgadas?|pulg|inch|inches|")/gi, formato: '$1 PULGADAS' },
+    { regex: /(\d+(?:\.\d+)?)\s*(pies?|ft|feet)/gi, formato: '$1 PIES' },
+    
+    // Electricidad/Potencia
+    { regex: /(\d+(?:\.\d+)?)\s*(watts?|w)/gi, formato: '$1 W' },
+    { regex: /(\d+(?:\.\d+)?)\s*(volts?|v)/gi, formato: '$1 V' },
+    { regex: /(\d+(?:\.\d+)?)\s*(amperes?|amp|a)/gi, formato: '$1 A' },
+  ];
+  
+  for (const { regex, formato } of patrones) {
+    resultado = resultado.replace(regex, formato);
+  }
+  
+  return resultado;
 }
 
 /**
+ * PASO 8.2.2 - Normalización singular/plural (GENÉRICA)
+ * Aplica reglas del español, NO diccionarios
+ * 
+ * Reglas del español:
+ * - Palabras terminadas en vocal + s → quitar s (casas → casa)
+ * - Palabras terminadas en consonante + es → quitar es (monitores → monitor)
+ * - Palabras terminadas en z + es → cambiar ces por z (peces → pez)
+ * 
+ * @param {string} palabra - Palabra a convertir a singular
+ * @returns {string} Palabra en singular
+ */
+function normalizarSingular(palabra) {
+  if (!palabra || palabra.length < 3) return palabra;
+  
+  const palabraLower = palabra.toLowerCase();
+  
+  // Excepciones: palabras que terminan en 's' pero NO son plurales
+  const excepcionesSingular = [
+    'lunes', 'martes', 'miércoles', 'jueves', 'viernes',
+    'virus', 'plus', 'bus', 'gas', 'mes', 'país', 'inglés',
+    'estrés', 'interés', 'revés', 'arnés', 'ciempiés'
+  ];
+  
+  if (excepcionesSingular.includes(palabraLower)) {
+    return palabraLower;
+  }
+  
+  // Regla 1: Palabras terminadas en -ces → -z (peces → pez, luces → luz)
+  if (palabraLower.endsWith('ces') && palabraLower.length > 4) {
+    return palabraLower.slice(0, -3) + 'z';
+  }
+  
+  // Regla 2: Palabras terminadas en -es después de consonante
+  // (monitores → monitor, cables → cable, azúcares → azúcar)
+  if (palabraLower.endsWith('es') && palabraLower.length > 4) {
+    const sinEs = palabraLower.slice(0, -2);
+    const ultimaLetra = sinEs.charAt(sinEs.length - 1);
+    
+    // Si termina en consonante (excepto s), quitar -es
+    if (/[bcdfghjklmnpqrstvwxyz]/.test(ultimaLetra) && ultimaLetra !== 's') {
+      return sinEs;
+    }
+    
+    // Si termina en vocal acentuada + es (cafés → café)
+    // Mantener el -es ya que la palabra sin él sería incorrecta
+  }
+  
+  // Regla 3: Palabras terminadas en -s después de vocal no acentuada
+  // (casas → casa, perros → perro, teclados → teclado)
+  if (palabraLower.endsWith('s') && palabraLower.length > 3) {
+    const sinS = palabraLower.slice(0, -1);
+    const penultimaLetra = sinS.charAt(sinS.length - 1);
+    
+    // Si la penúltima es vocal, quitar la s
+    if (/[aeiouáéíóú]/.test(penultimaLetra)) {
+      return sinS;
+    }
+  }
+  
+  // Si no aplica ninguna regla, devolver original
+  return palabraLower;
+}
+
+/**
+ * PASO 8 COMPLETO - Normalización de token
+ * 
+ * Según documento normativo v2.2, punto 8:
+ * - Corrección ortográfica básica (trim, lowercase)
+ * - Normalización singular/plural
+ * - Normalización de unidades
+ * 
+ * PROHIBICIONES (8.3):
+ * - NO resolver sinónimos
+ * - NO canonizar términos
+ * - NO inferir significados
+ * - NO modificar intención
+ * - NO validar existencia de productos
+ * 
+ * @param {string} token - Token crudo del usuario
+ * @returns {object} { token_raw, token_normalizado, cambios_aplicados }
+ */
+function ejecutarPaso8_Normalizacion(token) {
+  console.log(`\n📝 ========== PASO 8: NORMALIZACIÓN ==========`);
+  console.log(`   Token recibido (raw): "${token}"`);
+  
+  if (!token || typeof token !== 'string') {
+    console.log(`   ⚠️ Token inválido, retornando vacío`);
+    return {
+      token_raw: token,
+      token_normalizado: '',
+      cambios_aplicados: []
+    };
+  }
+  
+  const cambios = [];
+  let resultado = token;
+  
+  // 8.2.1 - Trim y lowercase (corrección ortográfica básica)
+  const trimLower = resultado.trim().toLowerCase();
+  if (trimLower !== resultado) {
+    cambios.push('trim+lowercase');
+    resultado = trimLower;
+  }
+  
+  // 8.2.2 - Normalización de unidades
+  const conUnidades = normalizarUnidades(resultado);
+  if (conUnidades !== resultado) {
+    cambios.push('unidades');
+    resultado = conUnidades;
+  }
+  
+  // 8.2.3 - Singular/plural (solo si NO contiene números - no es medida)
+  if (!/\d/.test(resultado)) {
+    const singular = normalizarSingular(resultado);
+    if (singular !== resultado) {
+      cambios.push('singular');
+      resultado = singular;
+    }
+  }
+  
+  console.log(`   Token normalizado: "${resultado}"`);
+  console.log(`   Cambios aplicados: [${cambios.join(', ') || 'ninguno'}]`);
+  console.log(`   ============================================\n`);
+  
+  return {
+    token_raw: token,
+    token_normalizado: resultado,
+    cambios_aplicados: cambios
+  };
+}
+
+
+// ============================================================
+// PASO 9 – CANONIZACIÓN (CONSULTA A BD)
+// Según documento normativo v2.2, punto 9
+// ============================================================
+
+/**
  * Ejecuta una query con timeout
- * @param {string} query - Query SQL
- * @param {Array} params - Parámetros
- * @param {number} timeoutMs - Timeout en milisegundos
- * @returns {Promise<Object>} Resultado o timeout
  */
 async function executeQueryWithTimeout(query, params, timeoutMs = QUERY_TIMEOUT_MS) {
   const timeoutPromise = new Promise((_, reject) => 
@@ -44,7 +214,7 @@ async function executeQueryWithTimeout(query, params, timeoutMs = QUERY_TIMEOUT_
     ]);
   } catch (error) {
     if (error.message === 'Query timeout') {
-      console.warn(`⚠️ Query timeout después de ${timeoutMs}ms`);
+      console.warn(`   ⚠️ Query timeout después de ${timeoutMs}ms`);
       return {
         success: false,
         error: 'timeout',
@@ -57,50 +227,43 @@ async function executeQueryWithTimeout(query, params, timeoutMs = QUERY_TIMEOUT_
 }
 
 /**
- * Resuelve un token a su forma canónica consultando PostgreSQL
+ * PASO 9 COMPLETO - Canonización por sinónimos
  * 
- * Flujo:
- * 1. Normalizar token (lowercase + trim)
- * 2. Buscar en wintook.palabras_sinonimos WHERE palabra = token AND account_id = accountId
- * 3. Si existe, obtener palabra_sinonimo_id
- * 4. Buscar la palabra principal WHERE palabra_id = palabra_sinonimo_id AND palabra_id = palabra_sinonimo_id
- * 5. Retornar la palabra principal o null
+ * Según documento normativo v2.2, punto 9:
+ * - Proceso MECÁNICO de sustitución
+ * - Solo reemplaza alias por forma canónica SI EXISTE mapeo
+ * - Si no existe mapeo, conservar token normalizado
  * 
- * FAIL-OPEN: Si hay timeout o error, retorna null y el flujo continúa
+ * PROHIBICIONES (9.5):
+ * - NO decir que "no existe el producto"
+ * - NO detener el flujo
+ * - NO hacer preguntas
+ * - NO solicitar aclaraciones
+ * - NO inferir error del usuario
+ * - NO cambiar intención
  * 
- * @param {string} token - Token a resolver
- * @param {number} accountId - ID de la cuenta (desde webhookData)
- * @returns {Promise<Object>} { token_original, token_canonico, encontrado, source }
+ * @param {string} tokenNormalizado - Token YA normalizado (salida del PASO 8)
+ * @param {number} accountId - ID de la cuenta
+ * @returns {object} { token_normalizado, token_canonico, encontrado }
  */
-async function resolverCanonico(token, accountId = 0) {
+async function ejecutarPaso9_Canonizacion(tokenNormalizado, accountId) {
+  console.log(`\n🔍 ========== PASO 9: CANONIZACIÓN ==========`);
+  console.log(`   Token normalizado (entrada): "${tokenNormalizado}"`);
+  console.log(`   Account ID: ${accountId}`);
+  
+  if (!tokenNormalizado) {
+    console.log(`   ⚠️ Token vacío, retornando null`);
+    console.log(`   ============================================\n`);
+    return {
+      token_normalizado: tokenNormalizado,
+      token_canonico: null,
+      encontrado: false,
+      source: null
+    };
+  }
+  
   try {
-    // Validación de entrada
-    if (!token || typeof token !== 'string') {
-      console.warn('⚠️ resolver_canonico: Token inválido recibido');
-      return {
-        token_original: token,
-        token_canonico: null,
-        encontrado: false,
-        source: null
-      };
-    }
-
-    // Normalizar el token para búsqueda
-    const tokenNormalizado = normalizarToken(token);
-    
-    if (!tokenNormalizado) {
-      console.warn('⚠️ resolver_canonico: Token vacío después de normalización');
-      return {
-        token_original: token,
-        token_canonico: null,
-        encontrado: false,
-        source: null
-      };
-    }
-
-    console.log(`🔍 resolver_canonico: Buscando "${token}" (normalizado: "${tokenNormalizado}") para account_id: ${accountId}`);
-
-    // PASO 1: Buscar el token en la tabla (CON TIMEOUT)
+    // Buscar en tabla de sinónimos
     const queryBusqueda = `
       SELECT palabra_id, palabra, palabra_sinonimo_id, account_id
       FROM wintook.palabras_sinonimos
@@ -109,26 +272,28 @@ async function resolverCanonico(token, accountId = 0) {
       LIMIT 1
     `;
     
+    console.log(`   Consultando BD...`);
     const resultadoBusqueda = await executeQueryWithTimeout(queryBusqueda, [tokenNormalizado, accountId]);
     
-    // PASO 2: Verificar si se encontró el token
+    // Si no se encontró
     if (!resultadoBusqueda.success || resultadoBusqueda.rowCount === 0) {
-      console.log(`ℹ️ resolver_canonico: No se encontró "${token}" en la tabla para account_id ${accountId}`);
+      console.log(`   ℹ️ No existe mapeo para "${tokenNormalizado}"`);
+      console.log(`   → Conservar token normalizado (regla 9.4)`);
+      console.log(`   ============================================\n`);
       return {
-        token_original: token,
+        token_normalizado: tokenNormalizado,
         token_canonico: null,
         encontrado: false,
         source: null
       };
     }
-
+    
     const registro = resultadoBusqueda.rows[0];
     const palabraSinonimoId = registro.palabra_sinonimo_id;
     
-    console.log(`✅ resolver_canonico: Token encontrado. palabra_id=${registro.palabra_id}, palabra_sinonimo_id=${palabraSinonimoId}`);
-
-    // PASO 3: Resolver la palabra principal (CON TIMEOUT)
-    // La palabra principal es aquella donde palabra_id == palabra_sinonimo_id
+    console.log(`   ✓ Mapeo encontrado: palabra_id=${registro.palabra_id}, sinonimo_id=${palabraSinonimoId}`);
+    
+    // Buscar palabra principal
     const queryPrincipal = `
       SELECT palabra
       FROM wintook.palabras_sinonimos
@@ -140,36 +305,38 @@ async function resolverCanonico(token, accountId = 0) {
     
     const resultadoPrincipal = await executeQueryWithTimeout(queryPrincipal, [palabraSinonimoId, accountId]);
     
-    // PASO 4: Retornar resultado
     if (!resultadoPrincipal.success || resultadoPrincipal.rowCount === 0) {
-      console.warn(`⚠️ resolver_canonico: No se encontró palabra principal para palabra_sinonimo_id=${palabraSinonimoId}`);
+      console.log(`   ⚠️ Palabra principal no encontrada`);
+      console.log(`   → Conservar token normalizado`);
+      console.log(`   ============================================\n`);
       return {
-        token_original: token,
+        token_normalizado: tokenNormalizado,
         token_canonico: null,
         encontrado: false,
-        source: null,
-        error: 'Palabra principal no encontrada'
+        source: null
       };
     }
-
+    
     const palabraPrincipal = resultadoPrincipal.rows[0].palabra;
+    const tokenCanonico = palabraPrincipal.toUpperCase();
     
-    console.log(`✅ resolver_canonico: Palabra canónica encontrada: "${palabraPrincipal}"`);
-
+    console.log(`   ✅ Canónico encontrado: "${tokenCanonico}"`);
+    console.log(`   ============================================\n`);
+    
     return {
-      token_original: token,
-      token_canonico: palabraPrincipal.toUpperCase(), // Retornar en MAYÚSCULAS según especificación
+      token_normalizado: tokenNormalizado,
+      token_canonico: tokenCanonico,
       encontrado: true,
-      source: `account_${accountId}`,
-      timestamp: new Date().toISOString()
+      source: `account_${accountId}`
     };
-
-  } catch (error) {
-    console.error('❌ Error en resolver_canonico:', error);
     
-    // FAIL-OPEN: Retornar null en caso de error de BD o timeout
+  } catch (error) {
+    console.error(`   ❌ Error en BD: ${error.message}`);
+    console.log(`   → FAIL-OPEN: Conservar token normalizado`);
+    console.log(`   ============================================\n`);
+    
     return {
-      token_original: token,
+      token_normalizado: tokenNormalizado,
       token_canonico: null,
       encontrado: false,
       source: 'error',
@@ -178,11 +345,69 @@ async function resolverCanonico(token, accountId = 0) {
   }
 }
 
+
+// ============================================================
+// FUNCIÓN PRINCIPAL: resolverCanonico
+// Ejecuta PASO 8 + PASO 9 en secuencia
+// ============================================================
+
+/**
+ * Resuelve un token ejecutando PASO 8 y PASO 9 en secuencia
+ * 
+ * Flujo:
+ * 1. PASO 8: Normalización (textual, sin BD)
+ * 2. PASO 9: Canonización (consulta BD)
+ * 3. Retorna token_final (canónico si existe, normalizado si no)
+ * 
+ * @param {string} token - Token crudo del usuario
+ * @param {number} accountId - ID de la cuenta
+ * @returns {Promise<object>} Resultado completo del proceso
+ */
+async function resolverCanonico(token, accountId = 0) {
+  console.log(`\n🚀 ========================================`);
+  console.log(`   RESOLVER CANÓNICO V24.0`);
+  console.log(`   Token entrada: "${token}"`);
+  console.log(`   Account: ${accountId}`);
+  console.log(`   ========================================`);
+  
+  // PASO 8: Normalización
+  const paso8 = ejecutarPaso8_Normalizacion(token);
+  
+  // PASO 9: Canonización
+  const paso9 = await ejecutarPaso9_Canonizacion(paso8.token_normalizado, accountId);
+  
+  // Determinar token final (regla 9.4)
+  // Si canonico ≠ null → usar canónico
+  // Si canonico = null → conservar normalizado
+  const tokenFinal = paso9.token_canonico || paso8.token_normalizado;
+  
+  // Log resumen
+  console.log(`\n📊 ========== RESUMEN ==========`);
+  console.log(`   token_raw:         "${token}"`);
+  console.log(`   token_normalizado: "${paso8.token_normalizado}"`);
+  console.log(`   token_canonico:    "${paso9.token_canonico || '(null)'}"`);
+  console.log(`   token_final:       "${tokenFinal}"`);
+  console.log(`   ================================\n`);
+  
+  return {
+    // Datos del proceso
+    token_original: token,
+    token_normalizado: paso8.token_normalizado,
+    token_canonico: paso9.token_canonico,
+    token_final: tokenFinal,
+    
+    // Metadata
+    encontrado: paso9.encontrado,
+    source: paso9.source,
+    cambios_normalizacion: paso8.cambios_aplicados,
+    
+    // Timestamp
+    timestamp: new Date().toISOString()
+  };
+}
+
 /**
  * Resuelve múltiples tokens en paralelo
- * @param {Array<string>} tokens - Array de tokens a resolver
- * @param {number} accountId - ID de la cuenta
- * @returns {Promise<Array<Object>>} Array de resultados de canonización
  */
 async function resolverMultiplesCanonico(tokens, accountId = 0) {
   if (!Array.isArray(tokens)) {
@@ -195,20 +420,23 @@ async function resolverMultiplesCanonico(tokens, accountId = 0) {
     return await Promise.all(promesas);
   } catch (error) {
     console.error('❌ Error en resolverMultiplesCanonico:', error);
-    return tokens.map(token => ({
-      token_original: token,
-      token_canonico: null,
-      encontrado: false,
-      source: null,
-      error: error.message
-    }));
+    return tokens.map(token => {
+      const paso8 = ejecutarPaso8_Normalizacion(token);
+      return {
+        token_original: token,
+        token_normalizado: paso8.token_normalizado,
+        token_canonico: null,
+        token_final: paso8.token_normalizado,
+        encontrado: false,
+        source: 'error',
+        error: error.message
+      };
+    });
   }
 }
 
 /**
  * Obtiene todos los sinónimos de una cuenta
- * @param {number} accountId - ID de la cuenta
- * @returns {Promise<Array>} Lista de sinónimos
  */
 async function obtenerSinonimos(accountId = 0) {
   try {
@@ -245,9 +473,18 @@ async function obtenerSinonimos(accountId = 0) {
   }
 }
 
+// Exportar funciones
 module.exports = {
+  // Función principal
   resolverCanonico,
   resolverMultiplesCanonico,
   obtenerSinonimos,
-  normalizarToken
+  
+  // Funciones de pasos individuales (para testing)
+  ejecutarPaso8_Normalizacion,
+  ejecutarPaso9_Canonizacion,
+  
+  // Funciones auxiliares (para testing)
+  normalizarUnidades,
+  normalizarSingular
 };
