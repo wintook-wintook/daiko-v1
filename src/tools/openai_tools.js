@@ -706,6 +706,16 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
             encontrado: resultado.encontrado
           });
           
+          // ✅ MENSAJE EXPLÍCITO PARA EL MODELO
+          let instruction = "";
+          if (resultado.token_canonico === null || !resultado.encontrado) {
+            // Token NO tiene sinónimo → DEBE continuar con token original
+            instruction = `INSTRUCCIÓN: El token "${resultado.token_original}" no tiene sinónimo registrado. DEBES ejecutar buscar_productos("${resultado.token_original}") inmediatamente usando el token original. NO pidas confirmación. NO te disculpes. EJECUTA la búsqueda.`;
+          } else {
+            // Token SÍ tiene sinónimo → usar el canónico
+            instruction = `INSTRUCCIÓN: El token "${resultado.token_original}" se resolvió a "${resultado.token_canonico}". DEBES ejecutar buscar_productos("${resultado.token_canonico}") inmediatamente. NO pidas confirmación.`;
+          }
+          
           // ✅ SIEMPRE success:true para no bloquear el flujo
           return {
             success: true,
@@ -713,6 +723,7 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
             token_canonico: resultado.token_canonico,
             encontrado: resultado.encontrado,
             source: resultado.source,
+            instruction: instruction,  // ← CRÍTICO: Instrucción explícita para el modelo
             preserveCurrentCart: true
           };
         } catch (error) {
@@ -724,6 +735,7 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
             token_canonico: null,
             encontrado: false,
             source: 'timeout_or_error',
+            instruction: `INSTRUCCIÓN: Hubo un timeout/error al buscar sinónimo para "${args.token}". DEBES ejecutar buscar_productos("${args.token}") inmediatamente usando el token original. NO pidas confirmación. NO te disculpes. EJECUTA la búsqueda.`,
             preserveCurrentCart: true
           };
         }
