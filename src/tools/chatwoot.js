@@ -24,9 +24,51 @@ const { Buffer } = require('buffer');
 
 let fuenteWeb ="Fuente: WEB";
 
+// ============================================================
+// DETECCIÓN DE NECESIDAD - OPCIÓN A2
+// ============================================================
+/**
+ * Detecta si el mensaje del usuario corresponde a una intención de NECESIDAD
+ * Implementación ligera y conservadora según requisitos
+ * @param {string} mensaje - Mensaje del usuario
+ * @returns {boolean} true si es NECESIDAD, false en caso contrario
+ */
+function detectarNecesidad(mensaje) {
+  if (!mensaje || typeof mensaje !== 'string') {
+    return false;
+  }
+  
+  const mensajeNormalizado = mensaje.toLowerCase().trim();
+  
+  // REGLA 1: El comando "reiniciate" NO es necesidad
+  if (mensajeNormalizado.includes('reinicia')) {
+    return false;
+  }
+  
+  // REGLA 2: Patrones claros de NECESIDAD
+  const patronesNecesidad = [
+    /\btengo sed\b/i,
+    /\btengo hambre\b/i,
+    /\bme duele\b/i,
+    /\bbusco algo para\b/i,
+    /\bnecesito algo para\b/i,
+    /\btengo\s+\w+/i  // "tengo [algo]" - caso general conservador
+  ];
+  
+  const esNecesidad = patronesNecesidad.some(patron => patron.test(mensajeNormalizado));
+  
+  console.log(`🔍 Detección NECESIDAD: mensaje="${mensaje.substring(0, 50)}" → ${esNecesidad ? 'SÍ ✅' : 'NO ❌'}`);
+  
+  return esNecesidad;
+}
+
+
+// ============================================================
+// DETECCIÓN DE NECESIDAD - OPCIÓN A2
+
 function extraerDatosWebhook(webhookData) {
     try {
-      // Extraer información del webhook de Chatwoot
+      // Extraer informaciÃ³n del webhook de Chatwoot
       const conversationId = webhookData.conversation?.id;
       const messageContent = webhookData.content;
       const senderId = webhookData.sender?.id;
@@ -46,7 +88,7 @@ function extraerDatosWebhook(webhookData) {
           inboxId,
           inboxName
         },
-        message: "Datos extraídos correctamente del webhook"
+        message: "Datos extraÃ­dos correctamente del webhook"
       };
     } catch (error) {
       return {
@@ -130,17 +172,42 @@ async function procesarMensajeWebhook(webhookData) {
     const conversationHistory = await getMessages(webhookData.token, webhookData.account_id, webhookData.conversation_id, contextStr);
 
     // ============================================================
-    // TOOL-CALLING LOOP - IMPLEMENTACIÓN CORRECTA
+    // TOOL-CALLING LOOP - IMPLEMENTACIÃ“N CORRECTA
     // ============================================================
     
-    const MAX_ITERATIONS = 10; // Límite de seguridad
+    const MAX_ITERATIONS = 10; // LÃ­mite de seguridad
     let iteration = 0;
     let continueLoop = true;
     let isGetPDF = false;
     
     while (continueLoop && iteration < MAX_ITERATIONS) {
       iteration++;
-      console.log(`\n🔄 Tool-calling loop - Iteración ${iteration}/${MAX_ITERATIONS}`);
+      console.log(`\nðŸ”„ Tool-calling loop - IteraciÃ³n ${iteration}/${MAX_ITERATIONS}`);
+      
+      // ============================================================
+      // DETECCIÓN DE NECESIDAD (solo en primera iteración)
+      // ============================================================
+      let isNecesidad = false;
+      if (iteration === 1) {
+        isNecesidad = detectarNecesidad(messageContent);
+        if (isNecesidad) {
+          console.log(`⚡ NECESIDAD DETECTADA - Forzando ejecución de buscar_productos`);
+        }
+      }
+      
+      // ============================================================
+      // DETERMINAR tool_choice SEGÚN DETECCIÓN
+      // ============================================================
+      let toolChoice = "auto";  // Por defecto: modo automático
+      
+      if (isNecesidad && iteration === 1) {
+        // OPCIÓN A2: Forzar específicamente buscar_productos
+        toolChoice = {
+          type: "function",
+          function: { name: "buscar_productos" }
+        };
+        console.log(`🎯 tool_choice FORZADO a buscar_productos para NECESIDAD`);
+      }
       
       // Preparar input con historial actualizado
       const input = [
@@ -148,12 +215,12 @@ async function procesarMensajeWebhook(webhookData) {
         ...conversationHistory
       ];
 
-      // ✅ LLAMAR AL MODELO CON TOOLS EN CADA ITERACIÓN
+      // âœ… LLAMAR AL MODELO CON TOOLS EN CADA ITERACIÃ“N
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",  // ✅ MISMO MODELO EN TODAS LAS RONDAS
+        model: "gpt-4o",  // âœ… MISMO MODELO EN TODAS LAS RONDAS
         messages: input,
-        tools: functionDefinitions,  // ✅ TOOLS DISPONIBLES EN CADA RONDA
-        tool_choice: "auto",
+        tools: functionDefinitions,  // âœ… TOOLS DISPONIBLES EN CADA RONDA
+        tool_choice: toolChoice,  // ✅ MODIFICADO: Usa toolChoice dinámico
         temperature: 0.3
       });
 
@@ -163,7 +230,7 @@ async function procesarMensajeWebhook(webhookData) {
       // VERIFICAR SI HAY TOOL CALLS
       // ============================================================
       if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
-        console.log(`🛠️ Procesando ${assistantMessage.tool_calls.length} tool calls en iteración ${iteration}`);
+        console.log(`ðŸ› ï¸ Procesando ${assistantMessage.tool_calls.length} tool calls en iteraciÃ³n ${iteration}`);
         
         // Agregar mensaje del asistente al historial
         conversationHistory.push(assistantMessage);
@@ -175,12 +242,12 @@ async function procesarMensajeWebhook(webhookData) {
           const { id, function: func } = toolCall;
           const { name, arguments: args } = func;
           
-          console.log(`  📌 Ejecutando tool: ${name}`);
+          console.log(`  ðŸ“Œ Ejecutando tool: ${name}`);
           
           try {
             const functionArgs = JSON.parse(args);
             
-            // ✅ EJECUTAR TOOL con account_id desde webhookData
+            // âœ… EJECUTAR TOOL con account_id desde webhookData
             const functionResult = await executeFunctionCall(
               name, 
               functionArgs, 
@@ -193,37 +260,37 @@ async function procesarMensajeWebhook(webhookData) {
               isGetPDF = true;
             }
 
-            // ✅ AGREGAR RESULTADO AL HISTORIAL
+            // âœ… AGREGAR RESULTADO AL HISTORIAL
             conversationHistory.push({
               role: "tool",
               tool_call_id: id,
               content: JSON.stringify(functionResult)
             });
             
-            console.log(`  ✅ Tool ${name} ejecutada exitosamente`);
+            console.log(`  âœ… Tool ${name} ejecutada exitosamente`);
 
           } catch (error) {
-            console.error(`  ❌ Error ejecutando ${name}:`, error);
+            console.error(`  âŒ Error ejecutando ${name}:`, error);
             
             conversationHistory.push({
               role: "tool",
               tool_call_id: id,
               content: JSON.stringify({
                 success: false,
-                message: `Error ejecutando la función: ${error.message}`
+                message: `Error ejecutando la funciÃ³n: ${error.message}`
               })
             });
           }
         }
         
-        // ✅ CONTINUAR LOOP - El modelo puede pedir más tools
+        // âœ… CONTINUAR LOOP - El modelo puede pedir mÃ¡s tools
         continueLoop = true;
         
       } else {
         // ============================================================
-        // NO HAY MÁS TOOL CALLS - GENERAR RESPUESTA FINAL
+        // NO HAY MÃS TOOL CALLS - GENERAR RESPUESTA FINAL
         // ============================================================
-        console.log(`✅ No hay más tool calls. Generando respuesta final.`);
+        console.log(`âœ… No hay mÃ¡s tool calls. Generando respuesta final.`);
         
         const finalResponse = assistantMessage.content || "";
         
@@ -233,10 +300,10 @@ async function procesarMensajeWebhook(webhookData) {
           content: finalResponse
         });
         
-        // ✅ TERMINAR LOOP
+        // âœ… TERMINAR LOOP
         continueLoop = false;
         
-        // Mantener solo los últimos 20 mensajes
+        // Mantener solo los Ãºltimos 20 mensajes
         if (conversationHistory.length > 20) {
           conversationHistory.splice(0, conversationHistory.length - 20);
           if (conversationHistory[0].role !== 'user') {
@@ -247,7 +314,7 @@ async function procesarMensajeWebhook(webhookData) {
           }
         }
         
-        console.log(`🤖 Respuesta final: ${finalResponse}`);
+        console.log(`ðŸ¤– Respuesta final: ${finalResponse}`);
         
         // ============================================================
         // RETORNAR RESPUESTA
@@ -268,76 +335,76 @@ async function procesarMensajeWebhook(webhookData) {
     }
     
     // ============================================================
-    // LÍMITE DE ITERACIONES ALCANZADO
+    // LÃMITE DE ITERACIONES ALCANZADO
     // ============================================================
     if (iteration >= MAX_ITERATIONS) {
-      console.error(`⚠️ Límite de ${MAX_ITERATIONS} iteraciones alcanzado`);
+      console.error(`âš ï¸ LÃ­mite de ${MAX_ITERATIONS} iteraciones alcanzado`);
       return {
         success: false,
-        error: "Se alcanzó el límite de procesamiento. Por favor, intenta reformular tu pregunta.",
-        details: `Límite de ${MAX_ITERATIONS} iteraciones alcanzado`
+        error: "Se alcanzÃ³ el lÃ­mite de procesamiento. Por favor, intenta reformular tu pregunta.",
+        details: `LÃ­mite de ${MAX_ITERATIONS} iteraciones alcanzado`
       };
     }
 
   } catch (error) {
-    console.error('❌ Error procesando webhook:', error);
+    console.error('âŒ Error procesando webhook:', error);
     sendMessage(webhookData.token, webhookData.account_id, webhookData.conversation_id, error.message);
     return {
       success: false,
-      error: "Disculpa, tuve un problema técnico procesando tu mensaje.",
+      error: "Disculpa, tuve un problema tÃ©cnico procesando tu mensaje.",
       details: error.message
     };
   }
 }
 
 // ============================================================
-// NOTAS DE IMPLEMENTACIÓN
+// NOTAS DE IMPLEMENTACIÃ“N
 // ============================================================
 /*
 
 CAMBIOS CLAVE:
 
-1. ✅ TOOL-CALLING LOOP REAL
-   - Permite múltiples rondas de tool calls
+1. âœ… TOOL-CALLING LOOP REAL
+   - Permite mÃºltiples rondas de tool calls
    - Ronda 1: resolver_canonico
    - Ronda 2: buscar_productos
    - Ronda N: generar respuesta final
 
-2. ✅ MISMO MODELO EN TODAS LAS RONDAS
+2. âœ… MISMO MODELO EN TODAS LAS RONDAS
    - model: "gpt-4o" en TODAS las llamadas
    - No hay cambio a gpt-3.5-turbo
 
-3. ✅ TOOLS REGISTRADAS EN CADA ITERACIÓN
+3. âœ… TOOLS REGISTRADAS EN CADA ITERACIÃ“N
    - tools: functionDefinitions en cada llamada
    - tool_choice: "auto" siempre
 
-4. ✅ TERMINA CUANDO NO HAY MÁS TOOL CALLS
-   - El modelo decide cuándo generar respuesta final
+4. âœ… TERMINA CUANDO NO HAY MÃS TOOL CALLS
+   - El modelo decide cuÃ¡ndo generar respuesta final
    - No hay "segunda llamada" hardcodeada
 
-5. ✅ LÍMITE DE SEGURIDAD
+5. âœ… LÃMITE DE SEGURIDAD
    - MAX_ITERATIONS = 10 para evitar loops infinitos
 
 FLUJO ESPERADO:
 
 Usuario: "vendes azucar"
 
-Iteración 1:
-  GPT-4o → tool_calls: [resolver_canonico("azucar")]
-  Ejecutar → { token_canonico: "AZUCAR" }
+IteraciÃ³n 1:
+  GPT-4o â†’ tool_calls: [resolver_canonico("azucar")]
+  Ejecutar â†’ { token_canonico: "AZUCAR" }
   Continuar loop
 
-Iteración 2:
-  GPT-4o → tool_calls: [buscar_productos("AZUCAR")]
-  Ejecutar → { data: [...productos] }
+IteraciÃ³n 2:
+  GPT-4o â†’ tool_calls: [buscar_productos("AZUCAR")]
+  Ejecutar â†’ { data: [...productos] }
   Continuar loop
 
-Iteración 3:
-  GPT-4o → sin tool_calls
-  Generar respuesta: "Aquí están los productos de azúcar: 1) ..."
+IteraciÃ³n 3:
+  GPT-4o â†’ sin tool_calls
+  Generar respuesta: "AquÃ­ estÃ¡n los productos de azÃºcar: 1) ..."
   Terminar loop
   
-✅ Retornar respuesta
+âœ… Retornar respuesta
 
 */
 
@@ -422,7 +489,7 @@ const getMessages = async (token, account_id, conversation_id, contextStr) => {
   idx = -1;
   for (var i = messages.length - 1; i >= 0; i--) {
     let message = messages[i];
-    if (message.role != 'user' && (message.content.includes('conversación nueva') || message.content.includes('nueva conversación'))) {
+    if (message.role != 'user' && (message.content.includes('conversaciÃ³n nueva') || message.content.includes('nueva conversaciÃ³n'))) {
       idx = i;
       break;
     }
@@ -533,7 +600,7 @@ const sendMessage = async (token, account_id, conversation_id, messageData, file
   }
   
   
-  // Configuración de la petición
+  // ConfiguraciÃ³n de la peticiÃ³n
   const config = {
     method: "post",
     url: `${urlWA}api/v1/accounts/${account_id}/conversations/${conversation_id}/messages`,
@@ -560,7 +627,7 @@ const sendMessage = async (token, account_id, conversation_id, messageData, file
 
   async function enviarMensajeWebhook(webhookData) {
     try {
-      // Extraer información del webhook de Chatwoot
+      // Extraer informaciÃ³n del webhook de Chatwoot
       let data = await sendMessage(webhookData.token, 
         webhookData.account_id, 
         webhookData.conversation_id, 
@@ -579,7 +646,7 @@ const sendMessage = async (token, account_id, conversation_id, messageData, file
           inboxId,
           inboxName
         },
-        message: "Datos extraídos correctamente del webhook"
+        message: "Datos extraÃ­dos correctamente del webhook"
       };
       */
     } catch (error) {
