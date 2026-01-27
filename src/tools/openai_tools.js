@@ -32,20 +32,6 @@ const functionDefinitions = [
         strict: true
       }
     },
-    {
-      type: "function",
-      function: {
-        name: "reiniciar",
-        description: "Reinicia la conversación y limpia el estado (Redis/contexto/paginación/filtros).",
-        parameters: {
-          type: "object",
-          properties: {},
-          required: [],
-          additionalProperties: false
-        },
-        strict: true
-      }
-    },
     // ============================================================
     // V24.0 - resolver_canonico ACTUALIZADO
     // Ejecuta PASO 8 (Normalización) + PASO 9 (Canonización)
@@ -696,15 +682,6 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
           preserveCurrentCart: true
         };
         
-      case "reiniciar":
-        await userContext.reset();
-        return {
-          success: true,
-          data: [],
-          message: `Claro, a partir de este momento inicia una conversación nueva`,
-          preserveCurrentCart: false
-        };
-
       // ============================================================
       // V24.0 - resolver_canonico ACTUALIZADO
       // Ejecuta PASO 8 (Normalización) + PASO 9 (Canonización)
