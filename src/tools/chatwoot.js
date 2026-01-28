@@ -298,8 +298,8 @@ async function procesarMensajeWebhook(webhookData) {
         console.log(`🤖 Respuesta final (antes de formateo): ${finalResponse}`);
         
         // ============================================================
-        // CAPA DE PRESENTACIÓN - FORMATEO DE PRODUCTOS (Documento B v1.1)
-        // Se ejecuta SOLO si hubo tool calls en esta conversación
+        // CAPA DE PRESENTACIÓN - FORMATEO DE PRODUCTOS (Documento B v1.2)
+        // DCT 2: Salida única y terminal - Control de impresión única
         // ============================================================
         
         let respuestaFormateada = finalResponse;
@@ -343,6 +343,24 @@ async function procesarMensajeWebhook(webhookData) {
         }
         
         console.log(`📤 Respuesta final (después de formateo): ${respuestaFormateada.substring(0, 100)}...`);
+        
+        // ============================================================
+        // DCT 2 - VALIDACIÓN FINAL (Documento B v1.2)
+        // Asegurar que la respuesta cumple con el formato único y terminal
+        // ============================================================
+        
+        if (productosFormateados) {
+          // Validar que no hay duplicación de listados
+          const lineasProducto = (respuestaFormateada.match(/^\d+\)\s+ID:\s+\d+/gm) || []).length;
+          
+          if (lineasProducto === 0) {
+            console.warn(`⚠️ DCT 2: Productos formateados pero sin líneas de producto detectadas`);
+          } else if (lineasProducto > 6) {
+            console.warn(`⚠️ DCT 2: Detectadas ${lineasProducto} líneas de producto (máximo 6)`);
+          } else {
+            console.log(`✅ DCT 2: Validación de formato aprobada (${lineasProducto} productos)`);
+          }
+        }
         
         // ============================================================
         // RETORNAR RESPUESTA

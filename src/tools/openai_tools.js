@@ -925,15 +925,52 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
           
           console.log(`✅ Filtros normalizados:`, JSON.stringify(filtrosNormalizados, null, 2));
           
-          // ✅ Pasar filtros a buscarProductos
+          // ============================================================
+          // DCT 1 - CLASIFICACIÓN DE INTENCIÓN (Documento A v2.4)
+          // Distinguir entre BÚSQUEDA DE PRODUCTO y NECESIDAD
+          // ============================================================
+          
+          let queryFinal, categoriaFinal, etiquetasFinal;
+          let intencion;
+          
+          // Detectar intención:
+          // - Si query = null y hay categoria/etiquetas → NECESIDAD
+          // - Si query tiene valor → BÚSQUEDA DE PRODUCTO
+          
+          if (!args.query && (args.categoria || (args.etiquetas && args.etiquetas.length > 0))) {
+            // INTENCIÓN: NECESIDAD
+            intencion = 'NECESIDAD';
+            queryFinal = null;
+            categoriaFinal = args.categoria || (Array.isArray(args.etiquetas) ? args.etiquetas[0] : args.etiquetas);
+            etiquetasFinal = args.categoria ? [args.categoria] : (Array.isArray(args.etiquetas) ? args.etiquetas : [args.etiquetas]);
+            
+            console.log(`🎯 Intención detectada: NECESIDAD`);
+            console.log(`   query: null`);
+            console.log(`   categoria: ${categoriaFinal}`);
+            console.log(`   etiquetas: [${etiquetasFinal.join(', ')}]`);
+            
+          } else {
+            // INTENCIÓN: BÚSQUEDA DE PRODUCTO
+            intencion = 'PRODUCTO';
+            queryFinal = args.query;
+            categoriaFinal = null;
+            etiquetasFinal = [];
+            
+            console.log(`🎯 Intención detectada: BÚSQUEDA DE PRODUCTO`);
+            console.log(`   query: ${queryFinal}`);
+            console.log(`   categoria: null`);
+            console.log(`   etiquetas: []`);
+          }
+          
+          // ✅ Pasar parámetros alineados a Documento A v2.4
           const resultado = await buscarProductos(
-            args.query, 
-            args.categoria, 
-            args.etiquetas, 
+            queryFinal,           // null para NECESIDAD, sustantivo para PRODUCTO
+            categoriaFinal,       // null para PRODUCTO, necesidad para NECESIDAD
+            etiquetasFinal,       // [] para PRODUCTO, [necesidad] para NECESIDAD
             args.precio_max, 
             args.current_page, 
             args.per_page,
-            filtrosNormalizados  // ← NUEVO PARÁMETRO
+            filtrosNormalizados
           );
           
           // Log de búsqueda con filtros
@@ -978,9 +1015,9 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
             resultado.data = productosConId;
           }
           
-          // Guardar preferencias
-          if (args.categoria) {
-            await userContext.addCategoria(args.categoria);
+          // Guardar preferencias (usar valores finales, no args originales)
+          if (categoriaFinal) {
+            await userContext.addCategoria(categoriaFinal);
           }
           
           if (args.precio_max) {
@@ -992,8 +1029,8 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
             await userContext.setFiltrosActivos(filtrosNormalizados);
           }
           
-          // Guardar búsqueda en historial
-          await userContext.addBusqueda(args.query, { 
+          // Guardar búsqueda en historial (usar valor final)
+          await userContext.addBusqueda(queryFinal || categoriaFinal, { 
             total_resultados: (resultado.data || []).length,
             filtros: filtrosNormalizados  // ← Guardar filtros aplicados
           });
@@ -1052,7 +1089,7 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
           }
           
           await userContext.setBusquedaActiva({
-            query: args.query,
+            query: queryFinal || categoriaFinal,  // Usar valor final según intención
             filtros: filtrosNormalizados,
             total_resultados: totalProductos,
             mostrados: endIndex,

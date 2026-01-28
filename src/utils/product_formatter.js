@@ -1,6 +1,10 @@
 // daiko/src/utils/product_formatter.js
 // CAPA DE PRESENTACIÓN - FORMATO DE SALIDA
-// Implementa Documento B v1.1 - NUMERACIÓN OBLIGATORIA
+// Implementa Documento B v1.2 - DCT 2: SALIDA ÚNICA Y TERMINAL
+// - UNA sola impresión por respuesta
+// - Máximo 6 productos
+// - Sin texto adicional (encabezados, totales, cierres)
+// - Formato exacto: N) ID: ARTICULO_ID - DESCRIPCION\nPrecio: $PRECIO
 
 /**
  * Valida que un producto tenga los campos mínimos requeridos para ser impreso
@@ -39,7 +43,7 @@ function validarProductoParaImpresion(producto) {
 }
 
 /**
- * Formatea un solo producto según el estándar Documento B v1.1
+ * Formatea un solo producto según el estándar Documento B v1.2
  * 
  * FORMATO EXACTO:
  * N) ID: ARTICULO_ID - DESCRIPCION_COMPLETA_DEL_PRODUCTO
@@ -74,11 +78,13 @@ function formatearProducto(producto, numero) {
 /**
  * Formatea una lista de productos con numeración obligatoria
  * 
- * REGLAS:
+ * REGLAS DCT 2 (Documento B v1.2):
  * - La numeración SIEMPRE inicia en 1
  * - La numeración es consecutiva
  * - Los productos inválidos se omiten (no se cuentan)
+ * - MÁXIMO 6 PRODUCTOS por respuesta
  * - Si NO hay productos válidos, retorna null
+ * - UN salto de línea entre productos (no doble)
  * 
  * @param {Array} productos - Array de productos
  * @returns {object} { productos_formateados, total_validos, total_invalidos }
@@ -95,15 +101,25 @@ function formatearListaProductos(productos) {
   }
 
   console.log(`\n📋 ========================================`);
-  console.log(`   FORMATEANDO LISTA DE PRODUCTOS`);
+  console.log(`   FORMATEANDO LISTA DE PRODUCTOS (DCT 2)`);
   console.log(`   Total recibidos: ${productos.length}`);
   console.log(`   ========================================\n`);
+
+  // ============================================================
+  // DCT 2 - LÍMITE DE 6 PRODUCTOS
+  // ============================================================
+  const LIMITE_PRODUCTOS = 6;
+  const productosAEvaluar = productos.slice(0, LIMITE_PRODUCTOS);
+  
+  if (productos.length > LIMITE_PRODUCTOS) {
+    console.log(`⚠️ DCT 2: Limitando de ${productos.length} a ${LIMITE_PRODUCTOS} productos`);
+  }
 
   const bloques = [];
   let numeroActual = 1;
   let totalInvalidos = 0;
 
-  for (const producto of productos) {
+  for (const producto of productosAEvaluar) {
     const bloqueFormateado = formatearProducto(producto, numeroActual);
     
     if (bloqueFormateado) {
@@ -118,9 +134,10 @@ function formatearListaProductos(productos) {
 
   const totalValidos = bloques.length;
 
-  console.log(`\n📊 RESUMEN DE FORMATEO:`);
+  console.log(`\n📊 RESUMEN DE FORMATEO (DCT 2):`);
   console.log(`   Productos válidos: ${totalValidos}`);
   console.log(`   Productos inválidos: ${totalInvalidos}`);
+  console.log(`   Productos omitidos por límite: ${Math.max(0, productos.length - LIMITE_PRODUCTOS)}`);
   console.log(`   ========================================\n`);
 
   // Si no hay productos válidos, retornar null
@@ -133,8 +150,10 @@ function formatearListaProductos(productos) {
     };
   }
 
-  // Unir bloques con doble salto de línea
-  const textoFinal = bloques.join('\n\n');
+  // ============================================================
+  // DCT 2 - UN SALTO DE LÍNEA (no doble)
+  // ============================================================
+  const textoFinal = bloques.join('\n');
 
   return {
     productos_formateados: textoFinal,
@@ -147,17 +166,25 @@ function formatearListaProductos(productos) {
 /**
  * Procesa una respuesta que contiene productos y aplica formateo obligatorio
  * 
- * FLUJO:
+ * FLUJO DCT 2 (Documento B v1.2):
  * 1. Detecta si la respuesta contiene productos (data array)
- * 2. Valida y formatea productos
+ * 2. Valida y formatea productos (máximo 6)
  * 3. Si no hay productos válidos, delega al motor conversacional
- * 4. Si hay productos válidos, construye respuesta formateada
+ * 4. Si hay productos válidos, construye SALIDA TERMINAL (solo productos)
+ * 
+ * CRÍTICO DCT 2:
+ * - NO agregar texto del LLM
+ * - NO agregar totales
+ * - NO agregar encabezados
+ * - SOLO el bloque de productos formateados
  * 
  * @param {object} resultadoFuncion - Resultado de executeFunctionCall
- * @param {string} textoLLM - Texto generado por el LLM (opcional)
+ * @param {string} textoLLM - Texto generado por el LLM (SE IGNORA en v1.2)
  * @returns {object} { response, productos_formateados, success }
  */
 function procesarRespuestaConProductos(resultadoFuncion, textoLLM = '') {
+  console.log(`\n🔄 ========== DCT 2: PROCESAMIENTO DE PRODUCTOS ==========`);
+  
   // Verificar si hay productos en el resultado
   if (!resultadoFuncion.data || !Array.isArray(resultadoFuncion.data)) {
     console.log(`ℹ️ No hay array de productos en resultado`);
@@ -168,7 +195,7 @@ function procesarRespuestaConProductos(resultadoFuncion, textoLLM = '') {
     };
   }
 
-  console.log(`🔍 Detectados ${resultadoFuncion.data.length} productos en resultado`);
+  console.log(`📦 Detectados ${resultadoFuncion.data.length} productos en resultado`);
 
   // Formatear productos
   const formateo = formatearListaProductos(resultadoFuncion.data);
@@ -184,23 +211,45 @@ function procesarRespuestaConProductos(resultadoFuncion, textoLLM = '') {
     };
   }
 
-  // Construir respuesta con productos formateados
-  let respuestaFinal = '';
+  // ============================================================
+  // DCT 2 - SALIDA TERMINAL: SOLO PRODUCTOS
+  // Sin texto del LLM, sin totales, sin encabezados
+  // ============================================================
+  
+  const respuestaFinal = formateo.productos_formateados;
 
-  // Agregar texto del LLM si existe (introducción)
-  if (textoLLM && textoLLM.trim() !== '') {
-    respuestaFinal += textoLLM.trim() + '\n\n';
+  console.log(`✅ DCT 2: Salida terminal con ${formateo.total_validos} productos`);
+  console.log(`   - Sin texto adicional del LLM`);
+  console.log(`   - Sin totales ni encabezados`);
+  console.log(`   - Formato exacto cumplido`);
+  console.log(`========================================================\n`);
+
+  // ============================================================
+  // DCT 2 - VALIDACIÓN FINAL
+  // ============================================================
+  
+  // Verificar que no hay duplicación
+  const lineas = respuestaFinal.split('\n');
+  const lineasUnicas = new Set(lineas);
+  
+  if (lineasUnicas.size !== lineas.length) {
+    console.warn(`⚠️ DCT 2: ALERTA - Detectadas líneas duplicadas`);
   }
-
-  // Agregar productos formateados
-  respuestaFinal += formateo.productos_formateados;
-
-  // Agregar información adicional si existe
-  if (resultadoFuncion.total_disponibles) {
-    respuestaFinal += `\n\n📊 Total de productos disponibles: ${resultadoFuncion.total_disponibles}`;
+  
+  // Verificar que no hay encabezados prohibidos
+  const tieneEncabezados = /^(encontré|aquí|estos|total|mostrando)/im.test(respuestaFinal);
+  if (tieneEncabezados) {
+    console.warn(`⚠️ DCT 2: ALERTA - Detectados posibles encabezados en la salida`);
   }
-
-  console.log(`✅ Respuesta con ${formateo.total_validos} productos formateados`);
+  
+  // Verificar formato correcto
+  const lineasProducto = (respuestaFinal.match(/^\d+\)\s+ID:\s+\d+/gm) || []).length;
+  
+  if (lineasProducto !== formateo.total_validos) {
+    console.warn(`⚠️ DCT 2: ALERTA - Desajuste en formato de productos`);
+  } else {
+    console.log(`✅ DCT 2: Validación de formato aprobada (${lineasProducto} productos)`);
+  }
 
   return {
     response: respuestaFinal,
