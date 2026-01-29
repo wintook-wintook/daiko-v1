@@ -19,16 +19,6 @@ let urlWA = process.env.CHATWOOT_URL; // 'https://app.chatzeus.com/';
 
 const UserContext = require('../utils/userContext');
 
-// ============================================================
-// CAPA 0 - COMANDOS DEL SISTEMA (Documento D)
-// ============================================================
-const { procesarMensajeConComandosSistema } = require('../utils/system_commands');
-
-// ============================================================
-// CAPA DE PRESENTACIÓN - FORMATO DE SALIDA (Documento B v1.1)
-// ============================================================
-const { procesarRespuestaConProductos } = require('../utils/product_formatter');
-
 var Readable    = require('stream').Readable;
 const { Buffer } = require('buffer');
 
@@ -131,44 +121,6 @@ async function procesarMensajeWebhook(webhookData) {
       await userContext.setNombre(Cliente.data.NOMBRE_COMERCIAL);
     }
 
-    // ============================================================
-    // CAPA 0 - EVALUACIÓN DE COMANDOS DEL SISTEMA (Documento D)
-    // Prioridad ABSOLUTA - Se ejecuta ANTES de cualquier otra lógica
-    // ============================================================
-    console.log(`\n🔒 ========================================`);
-    console.log(`   CAPA 0 - EVALUANDO COMANDOS DEL SISTEMA`);
-    console.log(`   Mensaje: "${messageContent}"`);
-    console.log(`   ========================================`);
-
-    const comandoSistema = await procesarMensajeConComandosSistema(messageContent, userId);
-    
-    if (comandoSistema && comandoSistema.detenerFlujo) {
-      console.log(`✅ COMANDO DEL SISTEMA EJECUTADO - DETENIENDO FLUJO NORMAL`);
-      console.log(`   Respuesta: "${comandoSistema.response}"`);
-      console.log(`   ========================================\n`);
-      
-      // Retornar inmediatamente sin ejecutar lógica de búsqueda/UX/formato
-      return {
-        success: true,
-        data: {
-          conversationId,
-          response: comandoSistema.response,
-          fileName: "",
-          userId: userId,
-          senderName,
-          originalMessage: messageContent
-        },
-        message: "Comando del sistema procesado correctamente"
-      };
-    }
-
-    console.log(`❌ No es comando del sistema - Continuando flujo normal`);
-    console.log(`   ========================================\n`);
-
-    // ============================================================
-    // FLUJO NORMAL - Solo se ejecuta si NO es comando del sistema
-    // ============================================================
-    
     const systemPromptWithContext = systemPrompt;
     
     if (!conversations.has(userId)) {
@@ -295,54 +247,7 @@ async function procesarMensajeWebhook(webhookData) {
           }
         }
         
-        console.log(`🤖 Respuesta final (antes de formateo): ${finalResponse}`);
-        
-        // ============================================================
-        // CAPA DE PRESENTACIÓN - FORMATEO DE PRODUCTOS (Documento B v1.1)
-        // Se ejecuta SOLO si hubo tool calls en esta conversación
-        // ============================================================
-        
-        let respuestaFormateada = finalResponse;
-        let productosFormateados = false;
-        
-        // Verificar si algún tool call retornó productos
-        const toolCallsConProductos = conversationHistory
-          .filter(msg => msg.role === 'tool')
-          .map(msg => {
-            try {
-              return JSON.parse(msg.content);
-            } catch (e) {
-              return null;
-            }
-          })
-          .filter(result => result && result.data && Array.isArray(result.data));
-        
-        if (toolCallsConProductos.length > 0) {
-          console.log(`🔍 Detectados ${toolCallsConProductos.length} tool calls con productos`);
-          
-          // Tomar el último resultado con productos
-          const ultimoResultadoConProductos = toolCallsConProductos[toolCallsConProductos.length - 1];
-          
-          console.log(`📦 Aplicando formateo a ${ultimoResultadoConProductos.data.length} productos`);
-          
-          // Aplicar formateo de productos
-          const formateo = procesarRespuestaConProductos(
-            ultimoResultadoConProductos,
-            finalResponse
-          );
-          
-          if (formateo.productos_formateados) {
-            respuestaFormateada = formateo.response;
-            productosFormateados = true;
-            console.log(`✅ Productos formateados: ${formateo.total_validos} válidos, ${formateo.total_invalidos || 0} inválidos`);
-          } else {
-            console.log(`ℹ️ No se aplicó formateo (sin productos válidos o delegado a motor conversacional)`);
-          }
-        } else {
-          console.log(`ℹ️ No hay productos para formatear en esta respuesta`);
-        }
-        
-        console.log(`📤 Respuesta final (después de formateo): ${respuestaFormateada.substring(0, 100)}...`);
+        console.log(`🤖 Respuesta final: ${finalResponse}`);
         
         // ============================================================
         // RETORNAR RESPUESTA
@@ -351,12 +256,11 @@ async function procesarMensajeWebhook(webhookData) {
           success: true,
           data: {
             conversationId,
-            response: isGetPDF ? finalResponse.content : respuestaFormateada,
+            response: isGetPDF ? finalResponse.content : finalResponse,
             fileName: isGetPDF ? finalResponse.name : "",
             userId: userId,
             senderName,
-            originalMessage: messageContent,
-            productos_formateados: productosFormateados
+            originalMessage: messageContent
           },
           message: "Mensaje procesado correctamente"
         };
