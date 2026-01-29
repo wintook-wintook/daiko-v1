@@ -1,213 +1,234 @@
-// daiko/src/utils/product_formatter.js
-// CAPA DE PRESENTACIÓN - FORMATO DE SALIDA
-// Implementa Documento B v1.1 - NUMERACIÓN OBLIGATORIA
+// daiko/src/utils/productFormatter.js
+// DOCUMENTO B v1.1 - FORMATO DE SALIDA
+// Capa de presentación - Numeración OBLIGATORIA
 
 /**
- * Valida que un producto tenga los campos mínimos requeridos para ser impreso
+ * FORMATO OFICIAL DE IMPRESIÓN (Documento B v1.1)
  * 
- * CRITERIOS DE VALIDACIÓN:
- * - Debe tener ARTICULO_ID (no undefined, null o vacío)
- * - Debe tener NOMBRE/DESCRIPCION
- * - Debe tener PRECIO (puede ser 0)
+ * N) ID: ARTICULO_ID - DESCRIPCION_COMPLETA_DEL_PRODUCTO
+ * Precio: $PRECIO
  * 
- * @param {object} producto - Objeto producto
- * @returns {boolean} true si el producto es válido para impresión
+ * Donde:
+ * - N) es el número generado dinámicamente (inicia en 1)
+ * - No se permiten otros símbolos
+ * - No se permite omitir el número
+ */
+
+/**
+ * Valida que un producto tenga los campos obligatorios para impresión
+ * 
+ * Campos requeridos:
+ * - ARTICULO_ID (no null, no undefined, no vacío)
+ * - PRECIO (no null, no undefined)
+ * - NOMBRE/DESCRIPCION (no null, no undefined, no vacío)
+ * 
+ * @param {object} producto - Producto a validar
+ * @returns {object} { esValido: boolean, razon?: string }
  */
 function validarProductoParaImpresion(producto) {
   // Validar ARTICULO_ID
   if (producto.ARTICULO_ID === undefined || 
       producto.ARTICULO_ID === null || 
       producto.ARTICULO_ID === '') {
-    console.warn(`⚠️ Producto sin ARTICULO_ID válido:`, producto);
-    return false;
+    return {
+      esValido: false,
+      razon: 'ARTICULO_ID faltante o inválido'
+    };
   }
-
-  // Validar NOMBRE/DESCRIPCION
-  const nombre = producto.NOMBRE || producto.DESCRIPCION || '';
-  if (!nombre || nombre.trim() === '') {
-    console.warn(`⚠️ Producto ${producto.ARTICULO_ID} sin NOMBRE válido`);
-    return false;
-  }
-
-  // Validar PRECIO (puede ser 0, pero debe existir)
+  
+  // Validar PRECIO
   if (producto.PRECIO === undefined || producto.PRECIO === null) {
-    console.warn(`⚠️ Producto ${producto.ARTICULO_ID} sin PRECIO válido`);
-    return false;
+    return {
+      esValido: false,
+      razon: 'PRECIO faltante'
+    };
   }
-
-  return true;
+  
+  // Validar NOMBRE/DESCRIPCION
+  const descripcion = producto.NOMBRE || producto.DESCRIPCION || producto.descripcion;
+  if (!descripcion || descripcion.trim() === '') {
+    return {
+      esValido: false,
+      razon: 'DESCRIPCION faltante o vacía'
+    };
+  }
+  
+  return { esValido: true };
 }
 
 /**
- * Formatea un solo producto según el estándar Documento B v1.1
+ * Formatea un producto individual según Documento B v1.1
  * 
  * FORMATO EXACTO:
  * N) ID: ARTICULO_ID - DESCRIPCION_COMPLETA_DEL_PRODUCTO
  * Precio: $PRECIO
  * 
- * @param {object} producto - Objeto producto
- * @param {number} numero - Número de secuencia (inicia en 1)
- * @returns {string} Producto formateado o null si inválido
+ * @param {object} producto - Producto a formatear
+ * @param {number} numero - Número de orden (1, 2, 3...)
+ * @returns {string|null} Texto formateado o null si no es válido
  */
 function formatearProducto(producto, numero) {
-  // Validación previa
-  if (!validarProductoParaImpresion(producto)) {
+  // Validar producto
+  const validacion = validarProductoParaImpresion(producto);
+  
+  if (!validacion.esValido) {
+    console.warn(`⚠️ [FORMATTER] Producto no imprimible: ${validacion.razon}`, {
+      ARTICULO_ID: producto.ARTICULO_ID,
+      tiene_precio: producto.PRECIO !== undefined
+    });
     return null;
   }
-
-  // Extraer campos
-  const articuloId = producto.ARTICULO_ID;
-  const nombre = producto.NOMBRE || producto.DESCRIPCION;
-  const precio = producto.PRECIO;
-
+  
+  // Obtener descripción
+  const descripcion = producto.NOMBRE || producto.DESCRIPCION || producto.descripcion;
+  
   // Formatear precio
-  const precioFormateado = typeof precio === 'number' 
-    ? `$${precio.toFixed(2)}` 
-    : `$${precio}`;
-
-  // Construir bloque según formato exacto
-  const bloque = `${numero}) ID: ${articuloId} - ${nombre}\nPrecio: ${precioFormateado}`;
-
-  return bloque;
+  const precio = typeof producto.PRECIO === 'number' 
+    ? producto.PRECIO.toFixed(2) 
+    : producto.PRECIO;
+  
+  // Construir formato exacto según Documento B v1.1
+  // N) ID: ARTICULO_ID - DESCRIPCION_COMPLETA_DEL_PRODUCTO
+  // Precio: $PRECIO
+  return `${numero}) ID: ${producto.ARTICULO_ID} - ${descripcion}\nPrecio: $${precio}`;
 }
 
 /**
  * Formatea una lista de productos con numeración obligatoria
  * 
- * REGLAS:
- * - La numeración SIEMPRE inicia en 1
- * - La numeración es consecutiva
- * - Los productos inválidos se omiten (no se cuentan)
- * - Si NO hay productos válidos, retorna null
+ * REGLAS (Documento B v1.1):
+ * - Numeración inicia SIEMPRE en 1
+ * - Numeración es consecutiva
+ * - Numeración se reinicia en cada respuesta
+ * - Si un producto no es válido, se omite (no rompe numeración)
+ * - Si ningún producto es válido, retorna null
  * 
- * @param {Array} productos - Array de productos
- * @returns {object} { productos_formateados, total_validos, total_invalidos }
+ * @param {Array} productos - Lista de productos a formatear
+ * @param {object} opciones - Opciones de formateo
+ * @param {number} opciones.inicioNumeracion - Número inicial (default: 1)
+ * @param {number} opciones.limite - Límite de productos a formatear (default: 6)
+ * @returns {object} { exito: boolean, textoFormateado?: string, productosFormateados: number, productosOmitidos: number }
  */
-function formatearListaProductos(productos) {
-  if (!Array.isArray(productos) || productos.length === 0) {
-    console.log(`ℹ️ No hay productos para formatear`);
+function formatearListaProductos(productos, opciones = {}) {
+  const {
+    inicioNumeracion = 1,
+    limite = 6
+  } = opciones;
+  
+  console.log(`📋 [FORMATTER] Formateando lista de ${productos?.length || 0} productos`);
+  console.log(`   Inicio numeración: ${inicioNumeracion}`);
+  console.log(`   Límite: ${limite}`);
+  
+  // Validar entrada
+  if (!productos || !Array.isArray(productos) || productos.length === 0) {
+    console.warn('⚠️ [FORMATTER] Lista de productos vacía o inválida');
     return {
-      productos_formateados: null,
-      total_validos: 0,
-      total_invalidos: 0,
-      bloques: []
+      exito: false,
+      textoFormateado: null,
+      productosFormateados: 0,
+      productosOmitidos: 0,
+      razon: 'Lista de productos vacía'
     };
   }
-
-  console.log(`\n📋 ========================================`);
-  console.log(`   FORMATEANDO LISTA DE PRODUCTOS`);
-  console.log(`   Total recibidos: ${productos.length}`);
-  console.log(`   ========================================\n`);
-
-  const bloques = [];
-  let numeroActual = 1;
-  let totalInvalidos = 0;
-
-  for (const producto of productos) {
-    const bloqueFormateado = formatearProducto(producto, numeroActual);
+  
+  const lineasFormateadas = [];
+  let numeroActual = inicioNumeracion;
+  let omitidos = 0;
+  
+  // Procesar cada producto (hasta el límite)
+  const productosAProcesar = productos.slice(0, limite);
+  
+  for (const producto of productosAProcesar) {
+    const lineaFormateada = formatearProducto(producto, numeroActual);
     
-    if (bloqueFormateado) {
-      bloques.push(bloqueFormateado);
+    if (lineaFormateada) {
+      lineasFormateadas.push(lineaFormateada);
       numeroActual++;
-      console.log(`✅ Producto ${numeroActual - 1} formateado: ID ${producto.ARTICULO_ID}`);
     } else {
-      totalInvalidos++;
-      console.log(`❌ Producto omitido por validación fallida`);
+      omitidos++;
     }
   }
-
-  const totalValidos = bloques.length;
-
-  console.log(`\n📊 RESUMEN DE FORMATEO:`);
-  console.log(`   Productos válidos: ${totalValidos}`);
-  console.log(`   Productos inválidos: ${totalInvalidos}`);
-  console.log(`   ========================================\n`);
-
-  // Si no hay productos válidos, retornar null
-  if (totalValidos === 0) {
+  
+  // Validación de lista completa (Documento B v1.1)
+  // Si no hay productos imprimibles, no se imprime salida
+  if (lineasFormateadas.length === 0) {
+    console.warn('⚠️ [FORMATTER] Ningún producto válido para imprimir');
     return {
-      productos_formateados: null,
-      total_validos: 0,
-      total_invalidos: totalInvalidos,
-      bloques: []
+      exito: false,
+      textoFormateado: null,
+      productosFormateados: 0,
+      productosOmitidos: omitidos,
+      razon: 'Ningún producto cumple requisitos de impresión'
     };
   }
-
-  // Unir bloques con doble salto de línea
-  const textoFinal = bloques.join('\n\n');
-
+  
+  // Unir líneas con doble salto de línea para separación visual
+  const textoFinal = lineasFormateadas.join('\n\n');
+  
+  console.log(`✅ [FORMATTER] Formateados: ${lineasFormateadas.length}, Omitidos: ${omitidos}`);
+  
   return {
-    productos_formateados: textoFinal,
-    total_validos: totalValidos,
-    total_invalidos: totalInvalidos,
-    bloques: bloques
+    exito: true,
+    textoFormateado: textoFinal,
+    productosFormateados: lineasFormateadas.length,
+    productosOmitidos: omitidos,
+    ultimoNumero: numeroActual - 1
   };
 }
 
 /**
- * Procesa una respuesta que contiene productos y aplica formateo obligatorio
+ * Formatea productos para respuesta del asistente
+ * Incluye el texto formateado y metadata para el LLM
  * 
- * FLUJO:
- * 1. Detecta si la respuesta contiene productos (data array)
- * 2. Valida y formatea productos
- * 3. Si no hay productos válidos, delega al motor conversacional
- * 4. Si hay productos válidos, construye respuesta formateada
- * 
- * @param {object} resultadoFuncion - Resultado de executeFunctionCall
- * @param {string} textoLLM - Texto generado por el LLM (opcional)
- * @returns {object} { response, productos_formateados, success }
+ * @param {Array} productos - Lista de productos
+ * @param {object} contexto - Contexto adicional
+ * @param {number} contexto.paginaActual - Página actual
+ * @param {number} contexto.totalDisponibles - Total de productos disponibles
+ * @returns {object} Objeto con texto formateado y metadata
  */
-function procesarRespuestaConProductos(resultadoFuncion, textoLLM = '') {
-  // Verificar si hay productos en el resultado
-  if (!resultadoFuncion.data || !Array.isArray(resultadoFuncion.data)) {
-    console.log(`ℹ️ No hay array de productos en resultado`);
+function prepararRespuestaProductos(productos, contexto = {}) {
+  const {
+    paginaActual = 1,
+    totalDisponibles = 0
+  } = contexto;
+  
+  console.log(`\n📦 ========== FORMATTER: PREPARAR RESPUESTA ==========`);
+  console.log(`   Página: ${paginaActual}`);
+  console.log(`   Productos recibidos: ${productos?.length || 0}`);
+  console.log(`   Total disponibles: ${totalDisponibles}`);
+  
+  // Formatear lista
+  const resultado = formatearListaProductos(productos, {
+    inicioNumeracion: 1,  // SIEMPRE inicia en 1 para cada respuesta
+    limite: 6
+  });
+  
+  if (!resultado.exito) {
+    console.log(`❌ [FORMATTER] No se pudo formatear lista`);
+    console.log(`   ================================================\n`);
     return {
-      response: textoLLM || resultadoFuncion.message || '',
-      productos_formateados: false,
-      success: true
+      exito: false,
+      mensaje: resultado.razon,
+      hayMasProductos: false
     };
   }
-
-  console.log(`🔍 Detectados ${resultadoFuncion.data.length} productos en resultado`);
-
-  // Formatear productos
-  const formateo = formatearListaProductos(resultadoFuncion.data);
-
-  // Si NO hay productos válidos, delegar al motor conversacional
-  if (!formateo.productos_formateados) {
-    console.log(`⚠️ No hay productos válidos para mostrar, delegando a motor conversacional`);
-    return {
-      response: textoLLM || resultadoFuncion.message || 'No encontré productos con información completa para mostrar.',
-      productos_formateados: false,
-      success: true,
-      total_invalidos: formateo.total_invalidos
-    };
-  }
-
-  // Construir respuesta con productos formateados
-  let respuestaFinal = '';
-
-  // Agregar texto del LLM si existe (introducción)
-  if (textoLLM && textoLLM.trim() !== '') {
-    respuestaFinal += textoLLM.trim() + '\n\n';
-  }
-
-  // Agregar productos formateados
-  respuestaFinal += formateo.productos_formateados;
-
-  // Agregar información adicional si existe
-  if (resultadoFuncion.total_disponibles) {
-    respuestaFinal += `\n\n📊 Total de productos disponibles: ${resultadoFuncion.total_disponibles}`;
-  }
-
-  console.log(`✅ Respuesta con ${formateo.total_validos} productos formateados`);
-
+  
+  // Determinar si hay más productos
+  const hayMas = totalDisponibles > (paginaActual * 6);
+  
+  console.log(`✅ [FORMATTER] Lista formateada correctamente`);
+  console.log(`   Productos mostrados: ${resultado.productosFormateados}`);
+  console.log(`   Hay más productos: ${hayMas}`);
+  console.log(`   ================================================\n`);
+  
   return {
-    response: respuestaFinal,
-    productos_formateados: true,
-    total_validos: formateo.total_validos,
-    total_invalidos: formateo.total_invalidos,
-    success: true
+    exito: true,
+    textoFormateado: resultado.textoFormateado,
+    productosFormateados: resultado.productosFormateados,
+    productosOmitidos: resultado.productosOmitidos,
+    hayMasProductos: hayMas,
+    paginaActual: paginaActual,
+    totalDisponibles: totalDisponibles
   };
 }
 
@@ -215,5 +236,5 @@ module.exports = {
   validarProductoParaImpresion,
   formatearProducto,
   formatearListaProductos,
-  procesarRespuestaConProductos
+  prepararRespuestaProductos
 };
