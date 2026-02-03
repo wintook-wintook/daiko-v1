@@ -1,4 +1,5 @@
 // daiko/src/tools/chatwoot.js
+// DAIKO V25.0 - Arquitectura Multi-Prompt con Router
 
 const OpenAI = require('openai');
 require('dotenv').config();
@@ -18,6 +19,27 @@ const { getApiData } = require('../utils/functions');
 let urlWA = process.env.CHATWOOT_URL; // 'https://app.chatzeus.com/';
 
 const UserContext = require('../utils/userContext');
+
+// ============================================================
+// V25.0 - FASE 3: Servicios de Clasificación y Router
+// ============================================================
+const {
+  clasificarIntencion,
+  confianzaSuficiente,
+  requiereFallbackPromptCompleto
+} = require('../services/clasificador_service');
+
+const {
+  enrutarSolicitud,
+  filtrarTools
+} = require('../services/router_service');
+
+const {
+  resolverParametrosClasificador
+} = require('../services/referencia_service');
+
+// Feature toggle para activación gradual
+const USAR_MULTI_PROMPT = process.env.USAR_MULTI_PROMPT === 'true' || false;
 
 var Readable    = require('stream').Readable;
 const { Buffer } = require('buffer');
@@ -130,29 +152,111 @@ async function procesarMensajeWebhook(webhookData) {
     const conversationHistory = await getMessages(webhookData.token, webhookData.account_id, webhookData.conversation_id, contextStr);
 
     // ============================================================
+    // V25.0 - FASE 1: CLASIFICACIÓN DE INTENCIÓN
+    // ============================================================
+
+    let promptAUsar = systemPromptWithContext;
+    let toolsAUsar = functionDefinitions;
+    let clasificacion = null;
+    let usarFallback = true;
+
+    if (USAR_MULTI_PROMPT) {
+      console.log('\n' + '='.repeat(60));
+      console.log('🎯 V25.0 - SISTEMA MULTI-PROMPT ACTIVO');
+      console.log('='.repeat(60));
+
+      try {
+        // Preparar contexto para el clasificador
+        const contextoClasificador = {
+          carritoId: await userContext.getCarrito(),
+          folio: await userContext.getFolio ? await userContext.getFolio() : null,
+          ultimaBusqueda: await userContext.getBusquedaActiva(),
+          historial: conversationHistory.slice(-4) // Últimos 4 mensajes
+        };
+
+        // PASO 1: Clasificar intención con gpt-4o-mini
+        clasificacion = await clasificarIntencion(
+          messageContent,
+          contextoClasificador,
+          OPENAI_APIKEY[0].settings.api_key
+        );
+
+        console.log('📊 Clasificación:', {
+          accion: clasificacion.accion,
+          sub_accion: clasificacion.sub_accion,
+          confianza: clasificacion.confianza,
+          parametros: clasificacion.parametros
+        });
+
+        // PASO 1.5: Resolver referencias ("el primero", "el segundo")
+        if (clasificacion.parametros && contextoClasificador.ultimaBusqueda) {
+          const ultimosResultados = await userContext.getUltimosResultados
+            ? await userContext.getUltimosResultados()
+            : [];
+
+          if (ultimosResultados && ultimosResultados.length > 0) {
+            clasificacion.parametros = resolverParametrosClasificador(
+              clasificacion.parametros,
+              ultimosResultados
+            );
+            console.log('🔗 Referencias resueltas:', clasificacion.parametros);
+          }
+        }
+
+        // PASO 2: Enrutar a prompt y tools especializados
+        const ruteo = enrutarSolicitud(clasificacion, {
+          ...contextoClasificador,
+          nombre: await userContext.getNombre()
+        });
+
+        if (!ruteo.usarFallback && ruteo.prompt) {
+          promptAUsar = ruteo.prompt;
+          toolsAUsar = filtrarTools(ruteo.tools, functionDefinitions);
+          usarFallback = false;
+
+          console.log('✅ Usando prompt especializado:', ruteo.config.descripcion);
+          console.log('🛠️ Tools filtradas:', ruteo.tools ? ruteo.tools.length : 'todas');
+        } else {
+          console.log('⚠️ Usando fallback (prompt completo)');
+        }
+
+      } catch (clasificacionError) {
+        console.error('❌ Error en clasificación:', clasificacionError.message);
+        console.log('⚠️ Fallback: usando prompt completo');
+        // En caso de error, usar el flujo original
+        promptAUsar = systemPromptWithContext;
+        toolsAUsar = functionDefinitions;
+      }
+    } else {
+      console.log('ℹ️ Multi-prompt desactivado (USAR_MULTI_PROMPT=false)');
+    }
+
+    // ============================================================
     // TOOL-CALLING LOOP - IMPLEMENTACIÓN CORRECTA
     // ============================================================
-    
+
     const MAX_ITERATIONS = 10; // Límite de seguridad
     let iteration = 0;
     let continueLoop = true;
     let isGetPDF = false;
-    
+
     while (continueLoop && iteration < MAX_ITERATIONS) {
       iteration++;
       console.log(`\n🔄 Tool-calling loop - Iteración ${iteration}/${MAX_ITERATIONS}`);
-      
+
       // Preparar input con historial actualizado
+      // V25.0: Usar prompt especializado si está disponible
       const input = [
-        { role: "system", content: systemPromptWithContext },
+        { role: "system", content: promptAUsar },
         ...conversationHistory
       ];
 
       // ✅ LLAMAR AL MODELO CON TOOLS EN CADA ITERACIÓN
+      // V25.0: Usar tools filtradas si están disponibles
       const response = await openai.chat.completions.create({
         model: "gpt-4o",  // ✅ MISMO MODELO EN TODAS LAS RONDAS
         messages: input,
-        tools: functionDefinitions,  // ✅ TOOLS DISPONIBLES EN CADA RONDA
+        tools: toolsAUsar,  // V25.0: Tools filtradas o todas
         tool_choice: "auto",
         temperature: 0.3
       });
@@ -248,7 +352,20 @@ async function procesarMensajeWebhook(webhookData) {
         }
         
         console.log(`🤖 Respuesta final: ${finalResponse}`);
-        
+
+        // ============================================================
+        // V25.0 - MÉTRICAS DE RENDIMIENTO
+        // ============================================================
+        if (USAR_MULTI_PROMPT && clasificacion) {
+          console.log('\n' + '-'.repeat(40));
+          console.log('📈 MÉTRICAS V25.0:');
+          console.log('   Acción clasificada: ' + clasificacion.accion);
+          console.log('   Usó fallback: ' + usarFallback);
+          console.log('   Iteraciones: ' + iteration);
+          console.log('   Prompt tokens aprox: ' + (usarFallback ? '~5000' : '~500-1500'));
+          console.log('-'.repeat(40) + '\n');
+        }
+
         // ============================================================
         // RETORNAR RESPUESTA
         // ============================================================
@@ -260,7 +377,13 @@ async function procesarMensajeWebhook(webhookData) {
             fileName: isGetPDF ? finalResponse.name : "",
             userId: userId,
             senderName,
-            originalMessage: messageContent
+            originalMessage: messageContent,
+            // V25.0: Incluir metadata de clasificación
+            clasificacion: USAR_MULTI_PROMPT ? {
+              accion: clasificacion ? clasificacion.accion : null,
+              sub_accion: clasificacion ? clasificacion.sub_accion : null,
+              usarFallback: usarFallback
+            } : null
           },
           message: "Mensaje procesado correctamente"
         };

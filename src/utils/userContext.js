@@ -73,6 +73,39 @@ class UserContext {
     return await redis.hget(this.key, 'carrito_id');
   }
 
+  // V25.0: Obtener folio del carrito activo
+  async getFolio() {
+    return await redis.hget(this.key, 'folio');
+  }
+
+  // V25.0: Obtener últimos resultados de búsqueda (para resolver referencias)
+  async getUltimosResultados() {
+    const data = await redis.hget(this.key, 'ultimos_resultados');
+    if (!data) {
+      return [];
+    }
+    try {
+      return JSON.parse(data);
+    } catch (error) {
+      console.error('❌ Error parseando ultimos_resultados:', error);
+      return [];
+    }
+  }
+
+  // V25.0: Guardar últimos resultados de búsqueda
+  async setUltimosResultados(productos) {
+    // Guardar solo los primeros 10 productos para resolver referencias
+    const productosParaGuardar = (productos || []).slice(0, 10).map(function(p) {
+      return {
+        ARTICULO_ID: p.ARTICULO_ID,
+        NOMBRE: p.NOMBRE,
+        PRECIO: p.PRECIO
+      };
+    });
+    await redis.hset(this.key, 'ultimos_resultados', JSON.stringify(productosParaGuardar));
+    await redis.expire(this.key, this.ttl);
+  }
+
   // Guardar múltiples campos
   async setMultiple(data) {
     const pipeline = redis.pipeline();

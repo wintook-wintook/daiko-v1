@@ -1081,7 +1081,10 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
             mostrados: endIndex,
             current_page: currentPage  // ✅ V22.0: Guardar página actual
           });
-          
+
+          // ✅ V25.0: Guardar últimos resultados para resolver referencias ("el primero", "el segundo")
+          await userContext.setUltimosResultados(visibles);
+
         return {
           success: true,
           data: visibles,  // Solo 6 productos para mostrar
