@@ -331,8 +331,15 @@ async function procesarMensajeWebhook(webhookData) {
         // ============================================================
         console.log(`✅ No hay más tool calls. Generando respuesta final.`);
         
-        const finalResponse = assistantMessage.content || "";
-        
+        let finalResponse = assistantMessage.content || "";
+
+        // Agregar info del carrito activo al final de la respuesta
+        const carritoActivo = await userContext.getCarrito();
+        if (carritoActivo) {
+          const folioActivo = await userContext.getFolio();
+          finalResponse += '\n\nCarrito activo: ' + carritoActivo + (folioActivo ? ' | Folio: ' + folioActivo : '');
+        }
+
         // Agregar respuesta final al historial
         conversationHistory.push({
           role: "assistant",
