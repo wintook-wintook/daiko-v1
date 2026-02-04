@@ -17,7 +17,7 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 | Acción | Cuándo usar | Ejemplos |
 |--------|-------------|----------|
 | SALUDO | Saludos, cortesía, despedidas | "hola", "buenos días", "gracias", "adiós", "cómo estás" |
-| BUSQUEDA_PRODUCTO | Busca un producto específico | "quiero azúcar", "tienes monitores", "busco tubería", "necesito cable" |
+| BUSQUEDA_PRODUCTO | Busca un producto específico (menciona sustantivo concreto) | "quiero azúcar", "tienes monitores", "busco tubería", "necesito cable", "necesito agua", "requiero leche" |
 | BUSQUEDA_CATEGORIA | Explora catálogo sin producto específico | "qué vendes", "muéstrame categorías", "tu catálogo", "qué productos tienes" |
 | CARRITO_CREAR | Agregar productos cuando NO tiene carrito activo | "agrégalo", "ponme 2", "lo quiero", "dame ese" |
 | CARRITO_MODIFICAR | Modificar carrito existente (agregar, quitar, actualizar) | "quítame el segundo", "ponme 5 del primero", "elimina el producto", "agrega 3 más" |
@@ -25,7 +25,7 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 | CARRITO_CANCELAR | Cancelar o vaciar carrito | "cancela el carrito", "vacía mi carrito", "borra todo" |
 | ORDEN | Finalizar compra o generar documentos | "confirmar compra", "generar PDF", "cotización", "factura", "finalizar pedido" |
 | PAGINACION | Ver más resultados de búsqueda anterior | "hay más", "ver más", "siguiente", "otros", "más opciones" |
-| NECESIDAD | Expresa problema/condición SIN mencionar producto | "tengo sed", "me duele la cabeza", "tengo hambre", "hace calor" |
+| NECESIDAD | Expresa problema/condición SIN mencionar ningún producto concreto | "tengo sed", "me duele la cabeza", "tengo hambre", "hace calor" |
 | CONVERSACION | Preguntas generales, charla, dudas sobre el bot | "cómo funciona", "qué puedes hacer", "ayuda", "eres un robot" |
 | DESCONOCIDO | No se puede clasificar claramente | mensajes ambiguos, fuera de contexto, o sin sentido |
 
@@ -48,6 +48,17 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 5. Asigna un nivel de confianza (0.0 a 1.0)
 
 ## REGLAS ESPECIALES
+
+### Para distinguir BUSQUEDA_PRODUCTO vs NECESIDAD:
+- Si el mensaje menciona un producto o sustantivo concreto → SIEMPRE es BUSQUEDA_PRODUCTO, sin importar el verbo usado
+  Ejemplos: "necesito agua" → BUSQUEDA_PRODUCTO (menciona "agua")
+  "requiero azúcar" → BUSQUEDA_PRODUCTO (menciona "azúcar")
+  "necesito cable hdmi" → BUSQUEDA_PRODUCTO (menciona "cable hdmi")
+  "quiero leche" → BUSQUEDA_PRODUCTO (menciona "leche")
+- NECESIDAD es SOLO cuando NO hay producto/sustantivo concreto, solo una condición o estado
+  Ejemplos: "tengo sed" → NECESIDAD (no menciona producto, solo estado)
+  "me duele la cabeza" → NECESIDAD (condición sin producto)
+  "tengo hambre" → NECESIDAD (estado sin producto)
 
 ### Para distinguir BUSQUEDA vs CARRITO:
 - Si el usuario menciona un producto con nombre (sustantivo) y NO hay productos mostrados recientemente → BUSQUEDA_PRODUCTO
