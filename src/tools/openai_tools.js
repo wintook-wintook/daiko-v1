@@ -1010,10 +1010,8 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
             await userContext.updateRangoPrecio(args.precio_max);
           }
           
-          // ✅ NUEVO: Guardar filtros en contexto
-          if (Object.values(filtrosNormalizados).some(arr => arr.length > 0)) {
-            await userContext.setFiltrosActivos(filtrosNormalizados);
-          }
+          // ✅ NUEVO: Guardar filtros en contexto (siempre, para limpiar filtros anteriores)
+          await userContext.setFiltrosActivos(filtrosNormalizados);
           
           // Guardar búsqueda en historial
           await userContext.addBusqueda(args.query, { 
