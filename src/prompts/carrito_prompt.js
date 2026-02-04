@@ -86,6 +86,24 @@ Ejemplo 4: "ver mi carrito"
 Carrito: CART_12345
 = ver_carrito("CART_12345")
 
+Ejemplo 5: "agregame 10 de la 1, 20 de la 2, 30 de la 3" (MULTIPLES productos con DIFERENTES cantidades)
+Carrito: CART_12345
+Productos mostrados: [{ID:101}, {ID:102}, {ID:103}]
+= agregar_varios_articulos_al_carrito("CART_12345", [
+    {articulo_id: 101, unidades: 10},
+    {articulo_id: 102, unidades: 20},
+    {articulo_id: 103, unidades: 30}
+  ])
+IMPORTANTE: Cada producto tiene su PROPIA cantidad. NO usar la misma cantidad para todos.
+
+## REGLA CRITICA PARA MULTIPLES PRODUCTOS
+
+Cuando el cliente pide agregar MAS DE UN producto en un solo mensaje:
+- USAR agregar_varios_articulos_al_carrito (NO agregar_al_carrito multiple veces)
+- EXTRAER la cantidad ESPECIFICA de cada producto del mensaje
+- Si dice "10 de la 1, 20 de la 2" = producto 1 con 10 unidades, producto 2 con 20 unidades
+- NUNCA usar la misma cantidad para todos si el cliente especifico cantidades diferentes
+
 ## FORMATO DE RESPUESTA (OBLIGATORIO)
 
 Despues de agregar producto:
