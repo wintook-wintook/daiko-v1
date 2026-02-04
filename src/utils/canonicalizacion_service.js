@@ -80,9 +80,9 @@ function normalizarSingular(palabra) {
   
   // Excepciones: palabras que terminan en 's' pero NO son plurales
   const excepcionesSingular = [
-    'lunes', 'martes', 'miércoles', 'jueves', 'viernes',
-    'virus', 'plus', 'bus', 'gas', 'mes', 'país', 'inglés',
-    'estrés', 'interés', 'revés', 'arnés', 'ciempiés'
+    'lunes', 'martes', 'miercoles', 'jueves', 'viernes',
+    'virus', 'plus', 'bus', 'gas', 'mes', 'pais', 'ingles',
+    'estres', 'interes', 'reves', 'arnes', 'ciempies'
   ];
   
   if (excepcionesSingular.includes(palabraLower)) {
@@ -126,27 +126,42 @@ function normalizarSingular(palabra) {
 }
 
 /**
+ * PASO 8.2.4 - Quitar acentos/diacríticos
+ * Convierte caracteres acentuados a su forma sin acento
+ * (é→e, á→a, í→i, ó→o, ú→u, ñ se preserva)
+ *
+ * @param {string} texto - Texto con posibles acentos
+ * @returns {string} Texto sin acentos
+ */
+function quitarAcentos(texto) {
+  if (!texto) return texto;
+  // Rango U+0300-U+036F pero excluyendo U+0303 (tilde combinante de ñ)
+  return texto.normalize('NFD').replace(/[\u0300-\u0302\u0304-\u036f]/g, '').normalize('NFC');
+}
+
+/**
  * PASO 8 COMPLETO - Normalización de token
- * 
+ *
  * Según documento normativo v2.2, punto 8:
  * - Corrección ortográfica básica (trim, lowercase)
+ * - Remoción de acentos/diacríticos
  * - Normalización singular/plural
  * - Normalización de unidades
- * 
+ *
  * PROHIBICIONES (8.3):
  * - NO resolver sinónimos
  * - NO canonizar términos
  * - NO inferir significados
  * - NO modificar intención
  * - NO validar existencia de productos
- * 
+ *
  * @param {string} token - Token crudo del usuario
  * @returns {object} { token_raw, token_normalizado, cambios_aplicados }
  */
 function ejecutarPaso8_Normalizacion(token) {
   console.log(`\n📝 ========== PASO 8: NORMALIZACIÓN ==========`);
   console.log(`   Token recibido (raw): "${token}"`);
-  
+
   if (!token || typeof token !== 'string') {
     console.log(`   ⚠️ Token inválido, retornando vacío`);
     return {
@@ -155,25 +170,32 @@ function ejecutarPaso8_Normalizacion(token) {
       cambios_aplicados: []
     };
   }
-  
+
   const cambios = [];
   let resultado = token;
-  
+
   // 8.2.1 - Trim y lowercase (corrección ortográfica básica)
   const trimLower = resultado.trim().toLowerCase();
   if (trimLower !== resultado) {
     cambios.push('trim+lowercase');
     resultado = trimLower;
   }
-  
-  // 8.2.2 - Normalización de unidades
+
+  // 8.2.2 - Quitar acentos/diacríticos (café → cafe, azúcar → azucar)
+  const sinAcentos = quitarAcentos(resultado);
+  if (sinAcentos !== resultado) {
+    cambios.push('acentos');
+    resultado = sinAcentos;
+  }
+
+  // 8.2.3 - Normalización de unidades
   const conUnidades = normalizarUnidades(resultado);
   if (conUnidades !== resultado) {
     cambios.push('unidades');
     resultado = conUnidades;
   }
-  
-  // 8.2.3 - Singular/plural (solo si NO contiene números - no es medida)
+
+  // 8.2.4 - Singular/plural (solo si NO contiene números - no es medida)
   if (!/\d/.test(resultado)) {
     const singular = normalizarSingular(resultado);
     if (singular !== resultado) {
@@ -486,5 +508,6 @@ module.exports = {
   
   // Funciones auxiliares (para testing)
   normalizarUnidades,
-  normalizarSingular
+  normalizarSingular,
+  quitarAcentos
 };
