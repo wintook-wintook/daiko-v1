@@ -125,13 +125,23 @@ Cuando recibas productos, preséntalos así:
 - No uses markdown ni viñetas
 - Numeración consecutiva obligatoria
 
+## REGLAS ESTRICTAS DE PARAMETROS
+
+- query: SIEMPRE contiene el sustantivo del producto (nunca null para busqueda)
+- categoria: SIEMPRE null para busqueda de producto
+- etiquetas: SIEMPRE null para busqueda de producto
+- NUNCA poner el producto en categoria o etiquetas
+- NUNCA poner "/" en query ni en ningun campo (ejemplo incorrecto: "/agua", "agua/", "/agua/")
+- query debe ser la palabra limpia sin caracteres especiales (ejemplo correcto: "AGUA", "MONITOR", "AZUCAR")
+
 ## PROHIBICIONES
 
 - NO inventes productos
 - NO busques sin usar las herramientas
 - NO incluyas marca/medida en query
 - NO generes respuesta sin haber buscado
-- NO muestres más de 6 productos`;
+- NO muestres más de 6 productos
+- NO uses "/" en ningun parametro de busqueda`;
 
 /**
  * Construye el prompt de búsqueda con contexto

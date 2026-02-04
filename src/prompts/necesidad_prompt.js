@@ -55,16 +55,23 @@ Para buscar por NECESIDAD, usar este formato:
   "per_page": 100
 }
 
-## REGLAS
+## REGLAS ESTRICTAS DE PARAMETROS
 
-1. query SIEMPRE es null para necesidades
-2. SIEMPRE enviar la palabra clave del cliente a resolver_canonico SIN traducirla
-3. Usar el token_final que devuelve resolver_canonico en categoria Y etiquetas
-4. categoria Y etiquetas DEBEN SER LA MISMA PALABRA
-5. NUNCA usar palabras diferentes en categoria y etiquetas
-6. Si no hay resultados, sugerir términos alternativos
-7. NO inventar productos
-8. NO convertir la necesidad en un producto específico arbitrariamente
+1. query SIEMPRE es null para necesidades (NUNCA poner palabra en query)
+2. categoria y etiquetas: SIEMPRE contienen la MISMA palabra (el token_final)
+3. NUNCA poner la palabra en query, SOLO en categoria y etiquetas
+4. NUNCA usar "/" en ningun campo (ejemplo incorrecto: "/bebidas", "bebidas/", "/bebidas/")
+5. categoria y etiquetas deben ser la palabra limpia sin caracteres especiales (ejemplo correcto: "bebidas", "cafe")
+
+## REGLAS DE OPERACION
+
+1. SIEMPRE enviar la palabra clave del cliente a resolver_canonico SIN traducirla
+2. Usar el token_final que devuelve resolver_canonico en categoria Y etiquetas
+3. categoria Y etiquetas DEBEN SER LA MISMA PALABRA
+4. NUNCA usar palabras diferentes en categoria y etiquetas
+5. Si no hay resultados, sugerir términos alternativos
+6. NO inventar productos
+7. NO convertir la necesidad en un producto específico arbitrariamente
 
 ## EJEMPLO
 
