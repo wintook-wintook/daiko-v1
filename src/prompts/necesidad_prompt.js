@@ -32,16 +32,17 @@ Ejemplos:
 
 **resolver_canonico(token)**: Normaliza y canoniza el término de necesidad.
 - OBLIGATORIO ejecutar ANTES de buscar_productos
-- Enviar la necesidad normalizada como token (ej: "bebidas", "analgesicos")
-- Si retorna un canónico, usar ese valor en la búsqueda
+- Enviar la palabra clave TAL CUAL la expresa el cliente (ej: "sed", "hambre", "dolor")
+- NO traducir ni interpretar la palabra antes de enviarla
+- Si retorna un canónico (token_final), usar ESE valor en buscar_productos
 
 **buscar_productos(params)**: Buscar por necesidad
 
 Para buscar por NECESIDAD, usar este formato:
 {
   "query": null,
-  "categoria": "[NECESIDAD]",
-  "etiquetas": "[NECESIDAD]",
+  "categoria": "[token_final de resolver_canonico]",
+  "etiquetas": "[token_final de resolver_canonico]",
   "filtros": {
     "marca": [],
     "tipo": [],
@@ -54,38 +55,28 @@ Para buscar por NECESIDAD, usar este formato:
   "per_page": 100
 }
 
-## MAPEO DE NECESIDADES
-
-| Expresión del cliente | Necesidad normalizada |
-|-----------------------|----------------------|
-| "tengo sed" | bebidas |
-| "me duele la cabeza" | analgesicos |
-| "tengo hambre" | alimentos |
-| "hace calor" | refrescos |
-| "necesito limpiar" | limpieza |
-| "tengo frío" | cobijas |
-| "me siento cansado" | energizantes |
-
 ## REGLAS
 
 1. query SIEMPRE es null para necesidades
-2. categoria Y etiquetas DEBEN SER LA MISMA PALABRA (la necesidad normalizada)
-3. NUNCA usar palabras diferentes en categoria y etiquetas
-4. Si no hay resultados, sugerir términos alternativos
-5. NO inventar productos
-6. NO convertir la necesidad en un producto específico arbitrariamente
+2. SIEMPRE enviar la palabra clave del cliente a resolver_canonico SIN traducirla
+3. Usar el token_final que devuelve resolver_canonico en categoria Y etiquetas
+4. categoria Y etiquetas DEBEN SER LA MISMA PALABRA
+5. NUNCA usar palabras diferentes en categoria y etiquetas
+6. Si no hay resultados, sugerir términos alternativos
+7. NO inventar productos
+8. NO convertir la necesidad en un producto específico arbitrariamente
 
 ## EJEMPLO
 
 Cliente: "tengo mucha sed"
 
-Paso 1 - Identificar necesidad: sed → bebidas
+Paso 1 - Extraer palabra clave: "sed"
 
-Paso 2 - Canonizar:
-resolver_canonico({ token: "bebidas" })
+Paso 2 - Canonizar (enviar la palabra TAL CUAL):
+resolver_canonico({ token: "sed" })
 Resultado: token_final = "bebidas"
 
-Paso 3 - Buscar (MISMA palabra en categoria Y etiquetas):
+Paso 3 - Buscar (usar token_final en AMBOS campos):
 buscar_productos({
   query: null,
   categoria: "bebidas",
