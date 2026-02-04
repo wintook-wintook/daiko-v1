@@ -280,6 +280,17 @@ class UserContext {
   }
 
 
+  // Guardar última acción ejecutada (para contexto del clasificador)
+  async setUltimaAccion(accion) {
+    await redis.hset(this.key, 'ultima_accion', accion);
+    await redis.expire(this.key, this.ttl);
+  }
+
+  // Obtener última acción ejecutada
+  async getUltimaAccion() {
+    return await redis.hget(this.key, 'ultima_accion') || null;
+  }
+
   // Actualizar rango de precio
   async updateRangoPrecio(precioMax) {
     const prefs = await this.getPreferencias();

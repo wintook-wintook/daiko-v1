@@ -36,6 +36,7 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 - Folio del carrito: {{FOLIO}}
 - Última búsqueda realizada: {{ULTIMA_BUSQUEDA}}
 - Cantidad de productos mostrados: {{CANTIDAD_PRODUCTOS}}
+- Última acción ejecutada: {{ULTIMA_ACCION}}
 - Productos mostrados recientemente:
 {{PRODUCTOS_MOSTRADOS}}
 
@@ -71,6 +72,11 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 - Si dice "quítame/elimina/borra" un producto → CARRITO_MODIFICAR (sub_accion: eliminar)
 - Si dice "ponme X del primero" → CARRITO_MODIFICAR (sub_accion: agregar)
 - IMPORTANTE: Solo clasificar como CARRITO si hay productos mostrados Y el usuario hace referencia a ellos
+
+### Para referencias según contexto (ULTIMA_ACCION):
+- Si {{ULTIMA_ACCION}} = "listar_carritos" y el usuario dice "el primero", "el segundo", "muéstrame el segundo", etc. → CARRITO_CONSULTAR (sub_accion: ver_carrito). El usuario se refiere a un CARRITO de la lista, NO a un producto.
+- Si {{ULTIMA_ACCION}} = "busqueda_productos" y el usuario dice "el primero", "el segundo", etc. → se refiere a un PRODUCTO mostrado → CARRITO_CREAR o CARRITO_MODIFICAR según tenga carrito activo
+- Si {{ULTIMA_ACCION}} es null o vacío, usar el contexto general para decidir
 
 ### Para referencias a productos:
 - "el primero" → referencia: "primero", referencia_idx: 0
@@ -141,6 +147,7 @@ function buildClasificadorPrompt(contexto = {}) {
   const ultimaBusqueda = (contexto.ultimaBusqueda && contexto.ultimaBusqueda.query) || 'ninguna';
   const productos = contexto.productos || [];
   const cantidadProductos = productos.length;
+  const ultimaAccion = contexto.ultimaAccion || 'ninguna';
 
   // Formatear productos mostrados
   let productosStr = 'Ninguno';
@@ -158,6 +165,7 @@ function buildClasificadorPrompt(contexto = {}) {
     .replace('{{FOLIO}}', folio)
     .replace('{{ULTIMA_BUSQUEDA}}', ultimaBusqueda)
     .replace('{{CANTIDAD_PRODUCTOS}}', cantidadProductos.toString())
+    .replace('{{ULTIMA_ACCION}}', ultimaAccion)
     .replace('{{PRODUCTOS_MOSTRADOS}}', productosStr);
 }
 

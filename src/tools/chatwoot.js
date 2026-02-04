@@ -171,6 +171,8 @@ async function procesarMensajeWebhook(webhookData) {
           carritoId: await userContext.getCarrito(),
           folio: await userContext.getFolio ? await userContext.getFolio() : null,
           ultimaBusqueda: await userContext.getBusquedaActiva(),
+          productos: await userContext.getUltimosResultados ? await userContext.getUltimosResultados() : [],
+          ultimaAccion: await userContext.getUltimaAccion ? await userContext.getUltimaAccion() : null,
           historial: conversationHistory.slice(-4) // Últimos 4 mensajes
         };
 

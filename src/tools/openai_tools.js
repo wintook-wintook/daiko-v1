@@ -1082,6 +1082,7 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
 
           // ✅ V25.0: Guardar últimos resultados para resolver referencias ("el primero", "el segundo")
           await userContext.setUltimosResultados(visibles);
+          await userContext.setUltimaAccion('busqueda_productos');
 
         return {
           success: true,
@@ -1152,6 +1153,7 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
         return carritoN;
   
       case "obtener_carritos_disponibles":
+        await userContext.setUltimaAccion('listar_carritos');
         return obtenerCarritosDisponibles();
       
       case "ver_carrito":
