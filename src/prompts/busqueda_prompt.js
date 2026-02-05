@@ -160,7 +160,9 @@ function buildBusquedaPrompt(contexto) {
  */
 const BUSQUEDA_TOOLS = [
   'resolver_canonico',
-  'buscar_productos'
+  'buscar_productos',
+  'agregar_al_carrito',           // Para agregar después de buscar
+  'crear_nuevo_carrito'           // Para crear carrito si no existe
 ];
 
 module.exports = {
