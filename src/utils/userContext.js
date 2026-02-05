@@ -466,7 +466,9 @@ console.log({obj: "UserContext", contextStr});
     console.log('🗑️ Limpiando busqueda_activa de Redis');
     pipeline.hdel(this.key, 'busqueda_activa');
     
-    pipeline.hdel(this.key, 'filtros_activos');  // ← NUEVO: Limpiar filtros
+    pipeline.hdel(this.key, 'filtros_activos');
+    pipeline.hdel(this.key, 'ultimos_resultados');
+    pipeline.hdel(this.key, 'ultima_accion');
 
     // Establecer valores básicos
     pipeline.hset(this.key, 'nombre_usuario', '');
