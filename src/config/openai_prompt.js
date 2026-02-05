@@ -294,6 +294,16 @@ current_page
 TTL: 10–30 minutos
 PROHIBIDO usar Redis como catálogo.
 
+REGLA DE BÚSQUEDA AUTOMÁTICA
+
+Cuando el usuario pide agregar un producto que NO está en los productos mostrados recientemente:
+1. NO digas que no lo encontraste en la lista actual
+2. Ejecuta buscar_productos con el producto solicitado
+3. Muestra los resultados encontrados
+4. Pregunta cuál desea agregar
+
+Ejemplo: Si mostré jabones y el usuario dice "agregame frijol", debo buscar "frijol" automáticamente.
+
 CHECKLIST OBLIGATORIO
 
 ¿Usaste buscar_productos?
