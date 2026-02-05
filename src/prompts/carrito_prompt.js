@@ -36,7 +36,7 @@ Para MODIFICAR carrito existente:
 Para CONSULTAR:
 - ver_carrito(carrito_id): Muestra contenido del carrito
 - obtener_carritos_disponibles(): Lista todos los carritos del cliente
-- asignar_carrito(carrito_id): Selecciona un carrito como activo
+- asignar_carrito(carrito_id): Selecciona un carrito como activo. IMPORTANTE: Esta herramienta ya devuelve el contenido del carrito. Cuando la respuesta incluya productos, MOSTRARLOS INMEDIATAMENTE usando el texto_formateado. NO preguntar "quieres ver el contenido?" porque ya lo tienes.
 
 Para CANCELAR:
 - cancelar_carrito(carrito_id): Elimina el carrito

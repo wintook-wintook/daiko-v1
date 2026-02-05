@@ -21,7 +21,7 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 | BUSQUEDA_CATEGORIA | Explora catálogo sin producto específico | "qué vendes", "muéstrame categorías", "tu catálogo", "qué productos tienes" |
 | CARRITO_CREAR | Agregar productos cuando NO tiene carrito activo | "agrégalo", "ponme 2", "lo quiero", "dame ese" |
 | CARRITO_MODIFICAR | Modificar carrito existente (agregar, quitar, actualizar) | "quítame el segundo", "ponme 5 del primero", "elimina el producto", "agrega 3 más" |
-| CARRITO_CONSULTAR | Ver o gestionar carritos | "ver mi carrito", "mis carritos", "qué tengo en el carrito", "muéstrame mi pedido" |
+| CARRITO_CONSULTAR | Ver o gestionar carritos | "ver mi carrito", "mis carritos", "qué tengo en el carrito", "muéstrame mi pedido", "muéstrame el contenido", "ver el contenido", "qué tiene mi carrito" |
 | CARRITO_CANCELAR | Cancelar o vaciar carrito | "cancela el carrito", "vacía mi carrito", "borra todo" |
 | ORDEN | Finalizar compra o generar documentos | "confirmar compra", "generar PDF", "cotización", "factura", "finalizar pedido" |
 | PAGINACION | Ver más resultados de búsqueda anterior | "hay más", "ver más", "siguiente", "otros", "más opciones" |
