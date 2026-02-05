@@ -1162,7 +1162,14 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
 
       case "asignar_carrito":
         const carritoA = await verCarrito(args.carrito_id);
-        await userContext.setCarrito(carritoA.data.importeCarrito.ID_CARRITO, carritoA.data.importeCarrito.FOLIO);
+        console.log('🛒 asignar_carrito - args.carrito_id:', args.carrito_id);
+        console.log('🛒 asignar_carrito - importeCarrito:', JSON.stringify(carritoA.data?.importeCarrito));
+        if (carritoA.success) {
+          // Usar args.carrito_id directamente en lugar de confiar en la estructura de respuesta
+          const folio = carritoA.data?.importeCarrito?.FOLIO || null;
+          await userContext.setCarrito(args.carrito_id, folio);
+          console.log('🛒 asignar_carrito - setCarrito:', args.carrito_id, folio);
+        }
         return carritoA;
 
       case "cancelar_carrito":
