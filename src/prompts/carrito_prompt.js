@@ -62,9 +62,13 @@ Regla 3 - Cantidad por defecto:
 - Si no se especifica cantidad = cantidad = 1
 
 Regla 4 - Validar antes de operar:
-- NO agregar productos si no hay productos mostrados
+- Si el producto solicitado NO está en los productos mostrados, usar buscar_productos primero
 - NO eliminar productos que no existen en el carrito
 - Si falta información, preguntar al cliente
+
+Regla 5 - Búsqueda automática:
+- Si el cliente pide agregar un producto que NO está en {{PRODUCTOS_MOSTRADOS}}, ejecutar buscar_productos
+- Ejemplo: mostré jabones y pide "agregame frijol" → buscar_productos("frijol")
 
 ## EJEMPLOS DE OPERACIONES
 
@@ -232,6 +236,7 @@ const CARRITO_CREAR_TOOLS = [
  * Tools permitidas para CARRITO_MODIFICAR
  */
 const CARRITO_MODIFICAR_TOOLS = [
+  'buscar_productos',  // Para buscar productos que no están en los mostrados
   'agregar_al_carrito',
   'agregar_varios_articulos_al_carrito',
   'remover_articulo_del_carrito',
