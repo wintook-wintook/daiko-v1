@@ -334,10 +334,14 @@ async function procesarMensajeWebhook(webhookData) {
         let finalResponse = assistantMessage.content || "";
 
         // Agregar info del carrito activo al final de la respuesta (si no está ya incluida)
-        const carritoActivo = await userContext.getCarrito();
-        if (carritoActivo && !finalResponse.includes('Carrito activo:')) {
-          const folioActivo = await userContext.getFolio();
-          finalResponse += '\n\nCarrito activo: ' + carritoActivo + (folioActivo ? ' | Folio: ' + folioActivo : '');
+        // No agregar si es respuesta de reinicio
+        const esReinicio = finalResponse.includes('conversación nueva') || finalResponse.includes('conversacion nueva');
+        if (!esReinicio) {
+          const carritoActivo = await userContext.getCarrito();
+          if (carritoActivo && !finalResponse.includes('Carrito activo:')) {
+            const folioActivo = await userContext.getFolio();
+            finalResponse += '\n\nCarrito activo: ' + carritoActivo + (folioActivo ? ' | Folio: ' + folioActivo : '');
+          }
         }
 
         // Agregar respuesta final al historial
