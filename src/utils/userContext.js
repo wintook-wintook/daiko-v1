@@ -70,12 +70,14 @@ class UserContext {
 
   // Obtener carrito
   async getCarrito() {
-    return await redis.hget(this.key, 'carrito_id');
+    const carrito = await redis.hget(this.key, 'carrito_id');
+    return carrito || null;  // Devolver null si es vacío
   }
 
   // V25.0: Obtener folio del carrito activo
   async getFolio() {
-    return await redis.hget(this.key, 'folio');
+    const folio = await redis.hget(this.key, 'folio');
+    return folio || null;  // Devolver null si es vacío
   }
 
   // V25.0: Obtener últimos resultados de búsqueda (para resolver referencias)
@@ -458,17 +460,17 @@ console.log({obj: "UserContext", contextStr});
     // Usar pipeline para eficiencia
     const pipeline = redis.pipeline();
     
-    // Eliminar campos relacionados con el carrito
-    pipeline.hdel(this.key, 'carrito_id');
-    pipeline.hdel(this.key, 'folio');
-    
-    // ✅ Eliminar búsqueda activa
+    // Limpiar campos relacionados con el carrito (usar hset con vacío en lugar de hdel)
+    pipeline.hset(this.key, 'carrito_id', '');
+    pipeline.hset(this.key, 'folio', '');
+
+    // ✅ Limpiar búsqueda activa
     console.log('🗑️ Limpiando busqueda_activa de Redis');
-    pipeline.hdel(this.key, 'busqueda_activa');
-    
-    pipeline.hdel(this.key, 'filtros_activos');
-    pipeline.hdel(this.key, 'ultimos_resultados');
-    pipeline.hdel(this.key, 'ultima_accion');
+    pipeline.hset(this.key, 'busqueda_activa', '');
+
+    pipeline.hset(this.key, 'filtros_activos', '');
+    pipeline.hset(this.key, 'ultimos_resultados', '');
+    pipeline.hset(this.key, 'ultima_accion', '');
 
     // Establecer valores básicos
     pipeline.hset(this.key, 'nombre_usuario', '');
