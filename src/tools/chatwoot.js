@@ -234,6 +234,40 @@ async function procesarMensajeWebhook(webhookData) {
     }
 
     // ============================================================
+    // EJECUCIÓN DIRECTA PARA REINICIAR (sin GPT - ahorra tokens)
+    // ============================================================
+    if (clasificacion && clasificacion.accion === 'REINICIAR') {
+      console.log('🔄 Ejecutando REINICIAR directamente (sin GPT)');
+      await userContext.reset();
+
+      const mensajeReinicio = 'Claro, a partir de este momento inicia una conversación nueva';
+
+      // Agregar al historial
+      conversationHistory.push({
+        role: "assistant",
+        content: mensajeReinicio
+      });
+
+      return {
+        success: true,
+        data: {
+          conversationId,
+          response: mensajeReinicio,
+          fileName: "",
+          userId: userId,
+          senderName,
+          originalMessage: messageContent,
+          clasificacion: {
+            accion: 'REINICIAR',
+            sub_accion: null,
+            usarFallback: false
+          }
+        },
+        message: "Mensaje procesado correctamente"
+      };
+    }
+
+    // ============================================================
     // TOOL-CALLING LOOP - IMPLEMENTACIÓN CORRECTA
     // ============================================================
 
