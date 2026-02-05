@@ -135,7 +135,9 @@ Despues de cancelar carrito:
 
 ## FORMATO EXACTO PARA VER CARRITO (OBLIGATORIO)
 
-Cuando el cliente pida ver su carrito, usar este formato EXACTO:
+REGLA CRITICA: Si la respuesta de la herramienta contiene "texto_formateado", COPIAR ESE TEXTO TAL CUAL como tu respuesta. NO reformatear, NO omitir campos, NO cambiar el orden. Solo agregar al final: "Quieres modificar algo o finalizar tu pedido?"
+
+Si no hay texto_formateado, usar este formato EXACTO:
 
 Tu carrito (Folio: [FOLIO]):
 

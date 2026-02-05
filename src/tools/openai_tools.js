@@ -671,6 +671,37 @@ REGLAS (9.4):
 
   
 // ===== ROUTER PARA MANEJAR FUNCTION CALLS =====
+/**
+ * Pre-formatea los datos del carrito para que GPT no tenga que decidir el formato.
+ * Sigue el formato exacto definido en carrito_prompt.js
+ */
+function formatearCarritoTexto(carritoData) {
+  if (!carritoData.success || !carritoData.data?.Carrito) return null;
+
+  const productos = carritoData.data.Carrito;
+  const importe = carritoData.data.importeCarrito || {};
+  const folio = importe.FOLIO || 'N/A';
+
+  if (productos.length === 0) {
+    return 'Tu carrito esta vacio. Quieres buscar algun producto?';
+  }
+
+  let texto = 'Tu carrito (Folio: ' + folio + '):\n\n';
+  for (let i = 0; i < productos.length; i++) {
+    const p = productos[i];
+    const precio = p.PRECIO_UNITARIO || 0;
+    const cantidad = p.UNIDADES || 0;
+    const subtotal = (precio * cantidad).toFixed(2);
+    texto += (i + 1) + ') ID: ' + p.ARTICULO_ID + ' - ' + (p.NOMBRE || 'Sin nombre') + '\n';
+    texto += '   Cantidad: ' + cantidad + ' | Precio: $' + precio.toFixed(2) + ' | Subtotal: $' + subtotal + '\n\n';
+  }
+
+  const total = importe.TOTAL_CARRITO || 0;
+  texto += 'Total: $' + (typeof total === 'number' ? total.toFixed(2) : total);
+
+  return texto;
+}
+
 async function executeFunctionCall(name, args, userId, accountId = 0) {
     console.log(`🔧 Ejecutando función: ${name}`, args);
     console.log(`📋 Context: userId=${userId}, accountId=${accountId}`);
@@ -1158,6 +1189,9 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
       
       case "ver_carrito":
         const carrito = await verCarrito(args.carrito_id);
+        if (carrito.success) {
+          carrito.texto_formateado = formatearCarritoTexto(carrito);
+        }
         return carrito;
 
       case "asignar_carrito":
@@ -1169,6 +1203,7 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
           const folio = carritoA.data?.importeCarrito?.FOLIO || null;
           await userContext.setCarrito(args.carrito_id, folio);
           console.log('🛒 asignar_carrito - setCarrito:', args.carrito_id, folio);
+          carritoA.texto_formateado = formatearCarritoTexto(carritoA);
         }
         return carritoA;
 
