@@ -239,6 +239,23 @@ function extraerReferenciasConCantidad(texto) {
 function resolverParametrosClasificador(parametros, productosMostrados) {
   const resultado = { ...parametros };
 
+  // Si hay texto_busqueda, verificar si coincide con algún producto mostrado
+  // Si NO coincide, NO resolver referencia (dejar que GPT busque el producto)
+  if (parametros.texto_busqueda && productosMostrados && productosMostrados.length > 0) {
+    const textoBusqueda = parametros.texto_busqueda.toLowerCase();
+    const coincide = productosMostrados.some(p => {
+      const nombre = (p.NOMBRE || p.DESCRIPCION || '').toLowerCase();
+      return nombre.includes(textoBusqueda) || textoBusqueda.includes(nombre.split(' ')[0]);
+    });
+
+    if (!coincide) {
+      console.log(`   ⚠️ texto_busqueda "${parametros.texto_busqueda}" NO coincide con productos mostrados - NO resolver referencia`);
+      // No resolver, dejar que GPT busque
+      resultado.cantidad = parametros.cantidad || 1;
+      return resultado;
+    }
+  }
+
   // Si tiene referencia_idx directamente
   if (typeof parametros.referencia_idx === 'number') {
     const producto = resolverPorIndice(parametros.referencia_idx, productosMostrados);
