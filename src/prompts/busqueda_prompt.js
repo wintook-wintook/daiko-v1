@@ -141,7 +141,23 @@ Cuando recibas productos, preséntalos así:
 - NO incluyas marca/medida en query
 - NO generes respuesta sin haber buscado
 - NO muestres más de 6 productos
-- NO uses "/" en ningun parametro de busqueda`;
+- NO uses "/" en ningun parametro de busqueda
+
+## AGREGAR AL CARRITO (si el cliente lo solicita)
+
+Si el cliente pide agregar productos después de ver resultados:
+
+1. **agregar_al_carrito(producto_id, cantidad, carrito_id)**: Agrega al carrito existente
+2. **crear_nuevo_carrito(producto_id, cantidad)**: Crea carrito nuevo si no existe
+
+### Conversión de unidades de peso:
+- Si el cliente pide en KILOS o GRAMOS, calcular cuántas unidades se necesitan
+- Extraer el peso del producto de su nombre (ej: "450 GR", "1 KG", "500 G")
+- Calcular: unidades = peso_solicitado / peso_producto (redondear hacia arriba)
+- Ejemplos:
+  - "2 kilos" de producto de 450g → 2000g / 450g = 4.4 → agregar 5 unidades
+  - "1 kilo" de producto de 250g → 1000g / 250g = 4 → agregar 4 unidades
+- Si el producto no tiene peso en el nombre, asumir que pide unidades directamente`;
 
 /**
  * Construye el prompt de búsqueda con contexto

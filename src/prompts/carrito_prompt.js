@@ -70,6 +70,16 @@ Regla 5 - Búsqueda automática:
 - Si el cliente pide agregar un producto que NO está en {{PRODUCTOS_MOSTRADOS}}, ejecutar buscar_productos
 - Ejemplo: mostré jabones y pide "agregame frijol" → buscar_productos("frijol")
 
+Regla 6 - Conversión de unidades de peso:
+- Si el cliente pide en KILOS o GRAMOS, calcular cuántas unidades del producto se necesitan
+- Extraer el peso del producto de su nombre (ej: "450 GR", "1 KG", "500 G")
+- Calcular: unidades = peso_solicitado / peso_producto (redondear hacia arriba)
+- Ejemplos:
+  - "2 kilos" de producto de 450g → 2000g / 450g = 4.4 → agregar 5 unidades
+  - "1 kilo" de producto de 250g → 1000g / 250g = 4 → agregar 4 unidades
+  - "500 gramos" de producto de 100g → 500g / 100g = 5 → agregar 5 unidades
+- Si el producto no tiene peso en el nombre, asumir que pide unidades directamente
+
 ## EJEMPLOS DE OPERACIONES
 
 Ejemplo 1: "agrégalo" (sin carrito activo)
