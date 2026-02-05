@@ -27,6 +27,7 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 | PAGINACION | Ver más resultados de búsqueda anterior | "hay más", "ver más", "siguiente", "otros", "más opciones" |
 | NECESIDAD | Expresa problema/condición SIN mencionar ningún producto concreto | "tengo sed", "me duele la cabeza", "tengo hambre", "hace calor" |
 | CONVERSACION | Preguntas generales, charla, dudas sobre el bot | "cómo funciona", "qué puedes hacer", "ayuda", "eres un robot" |
+| REINICIAR | Reiniciar o borrar la conversación | "reiniciar", "reiniciate", "reinicia", "borrar conversación", "empezar de nuevo", "reset" |
 | DESCONOCIDO | No se puede clasificar claramente | mensajes ambiguos, fuera de contexto, o sin sentido |
 
 ## CONTEXTO ACTUAL DEL USUARIO
