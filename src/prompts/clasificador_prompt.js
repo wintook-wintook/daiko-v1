@@ -66,16 +66,19 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
   Ejemplos: "quiero azúcar", "quiero arroz de 1 kilo", "necesito cable hdmi" → BUSQUEDA_PRODUCTO
 - Si dice "agrégalo/ponme/dame ese" refiriéndose a un producto YA MOSTRADO → CARRITO_CREAR o CARRITO_MODIFICAR
 
-### Para operaciones de carrito:
-- Si dice "agrégalo/ponme/dame ese" y NO tiene carrito activo → CARRITO_CREAR
-- Si dice "agrégalo/ponme" y SÍ tiene carrito activo → CARRITO_MODIFICAR
+### Para operaciones de carrito (REGLA CRITICA):
+- PRIMERO verificar si {{TIENE_CARRITO}} = SI
+- Si {{TIENE_CARRITO}} = SI y el usuario quiere agregar producto → SIEMPRE es CARRITO_MODIFICAR (sub_accion: agregar)
+- Si {{TIENE_CARRITO}} = NO y el usuario quiere agregar producto → CARRITO_CREAR
+- NUNCA clasificar como CARRITO_CREAR si ya tiene carrito activo
 - Si dice "quítame/elimina/borra" un producto → CARRITO_MODIFICAR (sub_accion: eliminar)
-- Si dice "ponme X del primero" → CARRITO_MODIFICAR (sub_accion: agregar)
 - IMPORTANTE: Solo clasificar como CARRITO si hay productos mostrados Y el usuario hace referencia a ellos
 
 ### Para referencias según contexto (ULTIMA_ACCION):
 - Si {{ULTIMA_ACCION}} = "listar_carritos" y el usuario dice "el primero", "el segundo", "muéstrame el segundo", etc. → CARRITO_CONSULTAR (sub_accion: ver_carrito). El usuario se refiere a un CARRITO de la lista, NO a un producto.
-- Si {{ULTIMA_ACCION}} = "busqueda_productos" y el usuario dice "el primero", "el segundo", etc. → se refiere a un PRODUCTO mostrado → CARRITO_CREAR o CARRITO_MODIFICAR según tenga carrito activo
+- Si {{ULTIMA_ACCION}} = "busqueda_productos" y el usuario dice "el primero", "el segundo", "dame la primera", "quiero la mas barata", etc.:
+  - Si {{TIENE_CARRITO}} = SI → CARRITO_MODIFICAR (agregar al carrito existente)
+  - Si {{TIENE_CARRITO}} = NO → CARRITO_CREAR (crear nuevo carrito)
 - Si {{ULTIMA_ACCION}} es null o vacío, usar el contexto general para decidir
 
 ### Para referencias a productos:
