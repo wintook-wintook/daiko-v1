@@ -77,6 +77,7 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 
 ### Para referencias según contexto (ULTIMA_ACCION):
 - Si {{ULTIMA_ACCION}} = "listar_carritos" y el usuario dice "el primero", "el segundo", "muéstrame el segundo", etc. → CARRITO_CONSULTAR (sub_accion: ver_carrito). El usuario se refiere a un CARRITO de la lista, NO a un producto.
+- Si {{ULTIMA_ACCION}} = "listar_carritos" y el usuario dice un número/ID como "el 104", "104", "el 48", "usa el 47" → CARRITO_CONSULTAR (sub_accion: asignar_carrito, parametros: {carrito_id: "ID_MENCIONADO"}). El usuario quiere seleccionar ese carrito específico.
 - Si {{ULTIMA_ACCION}} = "busqueda_productos" y el usuario dice "el primero", "el segundo", "dame la primera", "quiero la mas barata", etc.:
   - Si {{TIENE_CARRITO}} = SI → CARRITO_MODIFICAR (agregar al carrito existente)
   - Si {{TIENE_CARRITO}} = NO → CARRITO_CREAR (crear nuevo carrito)
