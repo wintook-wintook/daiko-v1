@@ -192,6 +192,7 @@ function validarRespuestaClasificador(respuesta) {
     'PAGINACION',
     'NECESIDAD',
     'CONVERSACION',
+    'REINICIAR',
     'DESCONOCIDO'
   ];
 
