@@ -101,6 +101,13 @@ const ACCION_CONFIG = {
     descripcion: 'Conversación general'
   },
 
+  'REINICIAR': {
+    buildPrompt: buildSaludoPrompt,
+    tools: ['reiniciar'],
+    requiereTools: true,
+    descripcion: 'Reiniciar conversación'
+  },
+
   'DESCONOCIDO': {
     buildPrompt: null,  // Usa prompt completo
     tools: null,        // Todas las tools
