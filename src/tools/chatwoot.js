@@ -275,6 +275,7 @@ async function procesarMensajeWebhook(webhookData) {
     let iteration = 0;
     let continueLoop = true;
     let isGetPDF = false;
+    let pdfData = null;
 
     while (continueLoop && iteration < MAX_ITERATIONS) {
       iteration++;
@@ -328,9 +329,10 @@ async function procesarMensajeWebhook(webhookData) {
               webhookData.account_id
             );
             
-            // Manejo especial para generar_pdf
-            if (name === 'generar_pdf' && !functionResult.error) {
+            // Manejo especial para generar_pdf: guardar datos del PDF
+            if (name === 'generar_pdf' && functionResult.success && functionResult.data) {
               isGetPDF = true;
+              pdfData = functionResult.data;
             }
 
             // ✅ AGREGAR RESULTADO AL HISTORIAL
@@ -420,8 +422,8 @@ async function procesarMensajeWebhook(webhookData) {
           success: true,
           data: {
             conversationId,
-            response: isGetPDF ? finalResponse.content : finalResponse,
-            fileName: isGetPDF ? finalResponse.name : "",
+            response: isGetPDF ? pdfData.content : finalResponse,
+            fileName: isGetPDF ? pdfData.name : "",
             userId: userId,
             senderName,
             originalMessage: messageContent,
