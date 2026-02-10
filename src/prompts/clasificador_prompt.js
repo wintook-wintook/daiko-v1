@@ -66,6 +66,9 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 - Si el usuario menciona un producto con nombre (sustantivo) y NO hay productos mostrados recientemente → BUSQUEDA_PRODUCTO
   Ejemplos: "quiero azúcar", "quiero arroz de 1 kilo", "necesito cable hdmi" → BUSQUEDA_PRODUCTO
 - Si dice "agrégalo/ponme/dame ese" refiriéndose a un producto YA MOSTRADO → CARRITO_CREAR o CARRITO_MODIFICAR
+- REGLA CRITICA: Si el usuario menciona un producto por NOMBRE (sustantivo concreto) y ese nombre NO coincide con ninguno de los PRODUCTOS_MOSTRADOS → SIEMPRE es BUSQUEDA_PRODUCTO, aunque el mensaje tambien contenga "del primero/segundo/etc"
+  Ejemplo: Productos mostrados son escobas, usuario dice "agregame frijol del primero" → BUSQUEDA_PRODUCTO (frijol NO es escoba)
+  Ejemplo: Productos mostrados son escobas, usuario dice "agregame la primera" → CARRITO_MODIFICAR (no menciona otro producto)
 
 ### Para operaciones de carrito (REGLA CRITICA):
 - PRIMERO verificar si {{TIENE_CARRITO}} = SI
