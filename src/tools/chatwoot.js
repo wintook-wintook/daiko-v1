@@ -153,6 +153,24 @@ async function procesarMensajeWebhook(webhookData) {
     const conversationHistory = await getMessages(webhookData.token, webhookData.account_id, webhookData.conversation_id, contextStr);
 
     // ============================================================
+    // RESTAURAR CARRITO DESDE HISTORIAL SI REDIS EXPIRÓ
+    // ============================================================
+    const carritoActual = await userContext.getCarrito();
+    if (!carritoActual) {
+      for (let i = conversationHistory.length - 1; i >= 0; i--) {
+        const msg = conversationHistory[i];
+        if (msg.role === 'assistant' && msg.content) {
+          const match = msg.content.match(/Carrito activo:\s*(\d+)(?:\s*\|\s*Folio:\s*(\S+))?/);
+          if (match) {
+            console.log('🔄 Restaurando carrito desde historial:', match[1], match[2] || 'sin folio');
+            await userContext.setCarrito(match[1], match[2] || null);
+            break;
+          }
+        }
+      }
+    }
+
+    // ============================================================
     // V25.0 - FASE 1: CLASIFICACIÓN DE INTENCIÓN
     // ============================================================
 
