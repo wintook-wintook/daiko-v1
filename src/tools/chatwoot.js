@@ -129,6 +129,7 @@ async function procesarMensajeWebhook(webhookData) {
     // Preparar contexto
     const userId = `chatwoot_${conversationId}`;
     const userContext = new UserContext(userId);
+    await userContext.keepAlive();
     const contextStr = await userContext.toSystemContext();
 
     let Cliente = await buscarcliente2(url_crm_zeus, api_access_token, {
