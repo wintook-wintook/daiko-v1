@@ -53,6 +53,7 @@ Cuando el cliente dice "el primero", "el segundo", etc.:
 - "primero" = producto en posición 1 = usar su ARTICULO_ID
 - "segundo" = producto en posición 2 = usar su ARTICULO_ID
 - Los parámetros ya vienen resueltos en {{PARAMETROS}}
+- IMPORTANTE: Si {{PRODUCTOS_MOSTRADOS}} es "Ninguno" pero hay carrito activo y el cliente pide quitar/modificar un producto por referencia ("el tercero", "el primero"), PRIMERO llamar ver_carrito({{CARRITO_ID}}) para ver los productos del carrito y luego resolver la referencia
 
 Regla 2 - Crear vs Modificar:
 - Si NO hay carrito activo ({{CARRITO_ID}} = ninguno) = usar crear_nuevo_carrito
@@ -248,6 +249,7 @@ const CARRITO_CREAR_TOOLS = [
  * Tools permitidas para CARRITO_MODIFICAR
  */
 const CARRITO_MODIFICAR_TOOLS = [
+  'ver_carrito',       // Para consultar contenido cuando no hay productos en contexto
   'buscar_productos',  // Para buscar productos que no están en los mostrados
   'agregar_al_carrito',
   'agregar_varios_articulos_al_carrito',
