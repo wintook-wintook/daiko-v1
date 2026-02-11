@@ -957,7 +957,7 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
       case "buscar_productos": {
           console.log(`🔍 BÚSQUEDA DE PRODUCTOS - Query: "${args.query}"`);
           console.log(`📦 Filtros recibidos:`, JSON.stringify(args.filtros, null, 2));
-          
+
           // ✅ Validar que filtros sea un objeto
           if (!args.filtros || typeof args.filtros !== 'object') {
             console.error('❌ ERROR: filtros debe ser un objeto');
@@ -967,7 +967,49 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
               preserveCurrentCart: true
             };
           }
-          
+
+          // ============================================================
+          // CANONIZACIÓN INTEGRADA (antes era una tool separada)
+          // Ejecuta PASO 8 (normalización) + PASO 9 (sinónimos BD)
+          // directamente aquí, eliminando 1 iteración GPT-4o
+          // ============================================================
+          let queryFinal = args.query;
+          let categoriaFinal = args.categoria;
+          let etiquetasFinal = args.etiquetas;
+
+          // Canonizar query (flujo de búsqueda normal)
+          if (args.query) {
+            try {
+              const canonResult = await Promise.race([
+                resolverCanonico(args.query, accountId),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout canonizacion')), 2000))
+              ]);
+              if (canonResult && canonResult.token_final) {
+                console.log(`🔄 Canonización integrada: "${args.query}" → "${canonResult.token_final}"`);
+                queryFinal = canonResult.token_final;
+              }
+            } catch (canonError) {
+              console.warn(`⚠️ Canonización falló (fail-open): ${canonError.message}. Usando query original.`);
+            }
+          }
+
+          // Canonizar categoria/etiquetas (flujo de necesidad: query=null, categoria="sed")
+          if (!args.query && args.categoria) {
+            try {
+              const canonResult = await Promise.race([
+                resolverCanonico(args.categoria, accountId),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout canonizacion')), 2000))
+              ]);
+              if (canonResult && canonResult.token_final) {
+                console.log(`🔄 Canonización necesidad: "${args.categoria}" → "${canonResult.token_final}"`);
+                categoriaFinal = canonResult.token_final;
+                etiquetasFinal = canonResult.token_final;
+              }
+            } catch (canonError) {
+              console.warn(`⚠️ Canonización necesidad falló (fail-open): ${canonError.message}`);
+            }
+          }
+
           // ✅ Normalizar filtros vacíos a arrays vacíos
           const filtrosNormalizados = {
             marca: Array.isArray(args.filtros.marca) ? args.filtros.marca : [],
@@ -976,18 +1018,18 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
             tipo: Array.isArray(args.filtros.tipo) ? args.filtros.tipo : [],
             compatibilidad: Array.isArray(args.filtros.compatibilidad) ? args.filtros.compatibilidad : []
           };
-          
+
           console.log(`✅ Filtros normalizados:`, JSON.stringify(filtrosNormalizados, null, 2));
-          
+
           // ✅ Pasar filtros a buscarProductos
           const resultado = await buscarProductos(
-            args.query, 
-            args.categoria, 
-            args.etiquetas, 
-            args.precio_max, 
-            args.current_page, 
+            queryFinal,
+            categoriaFinal,
+            etiquetasFinal,
+            args.precio_max,
+            args.current_page,
             args.per_page,
-            filtrosNormalizados  // ← NUEVO PARÁMETRO
+            filtrosNormalizados
           );
           
           // Log de búsqueda con filtros

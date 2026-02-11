@@ -26,7 +26,8 @@ const UserContext = require('../utils/userContext');
 const {
   clasificarIntencion,
   confianzaSuficiente,
-  requiereFallbackPromptCompleto
+  requiereFallbackPromptCompleto,
+  preClasificarPorKeywords
 } = require('../services/clasificador_service');
 
 const {
@@ -40,6 +41,26 @@ const {
 
 // Feature toggle para activación gradual
 const USAR_MULTI_PROMPT = process.env.USAR_MULTI_PROMPT === 'true' || false;
+
+// ============================================================
+// CACHE EN MEMORIA - Hooks y API key (TTL 5 minutos)
+// Evita llamadas HTTP repetidas a Chatwoot API
+// ============================================================
+const apiCache = new Map();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
+
+function getCached(key) {
+  const entry = apiCache.get(key);
+  if (entry && Date.now() - entry.timestamp < CACHE_TTL_MS) {
+    return entry.data;
+  }
+  apiCache.delete(key);
+  return null;
+}
+
+function setCache(key, data) {
+  apiCache.set(key, { data, timestamp: Date.now() });
+}
 
 var Readable    = require('stream').Readable;
 const { Buffer } = require('buffer');
@@ -86,38 +107,13 @@ function extraerDatosWebhook(webhookData) {
 async function procesarMensajeWebhook(webhookData) {
   try {
     let sender = webhookData.conversation.meta.sender;
-    let OPENAI_APIKEY = await getOPENAI_APIKEY(webhookData.token, webhookData.account_id);
 
     const extractedData = extraerDatosWebhook(webhookData);
     if (!extractedData.success) {
       return extractedData;
     }
-    
-    // Inicializar OpenAI
-    openai = new OpenAI({
-      apiKey: OPENAI_APIKEY[0].settings.api_key
-    });
 
     const { conversationId, messageContent, senderId, senderName, messageType, inboxId } = extractedData.data;
-    let url_crm_zeus = ''; 
-    let api_access_token = '';
-    let almacen_id = '';
-    let contact_id = '';
-
-    let hooks = await getHooksCrm(webhookData.token, webhookData.account_id);
-    const item = await (hooks.length >= 1 ? hooks.find((element) => element.inbox.id === inboxId) : []);
-    
-    if (!inboxId || !item) {
-      return {
-        success: false,
-        message: "Mensaje no procesable - no hay hooks que concuerden con el inbox_id"
-      };
-    }
-
-    url_crm_zeus = item.settings.api_url_base+'/';
-    api_access_token = item.settings.api_access_token;
-    contact_id = item.settings.contact_id;
-    almacen_id = item.settings.almacen_id;
 
     if (messageType !== 'incoming' || !messageContent) {
       return {
@@ -125,31 +121,66 @@ async function procesarMensajeWebhook(webhookData) {
         message: "Mensaje no procesable - solo se procesan mensajes entrantes con contenido"
       };
     }
-    
-    // Preparar contexto
+
+    // Preparar contexto del usuario (independiente de APIs externas)
     const userId = `chatwoot_${conversationId}`;
     const userContext = new UserContext(userId);
-    await userContext.keepAlive();
-    const contextStr = await userContext.toSystemContext();
 
-    let Cliente = await buscarcliente2(url_crm_zeus, api_access_token, {
-        email: sender.email, 
-        phone_number: sender.phone_number, 
-        contact_id: contact_id, 
+    // ============================================================
+    // FASE 1: Llamadas independientes en PARALELO
+    // getOPENAI_APIKEY, getHooksCrm, keepAlive (todos independientes)
+    // ============================================================
+    const [OPENAI_APIKEY, hooks] = await Promise.all([
+      getOPENAI_APIKEY(webhookData.token, webhookData.account_id),
+      webhookData._hooks || getHooksCrm(webhookData.token, webhookData.account_id),
+      userContext.keepAlive()
+    ]);
+
+    // Inicializar OpenAI
+    openai = new OpenAI({
+      apiKey: OPENAI_APIKEY[0].settings.api_key
+    });
+
+    const item = hooks.length >= 1 ? hooks.find((element) => element.inbox.id === inboxId) : null;
+
+    if (!inboxId || !item) {
+      return {
+        success: false,
+        message: "Mensaje no procesable - no hay hooks que concuerden con el inbox_id"
+      };
+    }
+
+    const url_crm_zeus = item.settings.api_url_base+'/';
+    const api_access_token = item.settings.api_access_token;
+    const contact_id = item.settings.contact_id;
+    const almacen_id = item.settings.almacen_id;
+
+    // ============================================================
+    // FASE 2: buscarcliente2 + toSystemContext en PARALELO
+    // (ambos necesitan hooks/userContext pero son independientes entre si)
+    // ============================================================
+    const [Cliente, contextStr] = await Promise.all([
+      buscarcliente2(url_crm_zeus, api_access_token, {
+        email: sender.email,
+        phone_number: sender.phone_number,
+        contact_id: contact_id,
         almacen_id: almacen_id,
         userContext
-      });  
+      }),
+      userContext.toSystemContext()
+    ]);
 
     if (Cliente.data.NOMBRE_COMERCIAL) {
       await userContext.setNombre(Cliente.data.NOMBRE_COMERCIAL);
     }
 
     const systemPromptWithContext = systemPrompt;
-    
+
     if (!conversations.has(userId)) {
       conversations.set(userId, []);
     }
-    
+
+    // FASE 3: getMessages (necesita contextStr de FASE 2)
     const conversationHistory = await getMessages(webhookData.token, webhookData.account_id, webhookData.conversation_id, contextStr);
 
     // ============================================================
@@ -185,22 +216,25 @@ async function procesarMensajeWebhook(webhookData) {
       console.log('='.repeat(60));
 
       try {
-        // Preparar contexto para el clasificador
+        // Preparar contexto para el clasificador (1 hgetall en vez de 5 hget)
         const contextoClasificador = {
-          carritoId: await userContext.getCarrito(),
-          folio: await userContext.getFolio ? await userContext.getFolio() : null,
-          ultimaBusqueda: await userContext.getBusquedaActiva(),
-          productos: await userContext.getUltimosResultados ? await userContext.getUltimosResultados() : [],
-          ultimaAccion: await userContext.getUltimaAccion ? await userContext.getUltimaAccion() : null,
+          ...await userContext.getClasificadorContext(),
           historial: conversationHistory.slice(-4) // Últimos 4 mensajes
         };
 
-        // PASO 1: Clasificar intención con gpt-4o-mini
-        clasificacion = await clasificarIntencion(
-          messageContent,
-          contextoClasificador,
-          OPENAI_APIKEY[0].settings.api_key
-        );
+        // PASO 0: Pre-clasificación rápida por keywords (sin API call)
+        clasificacion = preClasificarPorKeywords(messageContent, contextoClasificador);
+
+        if (clasificacion) {
+          console.log('⚡ FAST PATH: Pre-clasificación por keywords:', clasificacion.accion);
+        } else {
+          // PASO 1: Clasificar intención con gpt-4o-mini (solo si no hubo match por keywords)
+          clasificacion = await clasificarIntencion(
+            messageContent,
+            contextoClasificador,
+            OPENAI_APIKEY[0].settings.api_key
+          );
+        }
 
         console.log('📊 Clasificación:', {
           accion: clasificacion.accion,
@@ -281,6 +315,50 @@ async function procesarMensajeWebhook(webhookData) {
             sub_accion: null,
             usarFallback: false
           }
+        },
+        message: "Mensaje procesado correctamente"
+      };
+    }
+
+    // ============================================================
+    // EJECUCIÓN DIRECTA PARA SALUDO (sin GPT-4o - ahorra 3-5s)
+    // ============================================================
+    if (clasificacion && clasificacion.accion === 'SALUDO') {
+      console.log('⚡ Ejecutando SALUDO directamente (sin GPT)');
+
+      const hora = new Date().getHours();
+      let saludoHora = 'Buen dia';
+      if (hora >= 6 && hora < 12) saludoHora = 'Buenos dias';
+      else if (hora >= 12 && hora < 19) saludoHora = 'Buenas tardes';
+      else saludoHora = 'Buenas noches';
+
+      const nombreCliente = await userContext.getNombre();
+      let mensajeSaludo;
+
+      if (clasificacion.sub_accion === 'despedida') {
+        mensajeSaludo = nombreCliente
+          ? `Hasta pronto, ${nombreCliente}! Fue un placer atenderte.`
+          : 'Hasta pronto! Fue un placer atenderte.';
+      } else if (messageContent.toLowerCase().includes('gracias')) {
+        mensajeSaludo = 'Con gusto! Si necesitas algo mas, aqui estare.';
+      } else {
+        mensajeSaludo = nombreCliente
+          ? `${saludoHora}, ${nombreCliente}! En que puedo ayudarte hoy?`
+          : `${saludoHora}! Soy tu asesor comercial. En que puedo ayudarte?`;
+      }
+
+      conversationHistory.push({ role: "assistant", content: mensajeSaludo });
+
+      return {
+        success: true,
+        data: {
+          conversationId,
+          response: mensajeSaludo,
+          fileName: "",
+          userId: userId,
+          senderName,
+          originalMessage: messageContent,
+          clasificacion: { accion: 'SALUDO', sub_accion: clasificacion.sub_accion, usarFallback: false }
         },
         message: "Mensaje procesado correctamente"
       };
@@ -533,41 +611,41 @@ Iteración 3:
 */
 
 const getHooksCrm = async (token, account_id) => {
-    let url = `${urlWA}api/v1/accounts/${account_id}/integrations/apps/daiko`;
-//    console.log(url);
-    let headers = {}; 
-    headers = {
-      api_access_token: token,
+    const cacheKey = `hooks_crm_${account_id}`;
+    const cached = getCached(cacheKey);
+    if (cached) {
+      console.log('⚡ getHooksCrm: usando cache');
+      return cached;
     }
+
+    let url = `${urlWA}api/v1/accounts/${account_id}/integrations/apps/daiko`;
     let config = {
       method: "get",
       url,
-      headers,
+      headers: { api_access_token: token },
     };
     let data = (await getApiData(config)).data;
-    //console.log({hooks: data.hooks});
-
+    setCache(cacheKey, data.hooks);
     return data.hooks;
-
 }
 
 const getOPENAI_APIKEY = async (token, account_id) => {
-  let url = `${urlWA}api/v1/accounts/${account_id}/integrations/apps/openai`;
-//    console.log(url);
-  let headers = {}; 
-  headers = {
-    api_access_token: token,
+  const cacheKey = `openai_key_${account_id}`;
+  const cached = getCached(cacheKey);
+  if (cached) {
+    console.log('⚡ getOPENAI_APIKEY: usando cache');
+    return cached;
   }
+
+  let url = `${urlWA}api/v1/accounts/${account_id}/integrations/apps/openai`;
   let config = {
     method: "get",
     url,
-    headers,
+    headers: { api_access_token: token },
   };
   let data = (await getApiData(config)).data;
-  //console.log({hooks: data.hooks});
-
+  setCache(cacheKey, data.hooks);
   return data.hooks;
-
 }
 
 const getMessages = async (token, account_id, conversation_id, contextStr) => {

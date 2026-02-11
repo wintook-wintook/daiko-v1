@@ -241,11 +241,70 @@ function requiereFallbackPromptCompleto(clasificacion) {
   return false;
 }
 
+/**
+ * Pre-clasificación rápida por keywords.
+ * Detecta intenciones obvias SIN llamar a gpt-4o-mini.
+ * Retorna null si no hay match (debe ir al clasificador completo).
+ *
+ * IMPORTANTE: Usa $ anchor para solo matchear mensajes puros.
+ * "hola" matchea, pero "hola quiero azucar" NO matchea.
+ *
+ * @param {string} mensaje - Mensaje del usuario
+ * @param {object} contexto - Contexto del clasificador
+ * @returns {object|null} - Clasificación o null
+ */
+function preClasificarPorKeywords(mensaje, contexto) {
+  const m = mensaje.toLowerCase().trim();
+
+  // SALUDO puro
+  if (/^(hola|buenos?\s*(d[ií]as?|tardes?|noches?)|hey|saludos?|qu[eé]\s*tal|buen\s*d[ií]a)\s*[!.?]*$/i.test(m)) {
+    return {
+      accion: 'SALUDO', sub_accion: 'saludo_inicial', confianza: 0.95,
+      parametros: {}, razon: 'Pre-clasificador: saludo detectado', tiempo_ms: 0, es_preclasificacion: true
+    };
+  }
+
+  // Despedida / Agradecimiento
+  if (/^(gracias|adi[oó]s|hasta\s*(luego|pronto)|chao|bye)\s*[!.?]*$/i.test(m)) {
+    return {
+      accion: 'SALUDO', sub_accion: 'despedida', confianza: 0.90,
+      parametros: {}, razon: 'Pre-clasificador: despedida', tiempo_ms: 0, es_preclasificacion: true
+    };
+  }
+
+  // PAGINACION (solo si hay búsqueda activa)
+  if (contexto.ultimaBusqueda && /^(hay\s*m[aá]s|ver\s*m[aá]s|m[aá]s|siguiente|otros?|m[aá]s\s*opciones?)\s*[?!.]*$/i.test(m)) {
+    return {
+      accion: 'PAGINACION', sub_accion: 'siguiente_pagina', confianza: 0.95,
+      parametros: {}, razon: 'Pre-clasificador: paginacion con busqueda activa', tiempo_ms: 0, es_preclasificacion: true
+    };
+  }
+
+  // REINICIAR
+  if (/^(reinici(ar|ate|a)|reset|borrar\s*conversaci[oó]n|empezar\s*de\s*nuevo)\s*[!.?]*$/i.test(m)) {
+    return {
+      accion: 'REINICIAR', sub_accion: null, confianza: 0.99,
+      parametros: {}, razon: 'Pre-clasificador: reiniciar', tiempo_ms: 0, es_preclasificacion: true
+    };
+  }
+
+  // CARRITO_CONSULTAR puro
+  if (/^(ver\s*(mi\s*)?carrito|mi\s*carrito|qu[eé]\s*tengo|mu[eé]strame\s*(mi\s*)?(carrito|pedido))\s*[?!.]*$/i.test(m)) {
+    return {
+      accion: 'CARRITO_CONSULTAR', sub_accion: 'ver_carrito', confianza: 0.90,
+      parametros: {}, razon: 'Pre-clasificador: consulta carrito', tiempo_ms: 0, es_preclasificacion: true
+    };
+  }
+
+  return null;
+}
+
 module.exports = {
   clasificarIntencion,
   clasificarBatch,
   confianzaSuficiente,
   requiereFallbackPromptCompleto,
   crearRespuestaFallback,
+  preClasificarPorKeywords,
   ACCIONES_VALIDAS
 };

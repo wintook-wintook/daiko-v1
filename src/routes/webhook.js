@@ -248,6 +248,7 @@ app.post("/webhook/chatwoot", async (req, res) => {
       token: req.query.token,
       account_id: req.body.account.id,
       conversation_id: req.body.conversation.id,
+      _hooks: hooks,  // Pasar hooks pre-obtenidos para evitar HTTP redundante
     });
     const result = await procesarMensajeWebhook(webhookData);
 

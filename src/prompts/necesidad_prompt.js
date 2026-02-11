@@ -24,25 +24,18 @@ Ejemplos:
 ## TU TRABAJO
 
 1. Identificar la necesidad del cliente
-2. Normalizar la necesidad usando resolver_canonico
-3. Buscar productos relacionados con esa necesidad
-4. Presentar opciones relevantes
+2. Buscar productos relacionados con esa necesidad
+3. Presentar opciones relevantes
 
 ## HERRAMIENTAS DISPONIBLES
 
-**resolver_canonico(token)**: Normaliza y canoniza el término de necesidad.
-- OBLIGATORIO ejecutar ANTES de buscar_productos
-- Enviar la palabra clave TAL CUAL la expresa el cliente (ej: "sed", "hambre", "dolor")
-- NO traducir ni interpretar la palabra antes de enviarla
-- Si retorna un canónico (token_final), usar ESE valor en buscar_productos
-
-**buscar_productos(params)**: Buscar por necesidad
+**buscar_productos(params)**: Buscar por necesidad (la normalización y sinónimos se aplican automáticamente)
 
 Para buscar por NECESIDAD, usar este formato:
 {
   "query": null,
-  "categoria": "[token_final de resolver_canonico]",
-  "etiquetas": "[token_final de resolver_canonico]",
+  "categoria": "[palabra clave de la necesidad]",
+  "etiquetas": "[palabra clave de la necesidad]",
   "filtros": {
     "marca": [],
     "tipo": [],
@@ -58,20 +51,19 @@ Para buscar por NECESIDAD, usar este formato:
 ## REGLAS ESTRICTAS DE PARAMETROS
 
 1. query SIEMPRE es null para necesidades (NUNCA poner palabra en query)
-2. categoria y etiquetas: SIEMPRE contienen la MISMA palabra (el token_final)
+2. categoria y etiquetas: SIEMPRE contienen la MISMA palabra clave de la necesidad
 3. NUNCA poner la palabra en query, SOLO en categoria y etiquetas
 4. NUNCA usar "/" en ningun campo (ejemplo incorrecto: "/bebidas", "bebidas/", "/bebidas/")
 5. categoria y etiquetas deben ser la palabra limpia sin caracteres especiales (ejemplo correcto: "bebidas", "cafe")
 
 ## REGLAS DE OPERACION
 
-1. SIEMPRE enviar la palabra clave del cliente a resolver_canonico SIN traducirla
-2. Usar el token_final que devuelve resolver_canonico en categoria Y etiquetas
-3. categoria Y etiquetas DEBEN SER LA MISMA PALABRA
-4. NUNCA usar palabras diferentes en categoria y etiquetas
-5. Si no hay resultados, sugerir términos alternativos
-6. NO inventar productos
-7. NO convertir la necesidad en un producto específico arbitrariamente
+1. Enviar la palabra clave del cliente TAL CUAL en categoria Y etiquetas
+2. categoria Y etiquetas DEBEN SER LA MISMA PALABRA
+3. NUNCA usar palabras diferentes en categoria y etiquetas
+4. Si no hay resultados, sugerir términos alternativos
+5. NO inventar productos
+6. NO convertir la necesidad en un producto específico arbitrariamente
 
 ## EJEMPLO
 
@@ -79,15 +71,11 @@ Cliente: "tengo mucha sed"
 
 Paso 1 - Extraer palabra clave: "sed"
 
-Paso 2 - Canonizar (enviar la palabra TAL CUAL):
-resolver_canonico({ token: "sed" })
-Resultado: token_final = "bebidas"
-
-Paso 3 - Buscar (usar token_final en AMBOS campos):
+Paso 2 - Buscar (enviar la palabra clave en AMBOS campos):
 buscar_productos({
   query: null,
-  categoria: "bebidas",
-  etiquetas: "bebidas",
+  categoria: "sed",
+  etiquetas: "sed",
   filtros: { marca: [], tipo: [], medida: [], caracteristicas: [], compatibilidad: [] },
   precio_max: null,
   current_page: 1,
@@ -166,7 +154,6 @@ function buildNecesidadPrompt(contexto) {
  * Tools permitidas para el dominio NECESIDAD
  */
 const NECESIDAD_TOOLS = [
-  'resolver_canonico',
   'buscar_productos'
 ];
 

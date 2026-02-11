@@ -570,7 +570,44 @@ console.log({obj: "UserContext", contextStr});
   // Extender TTL
   async keepAlive() {
     await redis.expire(this.key, this.ttl);
-  } 
+  }
+
+  /**
+   * Obtiene todo el contexto necesario para el clasificador en UNA sola llamada Redis.
+   * Reemplaza 5 hget individuales por 1 hgetall.
+   */
+  async getClasificadorContext() {
+    const data = await redis.hgetall(this.key);
+
+    let ultimaBusqueda = null;
+    if (data.busqueda_activa) {
+      try {
+        ultimaBusqueda = JSON.parse(data.busqueda_activa);
+        if (!ultimaBusqueda.filtros) {
+          ultimaBusqueda.filtros = { marca: [], medida: [], caracteristicas: [], tipo: [], compatibilidad: [] };
+        }
+      } catch (e) {
+        ultimaBusqueda = null;
+      }
+    }
+
+    let productos = [];
+    if (data.ultimos_resultados) {
+      try {
+        productos = JSON.parse(data.ultimos_resultados);
+      } catch (e) {
+        productos = [];
+      }
+    }
+
+    return {
+      carritoId: data.carrito_id || null,
+      folio: data.folio || null,
+      ultimaBusqueda,
+      productos,
+      ultimaAccion: data.ultima_accion || null
+    };
+  }
 }
 
 module.exports = UserContext;
