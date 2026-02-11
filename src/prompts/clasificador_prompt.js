@@ -23,7 +23,7 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 | CARRITO_MODIFICAR | Modificar carrito existente (agregar, quitar, actualizar) | "quítame el segundo", "ponme 5 del primero", "elimina el producto", "agrega 3 más" |
 | CARRITO_CONSULTAR | Ver o gestionar carritos | "ver mi carrito", "mis carritos", "qué tengo en el carrito", "muéstrame mi pedido", "muéstrame el contenido", "ver el contenido", "qué tiene mi carrito" |
 | CARRITO_CANCELAR | Cancelar o vaciar carrito | "cancela el carrito", "vacía mi carrito", "borra todo" |
-| ORDEN | Finalizar compra o generar documentos | "confirmar compra", "generar PDF", "cotización", "factura", "finalizar pedido" |
+| ORDEN | Finalizar compra o generar documentos | "confirmar compra", "generar PDF", "cotización", "factura", "finalizar pedido", "pasame la nota", "dame el presupuesto", "manda el documento", "manda el pdf", "quiero el pdf", "dame el pdf" |
 | PAGINACION | Ver más resultados de búsqueda anterior | "hay más", "ver más", "siguiente", "otros", "más opciones" |
 | NECESIDAD | Expresa problema/condición SIN mencionar ningún producto concreto | "tengo sed", "me duele la cabeza", "tengo hambre", "hace calor" |
 | CONVERSACION | Preguntas generales, charla, dudas sobre el bot | "cómo funciona", "qué puedes hacer", "ayuda", "eres un robot" |
