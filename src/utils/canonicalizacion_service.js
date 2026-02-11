@@ -395,19 +395,6 @@ async function resolverCanonico(token, accountId = 0) {
   // PASO 8: Normalización
   const paso8 = ejecutarPaso8_Normalizacion(token);
 
-  // BYPASS: Saltar PASO 9 (queries DB) para diagnóstico de rendimiento
-  // TODO: Quitar este bypass cuando se confirme que no es el cuello de botella
-  return {
-    token_original: token,
-    token_normalizado: paso8.token_normalizado,
-    token_canonico: null,
-    token_final: paso8.token_normalizado,
-    encontrado: false,
-    source: 'bypass',
-    cambios_normalizacion: paso8.cambios_aplicados,
-    timestamp: new Date().toISOString()
-  };
-
   // PASO 9: Canonización
   const paso9 = await ejecutarPaso9_Canonizacion(paso8.token_normalizado, accountId);
   
