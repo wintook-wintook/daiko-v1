@@ -67,6 +67,24 @@ const { Buffer } = require('buffer');
 
 let fuenteWeb ="Fuente: WEB";
 
+// ============================================================
+// TYPING INDICATOR - Muestra "escribiendo..." en Chatwoot
+// ============================================================
+async function toggleTyping(token, account_id, conversation_id, status = 'on') {
+  try {
+    await getApiData({
+      method: 'post',
+      url: `${urlWA}api/v1/accounts/${account_id}/conversations/${conversation_id}/toggle_typing_status`,
+      headers: { api_access_token: token },
+      data: { typing_status: status },
+      timeout: 3000
+    });
+  } catch (err) {
+    // Fail silently - typing indicator is cosmetic
+    console.warn(`⚠️ toggleTyping(${status}) falló:`, err.message);
+  }
+}
+
 function extraerDatosWebhook(webhookData) {
     try {
       // Extraer información del webhook de Chatwoot
@@ -121,6 +139,9 @@ async function procesarMensajeWebhook(webhookData) {
         message: "Mensaje no procesable - solo se procesan mensajes entrantes con contenido"
       };
     }
+
+    // Activar indicador "escribiendo..." inmediatamente
+    toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'on');
 
     // Preparar contexto del usuario (independiente de APIs externas)
     const userId = `chatwoot_${conversationId}`;
@@ -550,6 +571,7 @@ async function procesarMensajeWebhook(webhookData) {
 
   } catch (error) {
     console.error('❌ Error procesando webhook:', error);
+    toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off');
     sendMessage(webhookData.token, webhookData.account_id, webhookData.conversation_id, error.message);
     return {
       success: false,
