@@ -8,7 +8,7 @@ let delay = (ms) => {
 let getApiData = async (config, retryCount = 1) => {
   try {
     if (!config.timeout) {
-      config.timeout = 10000; // 10 segundos default
+      config.timeout = 30000; // 30 segundos default
     }
     let response = await axios(config);
     if (retryCount < 1) {
