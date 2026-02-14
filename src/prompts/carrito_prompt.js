@@ -173,7 +173,7 @@ IMPORTANTE: Si el cliente menciona un folio, usar el CARRITO_ID correspondiente 
 
 Si no tiene carritos: "No tienes carritos disponibles. Quieres buscar productos para crear uno?"
 Si el carrito no existe: "No encontre ese carrito. Quieres ver tus carritos disponibles?"
-Otros errores: Explicar el problema de forma breve y sugerir solucion.
+Otros errores: SIEMPRE incluir el mensaje de error EXACTO que devolvio la herramienta. NO parafrasear ni suavizar el error. Ejemplo: si la herramienta devuelve "El parámetro vendedor_id no ha sido indicado", responder "No se pudo crear el carrito porque: El parámetro vendedor_id no ha sido indicado. Contacta a soporte para que configuren tu cuenta."
 
 ## PROHIBICIONES CRITICAS
 

@@ -417,19 +417,31 @@ async function crearNuevoCarrito(productoId, cantidad) {
     const response = await getApiData(config);
     evalError(response.data);
     if (response.data.error && response.data.error === true) {
-      return response.data;
+      return {
+        success: false,
+        error: true,
+        message: `Error al crear carrito: ${response.data.message}`,
+        error_detalle: response.data.message,
+        preserveCurrentCart: true
+      };
     }
     return {
       success: true,
-      productoId, 
-      cantidad, 
+      productoId,
+      cantidad,
       carritoId: response.data.carrito_creado,
       folio: response.data.folio,
       message: `Producto agregado a un nuevo carrito correctamente`,
-      preserveCurrentCart: true  // âœ… Indicar que NO debe cambiar el carrito actual
+      preserveCurrentCart: true
     };
   } catch (error) {
     console.error('Error:', error.message);
+    return {
+      success: false,
+      error: true,
+      message: `Error al crear carrito: ${error.message}`,
+      error_detalle: error.message
+    };
   }
   
 }
@@ -448,18 +460,30 @@ async function crearNuevoCarritoConVariosArticulos(Productos) {
     const response = await getApiData(config);
     evalError(response.data);
     if (response.data.error && response.data.error === true) {
-      return response.data;
+      return {
+        success: false,
+        error: true,
+        message: `Error al crear carrito: ${response.data.message}`,
+        error_detalle: response.data.message,
+        preserveCurrentCart: true
+      };
     }
     return {
       success: true,
-      productos: Productos, 
+      productos: Productos,
       carritoId: response.data.carrito_creado,
       folio: response.data.folio,
       message: `Productos agregados a un nuevo carrito correctamente`,
-      preserveCurrentCart: true  // âœ… Indicar que NO debe cambiar el carrito actual
+      preserveCurrentCart: true
     };
   } catch (error) {
     console.error('Error:', error.message);
+    return {
+      success: false,
+      error: true,
+      message: `Error al crear carrito: ${error.message}`,
+      error_detalle: error.message
+    };
   }
 
 }
