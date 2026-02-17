@@ -20,7 +20,7 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 | BUSQUEDA_PRODUCTO | Busca un producto específico (menciona sustantivo concreto) | "quiero azúcar", "tienes monitores", "busco tubería", "necesito cable", "necesito agua", "requiero leche" |
 | BUSQUEDA_CATEGORIA | Explora catálogo sin producto específico | "qué vendes", "muéstrame categorías", "tu catálogo", "qué productos tienes" |
 | CARRITO_CREAR | Agregar productos cuando NO tiene carrito activo | "agrégalo", "ponme 2", "lo quiero", "dame ese" |
-| CARRITO_MODIFICAR | Modificar carrito existente (agregar, quitar, actualizar) | "quítame el segundo", "ponme 5 del primero", "elimina el producto", "agrega 3 más" |
+| CARRITO_MODIFICAR | Modificar carrito existente (agregar, quitar, actualizar, observaciones/notas/comentarios) | "quítame el segundo", "ponme 5 del primero", "elimina el producto", "agrega 3 más", "agrega nota: entrega urgente", "pon observaciones", "quita los comentarios" |
 | CARRITO_CONSULTAR | Ver o gestionar carritos | "ver mi carrito", "mis carritos", "qué tengo en el carrito", "muéstrame mi pedido", "muéstrame el contenido", "ver el contenido", "qué tiene mi carrito" |
 | CARRITO_CANCELAR | Cancelar o vaciar carrito | "cancela el carrito", "vacía mi carrito", "borra todo" |
 | ORDEN | Finalizar compra o generar documentos | "confirmar compra", "generar PDF", "cotización", "factura", "finalizar pedido", "pasame la nota", "dame el presupuesto", "manda el documento", "manda el pdf", "quiero el pdf", "dame el pdf" |
@@ -98,6 +98,15 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 - "un par" → cantidad: 2
 - "media docena" → cantidad: 6
 
+### Para operaciones de observaciones/notas/comentarios:
+- Si el usuario menciona "observación", "observaciones", "nota", "notas", "comentario", "comentarios", "indicación", "indicaciones" en el contexto de modificar una cotización → CARRITO_MODIFICAR (sub_accion: "observaciones")
+- Ejemplos:
+  - "agrega una nota" → CARRITO_MODIFICAR, sub_accion: "observaciones"
+  - "pon en observaciones: entrega a domicilio" → CARRITO_MODIFICAR, sub_accion: "observaciones"
+  - "quita los comentarios del carrito" → CARRITO_MODIFICAR, sub_accion: "observaciones"
+  - "cambia las observaciones" → CARRITO_MODIFICAR, sub_accion: "observaciones"
+- Extraer el texto de la observación en parametros.texto_observacion si viene incluido en el mensaje
+
 ### Para paginación:
 - Solo clasificar como PAGINACION si hay una búsqueda activa previa
 - "hay más", "ver más", "siguiente", "otros" → PAGINACION
@@ -136,7 +145,19 @@ Mensaje: "hay más opciones?"
 Respuesta: {"accion":"PAGINACION","sub_accion":"siguiente_pagina","confianza":0.95,"parametros":{},"razon":"Pide ver más resultados de la búsqueda activa"}
 
 Mensaje: "tengo mucha sed"
-Respuesta: {"accion":"NECESIDAD","sub_accion":"detectar_necesidad","confianza":0.90,"parametros":{"necesidad":"sed"},"razon":"Expresa una necesidad sin mencionar producto"}`;
+Respuesta: {"accion":"NECESIDAD","sub_accion":"detectar_necesidad","confianza":0.90,"parametros":{"necesidad":"sed"},"razon":"Expresa una necesidad sin mencionar producto"}
+
+Mensaje: "agrega nota: entrega urgente para el lunes"
+(con carrito activo)
+Respuesta: {"accion":"CARRITO_MODIFICAR","sub_accion":"observaciones","confianza":0.97,"parametros":{"texto_observacion":"entrega urgente para el lunes","modo_obs":"agregar"},"razon":"Solicita agregar observaciones a la cotizacion"}
+
+Mensaje: "quita las observaciones"
+(con carrito activo)
+Respuesta: {"accion":"CARRITO_MODIFICAR","sub_accion":"observaciones","confianza":0.96,"parametros":{"modo_obs":"quitar"},"razon":"Solicita eliminar observaciones de la cotizacion"}
+
+Mensaje: "pon en observaciones que es pago contra entrega"
+(con carrito activo)
+Respuesta: {"accion":"CARRITO_MODIFICAR","sub_accion":"observaciones","confianza":0.95,"parametros":{"texto_observacion":"pago contra entrega","modo_obs":"agregar"},"razon":"Solicita agregar texto a observaciones"}`;
 
 /**
  * Construye el prompt del clasificador con el contexto actual

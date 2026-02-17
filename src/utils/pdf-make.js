@@ -127,7 +127,9 @@ function generarPDFCotizacion(data) {
                 
 
             // Observaciones
-            //doc.fontSize(7).text(`Observaciones: ${data.observaciones}`, 50, y + 20);
+            if (data.observaciones && data.observaciones.trim().length > 0) {
+              doc.fontSize(7).text(`Observaciones: ${data.observaciones}`, 50, y + 20);
+            }
 
             doc.end();
             

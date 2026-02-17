@@ -2,7 +2,7 @@
 // ACTUALIZADO: V24.0 - PASO 8 (Normalización) + PASO 9 (Canonización) separados
 // Según documento normativo MBC01 v2.2
 
-const { obtenerCategorias, buscarProductos, obtenerDetalleProducto, agregarAlCarrito, agregarVariosArticulosAlCarrito, crearNuevoCarrito, crearNuevoCarritoConVariosArticulos, obtenerCarritosDisponibles, verCarrito, crearOrden, cancelarCarrito, generarPdf, copiarArticulosEntreCarritos, copiarArticulosDeUnCarritoExisenteAUnoNuevo } = require('../utils/crm');
+const { obtenerCategorias, buscarProductos, obtenerDetalleProducto, agregarAlCarrito, agregarVariosArticulosAlCarrito, crearNuevoCarrito, crearNuevoCarritoConVariosArticulos, obtenerCarritosDisponibles, verCarrito, crearOrden, cancelarCarrito, generarPdf, copiarArticulosEntreCarritos, copiarArticulosDeUnCarritoExisenteAUnoNuevo, actualizarObservaciones } = require('../utils/crm');
 const { ejecutarBusquedaExterna } = require('../utils/busqueda_externa_service');
 const { resolverCanonico, resolverMultiplesCanonico } = require('../utils/canonicalizacion_service');
 const UserContext = require('../utils/userContext');
@@ -666,6 +666,34 @@ REGLAS (9.4):
         },
         strict: true
       }
+    },
+    {
+      type: "function",
+      function: {
+        name: "actualizar_observaciones",
+        description: "Agrega, reemplaza o elimina las observaciones/comentarios/notas de una cotización (carrito). Usar cuando el usuario quiera agregar una nota, cambiar los comentarios, concatenar texto a observaciones existentes, o quitar/borrar las observaciones. Sinónimos: observación, nota, comentario, indicación.",
+        parameters: {
+          type: "object",
+          properties: {
+            carrito_id: {
+              type: ["string", "null"],
+              description: "ID del carrito al que se le agregan las observaciones. Usar el carrito activo si no se especifica uno distinto."
+            },
+            observaciones: {
+              type: "string",
+              description: "Texto de las observaciones. Dejar vacío solo cuando modo es 'quitar'."
+            },
+            modo: {
+              type: "string",
+              description: "'agregar' concatena el texto a las observaciones existentes, 'reemplazar' sustituye las observaciones actuales, 'quitar' elimina todas las observaciones.",
+              enum: ["agregar", "reemplazar", "quitar"]
+            }
+          },
+          required: ["carrito_id", "observaciones", "modo"],
+          additionalProperties: false
+        },
+        strict: true
+      }
     }
   ];
 
@@ -1284,7 +1312,21 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
         }
 
         return carritoEN;
-      
+
+      case "actualizar_observaciones": {
+        const carritoObsId = args.carrito_id || await userContext.getCarrito();
+        if (!carritoObsId) {
+          return {
+            success: false,
+            message: "No tienes un carrito activo. Primero selecciona un carrito para agregar observaciones.",
+            preserveCurrentCart: true
+          };
+        }
+        const modoMap = { 'agregar': 'append', 'reemplazar': 'set', 'quitar': 'clear' };
+        const modoInterno = modoMap[args.modo] || 'set';
+        return await actualizarObservaciones(carritoObsId, args.observaciones || '', modoInterno);
+      }
+
       default:
         return {
           success: false,

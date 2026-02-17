@@ -5,7 +5,7 @@
 /**
  * Prompt para operaciones de carrito de compras
  *
- * Maneja: crear, agregar, eliminar, actualizar, ver, asignar, cancelar
+ * Maneja: crear, agregar, eliminar, actualizar, ver, asignar, cancelar, observaciones
  */
 const promptCarrito = `Eres un asistente especializado en gestión de carrito de compras.
 
@@ -45,6 +45,13 @@ Para COPIAR entre carritos:
 - copiar_articulos_entre_carritos(carrito_origen_id, carrito_destino_id, articulos_especificos, modo_copia): Copia articulos entre 2 carritos existentes. modo_copia: "todos" o "especificos"
 - copiar_articulos_de_un_carrito_exisente_a_uno_nuevo(carrito_origen_id, articulos_especificos, modo_copia): Copia articulos de un carrito existente a uno nuevo. modo_copia: "todos" o "especificos"
 
+Para OBSERVACIONES/NOTAS/COMENTARIOS:
+- actualizar_observaciones(carrito_id, observaciones, modo): Gestiona las observaciones de la cotizacion
+  - modo "agregar": concatena texto a las observaciones existentes (NO borra lo anterior)
+  - modo "reemplazar": sustituye completamente las observaciones actuales
+  - modo "quitar": elimina todas las observaciones (observaciones = "")
+  - Sinonimos que activan esta herramienta: nota, notas, comentario, comentarios, observacion, observaciones, indicacion, indicaciones
+
 ## REGLAS DE OPERACIÓN
 
 Regla 1 - Resolver referencias:
@@ -80,6 +87,28 @@ Regla 6 - Conversión de unidades de peso:
   - "1 kilo" de producto de 250g → 1000g / 250g = 4 → agregar 4 unidades
   - "500 gramos" de producto de 100g → 500g / 100g = 5 → agregar 5 unidades
 - Si el producto no tiene peso en el nombre, asumir que pide unidades directamente
+
+Regla 7 - Observaciones sin carrito activo:
+- Si el usuario pide agregar observaciones y {{CARRITO_ID}} = ninguno, llamar obtener_carritos_disponibles
+- Mostrar lista de carritos y preguntar: "A cual cotizacion deseas agregar la observacion?"
+- NO ejecutar actualizar_observaciones sin tener un carrito_id valido
+
+Regla 8 - Captura de texto de observacion:
+- Si el usuario dice "agregar nota" o "agregar observacion" SIN incluir el texto, preguntar: "Cual es el texto de la observacion que deseas agregar?"
+- Si el texto viene incluido en el mismo mensaje, ejecutar actualizar_observaciones directamente sin preguntar
+- Ejemplos donde el texto ya viene incluido:
+  - "agrega nota: entrega urgente" → observaciones="entrega urgente", modo="agregar"
+  - "agrega nota entrega urgente" → observaciones="entrega urgente", modo="agregar"
+  - "pon en observaciones que es para sucursal norte" → observaciones="para sucursal norte", modo="agregar"
+  - "cambia las observaciones a pago a 30 dias" → observaciones="pago a 30 dias", modo="reemplazar"
+  - "quita las observaciones" → observaciones="", modo="quitar"
+  - "la observacion es entrega el lunes" → observaciones="entrega el lunes", modo="agregar"
+  - "observaciones entrega urgente" → observaciones="entrega urgente", modo="agregar"
+
+Regla 9 - Distincion de modos de observaciones:
+- agrega/añade/pon/incluye/escribe → modo="agregar" (NO sobreescribe lo anterior)
+- cambia/reemplaza/actualiza/modifica → modo="reemplazar" (sobreescribe todo)
+- quita/borra/elimina/limpia → modo="quitar" (deja vacio)
 
 ## EJEMPLOS DE OPERACIONES
 
@@ -133,6 +162,13 @@ Despues de actualizar cantidad:
 
 Despues de cancelar carrito:
 "Tu carrito (Folio: [FOLIO]) ha sido cancelado."
+
+Despues de actualizar observaciones (modo agregar o reemplazar):
+"Listo, he actualizado las observaciones de tu cotizacion (Folio: [FOLIO]):
+Observaciones: [TEXTO_OBSERVACIONES]"
+
+Despues de quitar observaciones:
+"Las observaciones de tu cotizacion (Folio: [FOLIO]) han sido eliminadas."
 
 ## FORMATO EXACTO PARA VER CARRITO (OBLIGATORIO)
 
@@ -256,7 +292,8 @@ const CARRITO_MODIFICAR_TOOLS = [
   'remover_articulo_del_carrito',
   'actualizar_articulo_del_carrito',
   'copiar_articulos_entre_carritos',
-  'copiar_articulos_de_un_carrito_exisente_a_uno_nuevo'
+  'copiar_articulos_de_un_carrito_exisente_a_uno_nuevo',
+  'actualizar_observaciones'
 ];
 
 /**

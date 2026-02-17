@@ -670,6 +670,66 @@ async function cancelarCarrito(carrito_id) {
   
 }
 
+async function actualizarObservaciones(carritoId, observaciones, modo = "set") {
+  if (!carritoId) {
+    return {
+      success: false,
+      error: true,
+      message: "No hay carrito asignado",
+      preserveCurrentCart: true
+    };
+  }
+
+  let observacionesFinal = observaciones;
+
+  if (modo === "append") {
+    const carritoActual = await verCarrito(carritoId);
+    if (carritoActual.success && carritoActual.data && carritoActual.data.importeCarrito) {
+      const obsActuales = carritoActual.data.importeCarrito.OBSERVACIONES_ENC || '';
+      observacionesFinal = obsActuales ? `${obsActuales}\n${observaciones}` : observaciones;
+    }
+  } else if (modo === "clear") {
+    observacionesFinal = '';
+  }
+
+  let data = JSON.stringify({ observaciones: observacionesFinal });
+  let config = getConfigApiDaiko(`cart/${carritoId}/observations`, data, '2');
+
+  try {
+    const response = await getApiData(config);
+    let title = 'Error al actualizar observaciones. ';
+    evalError(response.data, title);
+    if (response.data.error && response.data.error === true) {
+      return {
+        success: false,
+        error: true,
+        message: `Error al actualizar observaciones: ${response.data.message}`,
+        error_detalle: response.data.message,
+        preserveCurrentCart: true
+      };
+    }
+    return {
+      success: true,
+      carritoId,
+      observaciones: observacionesFinal,
+      modo,
+      message: modo === 'clear'
+        ? 'Las observaciones han sido eliminadas'
+        : 'Las observaciones han sido actualizadas correctamente',
+      preserveCurrentCart: true
+    };
+  } catch (error) {
+    console.error('Error en actualizarObservaciones:', error.message);
+    return {
+      success: false,
+      error: true,
+      message: `Error al actualizar observaciones: ${error.message}`,
+      error_detalle: error.message,
+      preserveCurrentCart: true
+    };
+  }
+}
+
 async function buscarMoneda(MONEDA_ID){
   let data = JSON.stringify({});
   let urlExtra = 'api/v1/catalog/getLst_Moneda';    
@@ -735,13 +795,14 @@ async function generarPdf(carrito_id) {
   let vendedor = await buscarVendedor(data.importeCarrito.VENDEDOR_ID);
   let moneda = await buscarMoneda(data.importeCarrito.MONEDA_ID);
 
-  let pdf = await generarPDFCotizacion({cliente: cliente, 
+  let pdf = await generarPDFCotizacion({cliente: cliente,
     FECHA: data.importeCarrito.FECHA,
     FOLIO: data.importeCarrito.FOLIO,
     VENDEDOR_NOMBRE: vendedor.NOMBRE,
     articulos: data.Carrito,
     MONEDA_NOMBRE: moneda.NOMBRE,
-    IMPORTE_NETO: data.importeCarrito.IMPORTE_NETO
+    IMPORTE_NETO: data.importeCarrito.IMPORTE_NETO,
+    observaciones: data.importeCarrito.OBSERVACIONES_ENC || data.importeCarrito.OBSERVACIONES || ''
   });
 
   return {
@@ -979,5 +1040,6 @@ module.exports = {
   cancelarCarrito,
   generarPdf,
   copiarArticulosEntreCarritos,
-  copiarArticulosDeUnCarritoExisenteAUnoNuevo
+  copiarArticulosDeUnCarritoExisenteAUnoNuevo,
+  actualizarObservaciones
 };
