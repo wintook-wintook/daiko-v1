@@ -216,6 +216,15 @@ async function procesarMensajeWebhook(webhookData) {
           if (match) {
             console.log('🔄 Restaurando carrito desde historial:', match[1], match[2] || 'sin folio');
             await userContext.setCarrito(match[1], match[2] || null);
+            // Actualizar el contextStr stale dentro de conversationHistory
+            // porque toSystemContext() se ejecutó antes de la restauración
+            const contextStrActualizado = await userContext.toSystemContext();
+            for (let j = 0; j < conversationHistory.length; j++) {
+              if (conversationHistory[j].role === 'system') {
+                conversationHistory[j].content = contextStrActualizado;
+                break;
+              }
+            }
             break;
           }
         }
