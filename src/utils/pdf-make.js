@@ -89,42 +89,50 @@ function generarPDFCotizacion(data) {
                     .text("", 300, y)
                     .text(item.UNIDADES, 350, y)
                     .text(`${numeral(item.PRECIO_UNITARIO).format('$0,0.00')}`, 400, y)
-                    .text(`${numeral(item.DESCUENTO).format('$0,0.00')}`, 450, y)
-                    .text(`${numeral(item.UNIDADES * item.PRECIO_UNITARIO ).format('$0,0.00')}`, 500, y);
+                    .text(`${numeral(item.DESCUENTO).format('0,0.00')}`, 450, y)
+                    .text(`${numeral(item.PRECIOTOTALARTICULOS).format('$0,0.00')}`, 500, y);
                 y += 20;
             });
 
-            // Totales y observaciones
-            // Columna 1
-            y += 40; // Ajustar la posición vertical antes de empezar las columnas
+            // Totales
+            y += 40;
             const x1 = 400;
-            doc.fontSize(9)
-                .text(`Moneda: `, x1, y)
-                .text(`Importe neto: `, x1, y + 10)
-                .text(`Subtotal: `, x1, y + 20)
-                .text(`Descuento: `, x1, y + 30)
-                .text(`Dscto Extra: `, x1, y + 40)
-                .text(`Fletes: `, x1, y + 50)
-                .text(`Otros cargos: `, x1, y + 60)
-                .text(`IVA 16%: `, x1, y + 70)
-                .fontSize(14)
-                .text(`Total: `, x1, y + 90);
-
-            // Columna 2
             const x2 = 460;
+
+            // Sub-Total (IMPORTE_NETO)
             doc.fontSize(9)
-                .text(` ${data.MONEDA_NOMBRE || '--'}`, x2, y, { align: 'right' })
-                .text(` ${numeral(data.IMPORTE_NETO).format('$0,0.00')}`, x2, y + 10, { align: 'right' })
-                
-                //.text(` ${numeral(data.subtotal).format('$0,0.00')}`, x2, y + 20, { align: 'right' })
-                //.text(` ${numeral(data.descuento).format('$0,0.00')}`, x2, y + 30, { align: 'right' })
-                //.text(` ${numeral(data.dsctoExtra).format('$0,0.00')}`, x2, y + 40, { align: 'right' })
-                //.text(` ${numeral(data.fletes).format('$0,0.00')}`, x2, y + 50, { align: 'right' })
-                //.text(` ${numeral(data.otrosCargos).format('$0,0.00')}`, x2, y + 60, { align: 'right' })
-                //.text(` ${numeral(data.iva).format('$0,0.00')}`, x2, y + 70, { align: 'right' })        
-                //.fontSize(11)
-                //.text(` ${numeral(data.total).format('$0,0.00')}`, x2, y + 90, { align: 'right' });
-                
+                .text(`Sub-Total: `, x1, y)
+            doc.fontSize(9)
+                .text(` ${numeral(data.IMPORTE_NETO).format('$0,0.00')}`, x2, y, { align: 'right' });
+
+            // + Impuestos (TOTAL_IMPUESTOS)
+            doc.fontSize(9)
+                .text(`+ Impuestos: `, x1, y + 12)
+            doc.fontSize(9)
+                .text(` ${numeral(data.TOTAL_IMPUESTOS).format('$0,0.00')}`, x2, y + 12, { align: 'right' });
+
+            // - Retenciones (TOTAL_RETENCIONES)
+            doc.fontSize(9)
+                .text(`- Retenciones: `, x1, y + 24)
+            doc.fontSize(9)
+                .text(` ${numeral(data.TOTAL_RETENCIONES).format('$0,0.00')}`, x2, y + 24, { align: 'right' });
+
+            // Total (TOTAL_CARRITO)
+            doc.fontSize(14)
+                .text(`Total: `, x1, y + 44)
+            doc.fontSize(11)
+                .text(` ${numeral(data.TOTAL_CARRITO).format('$0,0.00')}`, x2, y + 44, { align: 'right' });
+
+            // Moneda (referencia)
+            //doc.fontSize(9).text(`Moneda: ${data.MONEDA_NOMBRE || '--'}`, x1, y + 64);
+            // Descuento:
+            //doc.fontSize(9).text(`Descuento: `, x1, y).text(` ${numeral(data.descuento).format('$0,0.00')}`, x2, y, { align: 'right' });
+            // Dscto Extra:
+            //doc.fontSize(9).text(`Dscto Extra: `, x1, y).text(` ${numeral(data.dsctoExtra).format('$0,0.00')}`, x2, y, { align: 'right' });
+            // Fletes:
+            //doc.fontSize(9).text(`Fletes: `, x1, y).text(` ${numeral(data.fletes).format('$0,0.00')}`, x2, y, { align: 'right' });
+            // Otros cargos:
+            //doc.fontSize(9).text(`Otros cargos: `, x1, y).text(` ${numeral(data.otrosCargos).format('$0,0.00')}`, x2, y, { align: 'right' });
 
             // Observaciones
             if (data.observaciones && data.observaciones.trim().length > 0) {

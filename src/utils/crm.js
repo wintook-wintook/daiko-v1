@@ -802,6 +802,9 @@ async function generarPdf(carrito_id) {
     articulos: data.Carrito,
     MONEDA_NOMBRE: moneda.NOMBRE,
     IMPORTE_NETO: data.importeCarrito.IMPORTE_NETO,
+    TOTAL_IMPUESTOS: data.importeCarrito.TOTAL_IMPUESTOS,
+    TOTAL_RETENCIONES: data.importeCarrito.TOTAL_RETENCIONES,
+    TOTAL_CARRITO: data.importeCarrito.TOTAL_CARRITO,
     observaciones: data.importeCarrito.OBSERVACIONES_ENC || data.importeCarrito.OBSERVACIONES || ''
   });
 
