@@ -64,16 +64,27 @@ No quiere ver productos. Solo quiere saber, por ejemplo, qué marcas hay, qué t
 
 ## FORMATO DE RESPUESTA
 
-Cuando recibas los valores, preséntelos así:
+### Caso A: el resultado trae "valores" con contenido
+Preséntelos directamente:
 
-Si hay valores:
 [Atributo] disponibles para [PRODUCTO]:
 [valor 1]
 [valor 2]
 [valor 3]
 ...
 
-Si no hay valores:
+### Caso B: el resultado trae "nombres" (campo dedicado no disponible en API)
+Analiza los nombres de productos del campo "nombres" y extrae los valores únicos del atributo solicitado.
+
+Ejemplo para atributo=marca con nombres ["CLORO CLORALEX 1.17 L", "CLORO CLORALEX 500 ML", "CLORO PINO SOL 1 LT"]:
+- Marcas identificadas: CLORALEX, PINO SOL
+- Respuesta: "Marcas disponibles para CLORO:\nCLORALEX\nPINO SOL"
+
+Ejemplo para atributo=medida con nombres ["AZUCAR MORENA 1 KG", "AZUCAR MORENA 2 KG", "AZUCAR BLANCA 500 GR"]:
+- Medidas identificadas: 1 KG, 2 KG, 500 GR
+- Respuesta: "Tamaños disponibles para AZUCAR:\n500 GR\n1 KG\n2 KG"
+
+### Si no hay información disponible:
 No encontramos información de [atributo] para [producto]. Puedo mostrarte los productos disponibles si lo deseas.
 
 ## REGLAS ESTRICTAS
@@ -81,7 +92,7 @@ No encontramos información de [atributo] para [producto]. Puedo mostrarte los p
 - NO muestres productos con ID y precio
 - NO inventes valores
 - NO uses markdown, viñetas ni encabezados
-- Si la lista está vacía, informa amablemente
+- Extrae solo valores que aparezcan claramente en los nombres
 - Llama la herramienta UNA SOLA VEZ`;
 
 /**

@@ -345,6 +345,7 @@ async function consultarAtributoProducto(query, atributo, accountId) {
     };
   }
 
+  // Intentar extraer desde campo dedicado (MARCA/MEDIDA/TIPO)
   const valores = [...new Set(
     resultado.data
       .map(p => p[campo])
@@ -352,18 +353,33 @@ async function consultarAtributoProducto(query, atributo, accountId) {
       .map(v => String(v).trim().toUpperCase())
   )].sort();
 
-  console.log(`✅ ${valores.length} valor(es) únicos de ${campo} para "${query}":`, valores);
+  if (valores.length > 0) {
+    console.log(`✅ ${valores.length} valor(es) únicos de ${campo} para "${query}" (campo dedicado):`, valores);
+    return {
+      success: true,
+      atributo,
+      producto: query.toUpperCase(),
+      valores,
+      total: valores.length,
+      message: `Se encontraron ${valores.length} ${atributo}(s) para ${query.toUpperCase()}`
+    };
+  }
+
+  // Fallback: el campo no existe en la API — devolver nombres para que GPT extraiga
+  const nombres = resultado.data
+    .map(p => p.NOMBRE || '')
+    .filter(n => n.trim() !== '');
+
+  console.log(`⚠️ Campo "${campo}" vacío. Fallback a extracción desde NOMBRE (${nombres.length} productos)`);
 
   return {
     success: true,
     atributo,
-    campo,
     producto: query.toUpperCase(),
-    valores,
-    total: valores.length,
-    message: valores.length > 0
-      ? `Se encontraron ${valores.length} ${atributo}(s) para ${query.toUpperCase()}`
-      : `No se encontró información de ${atributo} para ${query.toUpperCase()}`
+    valores: [],
+    nombres,
+    total_productos: nombres.length,
+    message: `El campo ${campo} no está disponible en la API. Extrae los valores únicos de ${atributo} analizando los siguientes nombres de productos: ${nombres.join(' | ')}`
   };
 }
 
