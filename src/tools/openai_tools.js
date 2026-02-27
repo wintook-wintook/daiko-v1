@@ -2,7 +2,7 @@
 // ACTUALIZADO: V24.0 - PASO 8 (Normalización) + PASO 9 (Canonización) separados
 // Según documento normativo MBC01 v2.2
 
-const { obtenerCategorias, buscarProductos, obtenerDetalleProducto, agregarAlCarrito, agregarVariosArticulosAlCarrito, crearNuevoCarrito, crearNuevoCarritoConVariosArticulos, obtenerCarritosDisponibles, verCarrito, crearOrden, cancelarCarrito, generarPdf, copiarArticulosEntreCarritos, copiarArticulosDeUnCarritoExisenteAUnoNuevo, actualizarObservaciones } = require('../utils/crm');
+const { obtenerCategorias, buscarProductos, obtenerDetalleProducto, agregarAlCarrito, agregarVariosArticulosAlCarrito, crearNuevoCarrito, crearNuevoCarritoConVariosArticulos, obtenerCarritosDisponibles, verCarrito, crearOrden, cancelarCarrito, generarPdf, copiarArticulosEntreCarritos, copiarArticulosDeUnCarritoExisenteAUnoNuevo, actualizarObservaciones, consultarAtributoProducto } = require('../utils/crm');
 const { ejecutarBusquedaExterna } = require('../utils/busqueda_externa_service');
 const { resolverCanonico, resolverMultiplesCanonico } = require('../utils/canonicalizacion_service');
 const UserContext = require('../utils/userContext');
@@ -694,10 +694,37 @@ REGLAS (9.4):
         },
         strict: true
       }
+    },
+    // ============================================================
+    // CONSULTA_ATRIBUTO - Extrae valores únicos de un atributo
+    // ============================================================
+    {
+      type: "function",
+      function: {
+        name: "consultar_atributo_producto",
+        description: "Consulta los valores únicos de un atributo (marca, medida/tamaño, tipo/modelo/presentación) para un producto. Usar cuando el cliente pregunta '¿qué marcas de X tienen?', '¿qué tamaños de Y hay?', etc. NO muestra productos, solo los valores únicos del atributo.",
+        parameters: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "Sustantivo del producto a buscar (normalizado, sin marca ni medida)"
+            },
+            atributo: {
+              type: "string",
+              enum: ["marca", "medida", "tipo"],
+              description: "Atributo a consultar. 'marca'=fabricante; 'medida'=tamaño/presentación/capacidad; 'tipo'=modelo/variante/tipo"
+            }
+          },
+          required: ["query", "atributo"],
+          additionalProperties: false
+        },
+        strict: true
+      }
     }
   ];
 
-  
+
 // ===== ROUTER PARA MANEJAR FUNCTION CALLS =====
 /**
  * Pre-formatea los datos del carrito para que GPT no tenga que decidir el formato.
@@ -1325,6 +1352,10 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
         const modoMap = { 'agregar': 'append', 'reemplazar': 'set', 'quitar': 'clear' };
         const modoInterno = modoMap[args.modo] || 'set';
         return await actualizarObservaciones(carritoObsId, args.observaciones || '', modoInterno);
+      }
+
+      case "consultar_atributo_producto": {
+        return await consultarAtributoProducto(args.query, args.atributo, accountId);
       }
 
       default:

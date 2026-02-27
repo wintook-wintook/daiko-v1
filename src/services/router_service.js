@@ -19,6 +19,7 @@ const {
 } = require('../prompts/carrito_prompt');
 const { buildOrdenPrompt, ORDEN_TOOLS } = require('../prompts/orden_prompt');
 const { buildNecesidadPrompt, NECESIDAD_TOOLS } = require('../prompts/necesidad_prompt');
+const { buildAtributoPrompt, CONSULTAR_ATRIBUTO_TOOLS } = require('../prompts/atributo_prompt');
 
 /**
  * Configuración de cada acción
@@ -92,6 +93,13 @@ const ACCION_CONFIG = {
     tools: NECESIDAD_TOOLS,
     requiereTools: true,
     descripcion: 'Buscar por necesidad'
+  },
+
+  'CONSULTA_ATRIBUTO': {
+    buildPrompt: buildAtributoPrompt,
+    tools: CONSULTAR_ATRIBUTO_TOOLS,
+    requiereTools: true,
+    descripcion: 'Consultar valores únicos de atributo de producto'
   },
 
   'CONVERSACION': {

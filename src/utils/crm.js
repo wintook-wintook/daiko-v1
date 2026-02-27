@@ -330,6 +330,43 @@ async function buscarProductos(query, categoria = null, etiquetas = null, precio
   }
 }
 
+async function consultarAtributoProducto(query, atributo, accountId) {
+  const campoMap = { marca: 'MARCA', medida: 'MEDIDA', tipo: 'TIPO' };
+  const campo = campoMap[atributo] || 'MARCA';
+
+  console.log(`🔎 consultarAtributoProducto: query="${query}", atributo="${atributo}", campo="${campo}"`);
+
+  const resultado = await buscarProductos(query, null, null, null, 1, 100, null);
+
+  if (!resultado.success) {
+    return {
+      success: false,
+      message: resultado.message || `No se encontraron productos para "${query}"`
+    };
+  }
+
+  const valores = [...new Set(
+    resultado.data
+      .map(p => p[campo])
+      .filter(v => v && String(v).trim() !== '')
+      .map(v => String(v).trim().toUpperCase())
+  )].sort();
+
+  console.log(`✅ ${valores.length} valor(es) únicos de ${campo} para "${query}":`, valores);
+
+  return {
+    success: true,
+    atributo,
+    campo,
+    producto: query.toUpperCase(),
+    valores,
+    total: valores.length,
+    message: valores.length > 0
+      ? `Se encontraron ${valores.length} ${atributo}(s) para ${query.toUpperCase()}`
+      : `No se encontró información de ${atributo} para ${query.toUpperCase()}`
+  };
+}
+
 async function obtenerDetalleProducto(id) {
   let data = JSON.stringify({ cliente_id: cliente_id, moneda_id: moneda_id });
   let config = getConfigApiDaiko(`getProduct/${id}`, data);
@@ -1044,5 +1081,6 @@ module.exports = {
   generarPdf,
   copiarArticulosEntreCarritos,
   copiarArticulosDeUnCarritoExisenteAUnoNuevo,
-  actualizarObservaciones
+  actualizarObservaciones,
+  consultarAtributoProducto
 };

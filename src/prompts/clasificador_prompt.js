@@ -26,6 +26,7 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 | ORDEN | Finalizar compra o generar documentos | "confirmar compra", "generar PDF", "cotización", "factura", "finalizar pedido", "pasame la nota", "dame el presupuesto", "manda el documento", "manda el pdf", "quiero el pdf", "dame el pdf" |
 | PAGINACION | Ver más resultados de búsqueda anterior | "hay más", "ver más", "siguiente", "otros", "más opciones" |
 | NECESIDAD | Expresa problema/condición SIN mencionar ningún producto concreto | "tengo sed", "me duele la cabeza", "tengo hambre", "hace calor" |
+| CONSULTA_ATRIBUTO | Cliente pregunta por marcas, tamaños, modelos o presentaciones de un producto | "qué marcas de pintura", "qué tamaños de azúcar", "qué modelos de monitor", "qué presentaciones de aceite" |
 | CONVERSACION | Preguntas generales, charla, dudas sobre el bot | "cómo funciona", "qué puedes hacer", "ayuda", "eres un robot" |
 | REINICIAR | Reiniciar o borrar la conversación | "reiniciar", "reiniciate", "reinicia", "borrar conversación", "empezar de nuevo", "reset" |
 | DESCONOCIDO | No se puede clasificar claramente | mensajes ambiguos, fuera de contexto, o sin sentido |
@@ -107,6 +108,15 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
   - "cambia las observaciones" → CARRITO_MODIFICAR, sub_accion: "observaciones"
 - Extraer el texto de la observación en parametros.texto_observacion si viene incluido en el mensaje
 
+### Para CONSULTA_ATRIBUTO:
+- Si el cliente pregunta qué marcas/tamaños/modelos/presentaciones/tipos tiene de un producto → CONSULTA_ATRIBUTO
+- sub_accion = "marca" | "medida" | "tipo" (según lo que pregunte)
+- parametros.atributo = el atributo: "marca", "medida" o "tipo"
+- parametros.texto_busqueda = el sustantivo del producto
+- Mapeo: "marcas/fabricantes/laboratorios" → atributo=marca; "tamaños/medidas/capacidades/presentaciones/kilos/litros" → atributo=medida; "modelos/tipos/variantes" → atributo=tipo
+- Ejemplos: "qué marcas de pintura" → CONSULTA_ATRIBUTO, sub_accion=marca; "qué tamaños de azúcar" → CONSULTA_ATRIBUTO, sub_accion=medida
+- NUNCA clasificar como BUSQUEDA_PRODUCTO si el cliente solo pregunta por atributos sin intención de ver productos
+
 ### Para paginación:
 - Solo clasificar como PAGINACION si hay una búsqueda activa previa
 - "hay más", "ver más", "siguiente", "otros" → PAGINACION
@@ -157,7 +167,16 @@ Respuesta: {"accion":"CARRITO_MODIFICAR","sub_accion":"observaciones","confianza
 
 Mensaje: "pon en observaciones que es pago contra entrega"
 (con carrito activo)
-Respuesta: {"accion":"CARRITO_MODIFICAR","sub_accion":"observaciones","confianza":0.95,"parametros":{"texto_observacion":"pago contra entrega","modo_obs":"agregar"},"razon":"Solicita agregar texto a observaciones"}`;
+Respuesta: {"accion":"CARRITO_MODIFICAR","sub_accion":"observaciones","confianza":0.95,"parametros":{"texto_observacion":"pago contra entrega","modo_obs":"agregar"},"razon":"Solicita agregar texto a observaciones"}
+
+Mensaje: "qué marcas de pintura tienen"
+Respuesta: {"accion":"CONSULTA_ATRIBUTO","sub_accion":"marca","confianza":0.97,"parametros":{"atributo":"marca","texto_busqueda":"pintura"},"razon":"Cliente consulta marcas disponibles de un producto"}
+
+Mensaje: "qué tamaños de azúcar hay"
+Respuesta: {"accion":"CONSULTA_ATRIBUTO","sub_accion":"medida","confianza":0.97,"parametros":{"atributo":"medida","texto_busqueda":"azúcar"},"razon":"Cliente consulta tamaños/medidas disponibles de un producto"}
+
+Mensaje: "qué modelos de monitor manejan"
+Respuesta: {"accion":"CONSULTA_ATRIBUTO","sub_accion":"tipo","confianza":0.95,"parametros":{"atributo":"tipo","texto_busqueda":"monitor"},"razon":"Cliente consulta modelos/tipos disponibles de un producto"}`;
 
 /**
  * Construye el prompt del clasificador con el contexto actual
@@ -216,6 +235,7 @@ function validarRespuestaClasificador(respuesta) {
     'ORDEN',
     'PAGINACION',
     'NECESIDAD',
+    'CONSULTA_ATRIBUTO',
     'CONVERSACION',
     'REINICIAR',
     'DESCONOCIDO'
@@ -252,6 +272,7 @@ const ACCIONES_VALIDAS = [
   'ORDEN',
   'PAGINACION',
   'NECESIDAD',
+  'CONSULTA_ATRIBUTO',
   'CONVERSACION',
   'REINICIAR',
   'DESCONOCIDO'
