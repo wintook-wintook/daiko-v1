@@ -765,11 +765,13 @@ function formatearCarritoTexto(carritoData) {
   let texto = 'Tu carrito (Folio: ' + folio + '):\n\n';
   for (let i = 0; i < productos.length; i++) {
     const p = productos[i];
-    const precio = p.PRECIO_UNITARIO || 0;
+    const precioConIva = ((p.PRECIO_UNITARIO || 0) + (p.MONTO_IMPUESTO || 0));
     const cantidad = p.UNIDADES || 0;
-    const subtotal = (precio * cantidad).toFixed(2);
+    const subtotal = p.PRECIOTOTALARTICULOS != null
+      ? parseFloat(p.PRECIOTOTALARTICULOS)
+      : precioConIva * cantidad;
     texto += (i + 1) + ') ID: ' + p.ARTICULO_ID + ' - ' + (p.NOMBRE || 'Sin nombre') + '\n';
-    texto += '   Cantidad: ' + cantidad + ' | Precio: $' + precio.toFixed(2) + ' | Subtotal: $' + subtotal + '\n\n';
+    texto += '   Cantidad: ' + cantidad + ' | Precio: $' + precioConIva.toFixed(2) + ' | Subtotal: $' + subtotal.toFixed(2) + '\n\n';
   }
 
   const total = importe.TOTAL_CARRITO || 0;
