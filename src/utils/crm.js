@@ -300,6 +300,13 @@ async function buscarProductos(query, categoria = null, etiquetas = null, precio
       }
     }
     
+    // Calcular precio con IVA incluido (sobreescribe PRECIO para que GPT muestre el precio final)
+    if (productos && Array.isArray(productos)) {
+      productos.forEach(p => {
+        p.PRECIO = parseFloat((( p.PRECIO || 0) + (p.MONTO_IMPUESTO || 0)).toFixed(2));
+      });
+    }
+
     // Si después del filtro no quedan productos, retornar error
     if (!productos || productos.length === 0) {
       return {
