@@ -727,6 +727,27 @@ REGLAS (9.4):
 
 // ===== ROUTER PARA MANEJAR FUNCTION CALLS =====
 /**
+ * Pre-formatea el listado de carritos disponibles.
+ * Evita que GPT omita el CARRITO_ID y muestre solo el folio.
+ * Estructura API: data.CARRITOS = [{ CARRITO_ID, FOLIO }, ...]
+ */
+function formatearListaCarritos(resultado) {
+  if (!resultado.success || !resultado.data?.CARRITOS || resultado.data.CARRITOS.length === 0) {
+    return null;
+  }
+
+  const carritos = resultado.data.CARRITOS;
+  let texto = `Tienes ${carritos.length} carrito(s) disponible(s):\n\n`;
+
+  carritos.forEach((c, i) => {
+    texto += `${i + 1}) ID: ${c.CARRITO_ID} - Folio: ${c.FOLIO}\n`;
+  });
+
+  texto += '\nCual deseas usar?';
+  return texto;
+}
+
+/**
  * Pre-formatea los datos del carrito para que GPT no tenga que decidir el formato.
  * Sigue el formato exacto definido en carrito_prompt.js
  */
@@ -1280,9 +1301,14 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
 
         return carritoN;
   
-      case "obtener_carritos_disponibles":
+      case "obtener_carritos_disponibles": {
         await userContext.setUltimaAccion('listar_carritos');
-        return obtenerCarritosDisponibles();
+        const listaCarritos = await obtenerCarritosDisponibles();
+        if (listaCarritos.success) {
+          listaCarritos.texto_formateado = formatearListaCarritos(listaCarritos);
+        }
+        return listaCarritos;
+      }
       
       case "ver_carrito":
         const carrito = await verCarrito(args.carrito_id);

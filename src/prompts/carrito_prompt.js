@@ -172,7 +172,9 @@ Despues de quitar observaciones:
 
 ## FORMATO EXACTO PARA VER CARRITO (OBLIGATORIO)
 
-REGLA CRITICA: Si la respuesta de la herramienta contiene "texto_formateado", COPIAR ESE TEXTO TAL CUAL como tu respuesta. NO reformatear, NO omitir campos, NO cambiar el orden. Solo agregar al final: "Quieres modificar algo o finalizar tu pedido?"
+REGLA CRITICA: Si la respuesta de la herramienta contiene "texto_formateado", COPIAR ESE TEXTO TAL CUAL como tu respuesta. NO reformatear, NO omitir campos, NO cambiar el orden.
+- Si es resultado de ver_carrito o asignar_carrito: agregar al final "Quieres modificar algo o finalizar tu pedido?"
+- Si es resultado de obtener_carritos_disponibles: NO agregar nada, el texto ya incluye la pregunta final.
 
 Si no hay texto_formateado, usar este formato EXACTO:
 
