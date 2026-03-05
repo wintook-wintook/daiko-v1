@@ -195,8 +195,11 @@ function enrutarSolicitud(clasificacion, contexto) {
  * @returns {array} - Tools filtradas
  */
 function filtrarTools(toolsPermitidas, todasLasTools) {
-  if (!toolsPermitidas || toolsPermitidas.length === 0) {
+  if (toolsPermitidas === null || toolsPermitidas === undefined) {
     return todasLasTools;
+  }
+  if (toolsPermitidas.length === 0) {
+    return [];
   }
 
   return todasLasTools.filter(function(tool) {
