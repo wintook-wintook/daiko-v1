@@ -2,10 +2,11 @@
 
 require('dotenv').config();
 
-let cliente_id = 0; 
+let cliente_id = 0;
 let moneda_id  = 1;
 let almacen_id = 0;
 let vendedor_id = 0;
+let celular = '';
 const folio_ventas_id = 92226;
 let api_access_token = ''; // process.env.CRMZEUS_APIACCESSTOKEN;
 let url_crm_zeus = '';     // process.env.CRMZEUS_URL; // 'https://app.chatzeus.com/';
@@ -104,7 +105,8 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
 
     vendedor_id = await cliente_redis.VENDEDOR_ID;
     cliente_id = cliente_redis.CLIENTE_ID;
-    moneda_id = cliente_redis.MONEDA_ID || moneda_id; 
+    moneda_id = cliente_redis.MONEDA_ID || moneda_id;
+    celular = phone_number || celular; 
 
     return {
       success: true,
@@ -166,7 +168,8 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
    
     vendedor_id = await cliente.VENDEDOR_ID;
     cliente_id = cliente.CLIENTE_ID;
-    moneda_id = cliente.MONEDA_ID || moneda_id; 
+    moneda_id = cliente.MONEDA_ID || moneda_id;
+    celular = phone_number || celular; 
 
     return {
       success: true,
@@ -644,14 +647,14 @@ async function crearOrden(carritoId) {
       message: `El carrito no fue proporcionado`
     };
   }
-  let data = JSON.stringify({ tipo_docto: tipoDocto });
+  let data = JSON.stringify({ tipo_docto: tipoDocto, cliente_id, celular });
   let config = {
     method: 'post',
     maxBodyLength: Infinity,
     url: 'https://crmzeus-app.com/apiCrm/externalAccess/accessToken/api/Daiko/v2/createDocto/'+carritoId,
-    headers: { 
-      'api_access_token': api_access_token,     
-      'Content-Type': 'application/json', 
+    headers: {
+      'api_access_token': api_access_token,
+      'Content-Type': 'application/json',
       'Cookie': 'connect.sid=s%3A0tL5QPECvc3vmYUnupoVcskyLwi1-YFm.SByWF6a5CDxboz4KqOVSBZiLokAJwvoHThep%2BnZg8xc'
     },
     data : data
@@ -662,18 +665,14 @@ async function crearOrden(carritoId) {
     if(response.data.error){
       return {
         success: false,
-        data: {
-          items: orden,
-          total: 0.0,
-          cantidad: 0,
-        },
+        data: orden,
         message: response.data.message
       };
     }else{
       return {
         success: true,
         data: orden,
-        message: `La orden con folio: ${orden.getCartId.orden_id} fue creada exitosamente`
+        message: `Pedido confirmado. Folio: ${orden.FOLIO_DESTINO}`
       };
     }
   } catch (error) {
