@@ -299,6 +299,11 @@ async function procesarMensajeWebhook(webhookData) {
           toolsAUsar = filtrarTools(ruteo.tools, functionDefinitions);
           usarFallback = false;
 
+          // Guardar ultima_accion cuando se clasifica como ORDEN (antes de que GPT pida confirmación)
+          if (clasificacion.accion === 'ORDEN') {
+            await userContext.setUltimaAccion('ORDEN');
+          }
+
           console.log('✅ Usando prompt especializado:', ruteo.config.descripcion);
           console.log('🛠️ Tools filtradas:', ruteo.tools ? ruteo.tools.length : 'todas');
         } else {
