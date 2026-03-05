@@ -676,10 +676,15 @@ async function crearOrden(carritoId) {
       };
     }
   } catch (error) {
-    console.error('Error:', error.message);
+    console.error('Error crearOrden:', error.message);
+    return {
+      success: false,
+      data: [],
+      message: `Error al crear el pedido: ${error.message}`
+    };
   }
 }
-  
+
 async function cancelarCarrito(carrito_id) {
   if(!carrito_id){
     return {
