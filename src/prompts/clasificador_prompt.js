@@ -79,6 +79,10 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 - Si dice "quítame/elimina/borra" un producto → CARRITO_MODIFICAR (sub_accion: eliminar)
 - IMPORTANTE: Solo clasificar como CARRITO si hay productos mostrados Y el usuario hace referencia a ellos
 
+### Para confirmaciones (sí/no):
+- Si el mensaje es una confirmación ("sí", "si", "sip", "sipo", "ok", "va", "dale", "adelante", "procede", "claro", "perfecto", "ándale") Y la última acción fue ORDEN → clasificar como ORDEN (sub_accion: confirmar_pedido)
+- Si el mensaje es una negación ("no", "nel", "nop", "cancela") Y la última acción fue ORDEN → clasificar como CONVERSACION
+
 ### Para referencias según contexto (ULTIMA_ACCION):
 - Si {{ULTIMA_ACCION}} = "listar_carritos" y el usuario dice "el primero", "el segundo", "muéstrame el segundo", etc. → CARRITO_CONSULTAR (sub_accion: ver_carrito). El usuario se refiere a un CARRITO de la lista, NO a un producto.
 - Si {{ULTIMA_ACCION}} = "listar_carritos" y el usuario dice un número/ID como "el 104", "104", "el 48", "usa el 47" → CARRITO_CONSULTAR (sub_accion: asignar_carrito, parametros: {carrito_id: "ID_MENCIONADO"}). El usuario quiere seleccionar ese carrito específico.
