@@ -648,17 +648,7 @@ async function crearOrden(carritoId) {
     };
   }
   let data = JSON.stringify({ tipo_docto: tipoDocto, cliente_id, celular });
-  let config = {
-    method: 'post',
-    maxBodyLength: Infinity,
-    url: 'https://crmzeus-app.com/apiCrm/externalAccess/accessToken/api/Daiko/v2/createDocto/'+carritoId,
-    headers: {
-      'api_access_token': api_access_token,
-      'Content-Type': 'application/json',
-      'Cookie': 'connect.sid=s%3A0tL5QPECvc3vmYUnupoVcskyLwi1-YFm.SByWF6a5CDxboz4KqOVSBZiLokAJwvoHThep%2BnZg8xc'
-    },
-    data : data
-  };
+  let config = getConfigApiDaiko(`createDocto/${carritoId}`, data, 2);
   try {
     const response = await getApiData(config);
     let orden = response.data;
