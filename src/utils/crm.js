@@ -648,7 +648,7 @@ async function crearOrden(carritoId) {
   let config = {
     method: 'post',
     maxBodyLength: Infinity,
-    url: 'https://crmzeus-app.com/apiCrm/externalAccess/accessToken/api/Daiko/v1/createDocto/'+carritoId,
+    url: 'https://crmzeus-app.com/apiCrm/externalAccess/accessToken/api/Daiko/v2/createDocto/'+carritoId,
     headers: { 
       'api_access_token': api_access_token,     
       'Content-Type': 'application/json', 
