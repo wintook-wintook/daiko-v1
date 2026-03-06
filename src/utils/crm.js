@@ -652,6 +652,7 @@ async function crearOrden(carritoId) {
   try {
     const response = await getApiData(config);
     let orden = response.data;
+    console.log('crearOrden response:', JSON.stringify(orden));
     if(response.data.error){
       return {
         success: false,
