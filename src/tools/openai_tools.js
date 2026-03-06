@@ -1338,8 +1338,13 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
       case "generar_pdf":
         return generarPdf(args.carrito_id);
       
-      case "crear_orden":
-        return crearOrden(args.carrito_id);
+      case "crear_orden": {
+        const orden = await crearOrden(args.carrito_id);
+        if (orden.success) {
+          await userContext.setCarrito('', '');
+        }
+        return orden;
+      }
       
       case "consultar_orden":
         return consultarOrden(args.orden_id);
