@@ -63,8 +63,10 @@ Cuando el cliente dice "el primero", "el segundo", etc.:
 - IMPORTANTE: Si {{PRODUCTOS_MOSTRADOS}} es "Ninguno" pero hay carrito activo y el cliente pide quitar/modificar un producto por referencia ("el tercero", "el primero"), PRIMERO llamar ver_carrito({{CARRITO_ID}}) para ver los productos del carrito y luego resolver la referencia
 
 Regla 2 - Crear vs Modificar:
-- Si NO hay carrito activo ({{CARRITO_ID}} = ninguno) = usar crear_nuevo_carrito
-- Si SI hay carrito activo = usar agregar_al_carrito
+- Si NO hay carrito activo ({{CARRITO_ID}} = ninguno) Y el cliente pide 1 producto = usar crear_nuevo_carrito
+- Si NO hay carrito activo ({{CARRITO_ID}} = ninguno) Y el cliente pide MAS DE UN producto = usar crear_nuevo_carrito_con_varios_articulos
+- Si SI hay carrito activo Y el cliente pide 1 producto = usar agregar_al_carrito
+- Si SI hay carrito activo Y el cliente pide MAS DE UN producto = usar agregar_varios_articulos_al_carrito
 
 Regla 3 - Cantidad por defecto:
 - Si no se especifica cantidad = cantidad = 1
@@ -143,7 +145,8 @@ IMPORTANTE: Cada producto tiene su PROPIA cantidad. NO usar la misma cantidad pa
 ## REGLA CRITICA PARA MULTIPLES PRODUCTOS
 
 Cuando el cliente pide agregar MAS DE UN producto en un solo mensaje:
-- USAR agregar_varios_articulos_al_carrito (NO agregar_al_carrito multiple veces)
+- Si NO hay carrito activo: USAR crear_nuevo_carrito_con_varios_articulos (NO crear_nuevo_carrito)
+- Si SI hay carrito activo: USAR agregar_varios_articulos_al_carrito (NO agregar_al_carrito multiple veces)
 - EXTRAER la cantidad ESPECIFICA de cada producto del mensaje
 - Si dice "10 de la 1, 20 de la 2" = producto 1 con 10 unidades, producto 2 con 20 unidades
 - NUNCA usar la misma cantidad para todos si el cliente especifico cantidades diferentes
