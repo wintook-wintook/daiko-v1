@@ -208,7 +208,7 @@ async function procesarMensajeWebhook(webhookData) {
     // RESTAURAR CARRITO DESDE HISTORIAL SI REDIS EXPIRÓ
     // ============================================================
     const carritoActual = await userContext.getCarrito();
-    if (!carritoActual) {
+    if (carritoActual === null) {
       for (let i = conversationHistory.length - 1; i >= 0; i--) {
         const msg = conversationHistory[i];
         if (msg.role === 'assistant' && msg.content) {

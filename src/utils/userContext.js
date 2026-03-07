@@ -71,7 +71,7 @@ class UserContext {
   // Obtener carrito
   async getCarrito() {
     const carrito = await redis.hget(this.key, 'carrito_id');
-    return carrito || null;  // Devolver null si es vacío
+    return carrito !== null ? carrito : null;  // null solo si la clave no existe en Redis
   }
 
   // V25.0: Obtener folio del carrito activo
