@@ -282,6 +282,7 @@ function buildCarritoPrompt(contexto) {
  * Tools permitidas para CARRITO_CREAR
  */
 const CARRITO_CREAR_TOOLS = [
+  'buscar_productos',
   'crear_nuevo_carrito',
   'crear_nuevo_carrito_con_varios_articulos'
 ];
