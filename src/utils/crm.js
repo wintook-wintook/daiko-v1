@@ -667,11 +667,13 @@ async function crearOrden(carritoId) {
       };
     }
   } catch (error) {
-    console.error('Error crearOrden:', error.message);
+    const apiData = error.response && error.response.data ? error.response.data : null;
+    const apiMessage = apiData && apiData.message ? apiData.message : null;
+    console.error('Error crearOrden:', error.message, apiData ? JSON.stringify(apiData) : '');
     return {
       success: false,
       data: [],
-      message: `Error al crear el pedido: ${error.message}`
+      message: apiMessage || `Error al crear el pedido: ${error.message}`
     };
   }
 }
