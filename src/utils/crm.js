@@ -668,7 +668,7 @@ async function crearOrden(carritoId) {
     }
   } catch (error) {
     const apiData = error.response && error.response.data ? error.response.data : null;
-    const apiMessage = apiData && apiData.message ? apiData.message : null;
+    const apiMessage = apiData ? (typeof apiData === 'string' ? apiData : (apiData.message || null)) : null;
     console.error('Error crearOrden:', error.message, apiData ? JSON.stringify(apiData) : '');
     return {
       success: false,
