@@ -68,6 +68,10 @@ NUNCA respondas sobre PDF, órdenes o facturas sin PRIMERO ejecutar la herramien
 "Pedido confirmado! Tu número de orden es: [ORDEN_ID]
 Te notificaremos cuando esté listo."
 
+### Si crear_orden devuelve error (success: false):
+Mostrar el mensaje EXACTO que devolvió la herramienta. NO parafrasear ni suavizar.
+Ejemplo: si message es "la cotización se encuentra Ganada" → responder exactamente eso.
+
 ### Si no hay carrito:
 "Para generar una cotización o confirmar un pedido, primero necesitas agregar productos a tu carrito. Que producto buscas?"
 
