@@ -26,7 +26,7 @@ let getApiData = async (config, retryCount = 1) => {
         throw new Error(`Error: Se alcanzó el número máximo de intentos (${maxRetries}). Código 401 Unauthorized.`);
       }
     } else {
-      throw new Error(error.message);
+      throw error;
     }
   }
 };
