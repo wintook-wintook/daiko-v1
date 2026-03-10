@@ -605,8 +605,37 @@ console.log({obj: "UserContext", contextStr});
       folio: data.folio || null,
       ultimaBusqueda,
       productos,
-      ultimaAccion: data.ultima_accion || null
+      ultimaAccion: data.ultima_accion || null,
+      modoVendedor: data.modo_vendedor === 'true'
     };
+  }
+
+  // ============================================================
+  // MODO VENDEDOR
+  // ============================================================
+
+  async setModoVendedor(activo) {
+    await redis.hset(this.key, 'modo_vendedor', activo ? 'true' : 'false');
+    await redis.expire(this.key, this.ttl);
+  }
+
+  async setClienteVendedor(clienteData) {
+    await redis.hset(this.key, 'cliente_vendedor', JSON.stringify(clienteData));
+    await redis.expire(this.key, this.ttl);
+  }
+
+  async getClienteVendedor() {
+    const data = await redis.hget(this.key, 'cliente_vendedor');
+    if (!data) return null;
+    try {
+      return JSON.parse(data);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async clearModoVendedor() {
+    await redis.hdel(this.key, 'modo_vendedor', 'cliente_vendedor');
   }
 }
 

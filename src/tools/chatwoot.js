@@ -291,7 +291,8 @@ async function procesarMensajeWebhook(webhookData) {
         // PASO 2: Enrutar a prompt y tools especializados
         const ruteo = enrutarSolicitud(clasificacion, {
           ...contextoClasificador,
-          nombre: await userContext.getNombre()
+          nombre: await userContext.getNombre(),
+          clienteVendedor: await userContext.getClienteVendedor()
         });
 
         if (!ruteo.usarFallback && ruteo.prompt) {
@@ -319,6 +320,31 @@ async function procesarMensajeWebhook(webhookData) {
       }
     } else {
       console.log('ℹ️ Multi-prompt desactivado (USAR_MULTI_PROMPT=false)');
+    }
+
+    // ============================================================
+    // COMANDOS DE MODO VENDEDOR (sin GPT)
+    // ============================================================
+    const msgNorm = messageContent.trim().toLowerCase();
+    if (msgNorm === '/vendedor') {
+      await userContext.setModoVendedor(true);
+      const respuestaVendedor = 'Modo vendedor activado. Con que cliente deseas trabajar?';
+      conversationHistory.push({ role: 'assistant', content: respuestaVendedor });
+      return {
+        success: true,
+        data: { conversationId, response: respuestaVendedor, fileName: '', userId, senderName, originalMessage: messageContent },
+        message: 'Mensaje procesado correctamente'
+      };
+    }
+    if (msgNorm === '/salirvendedor') {
+      await userContext.clearModoVendedor();
+      const respuestaSalir = 'Modo vendedor desactivado.';
+      conversationHistory.push({ role: 'assistant', content: respuestaSalir });
+      return {
+        success: true,
+        data: { conversationId, response: respuestaSalir, fileName: '', userId, senderName, originalMessage: messageContent },
+        message: 'Mensaje procesado correctamente'
+      };
     }
 
     // ============================================================

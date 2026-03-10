@@ -20,6 +20,7 @@ const {
 const { buildOrdenPrompt, ORDEN_TOOLS } = require('../prompts/orden_prompt');
 const { buildNecesidadPrompt, NECESIDAD_TOOLS } = require('../prompts/necesidad_prompt');
 const { buildAtributoPrompt, CONSULTAR_ATRIBUTO_TOOLS } = require('../prompts/atributo_prompt');
+const { buildVendedorPrompt, VENDEDOR_TOOLS } = require('../prompts/vendedor_prompt');
 
 /**
  * Configuración de cada acción
@@ -100,6 +101,13 @@ const ACCION_CONFIG = {
     tools: CONSULTAR_ATRIBUTO_TOOLS,
     requiereTools: true,
     descripcion: 'Consultar valores únicos de atributo de producto'
+  },
+
+  'BUSQUEDA_CLIENTE': {
+    buildPrompt: buildVendedorPrompt,
+    tools: VENDEDOR_TOOLS,
+    requiereTools: true,
+    descripcion: 'Buscar y seleccionar cliente en modo vendedor'
   },
 
   'CONVERSACION': {

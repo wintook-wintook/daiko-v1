@@ -39,6 +39,7 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 - Última búsqueda realizada: {{ULTIMA_BUSQUEDA}}
 - Cantidad de productos mostrados: {{CANTIDAD_PRODUCTOS}}
 - Última acción ejecutada: {{ULTIMA_ACCION}}
+- Modo vendedor activo: {{MODO_VENDEDOR}}
 - Productos mostrados recientemente:
 {{PRODUCTOS_MOSTRADOS}}
 
@@ -51,6 +52,10 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 5. Asigna un nivel de confianza (0.0 a 1.0)
 
 ## REGLAS ESPECIALES
+
+### Para modo vendedor (PRIORIDAD MAXIMA):
+- Si {{MODO_VENDEDOR}} = true → clasificar SIEMPRE como BUSQUEDA_CLIENTE sin importar el contenido del mensaje
+- Excepcion: si el mensaje empieza con "/" (comando de sistema) → REINICIAR u otras acciones de sistema
 
 ### Para distinguir BUSQUEDA_PRODUCTO vs NECESIDAD:
 - Si el mensaje menciona un producto o sustantivo concreto → SIEMPRE es BUSQUEDA_PRODUCTO, sin importar el verbo usado
@@ -200,6 +205,7 @@ function buildClasificadorPrompt(contexto = {}) {
   const productos = contexto.productos || [];
   const cantidadProductos = productos.length;
   const ultimaAccion = contexto.ultimaAccion || 'ninguna';
+  const modoVendedor = contexto.modoVendedor ? 'true' : 'false';
 
   // Formatear productos mostrados
   let productosStr = 'Ninguno';
@@ -218,6 +224,7 @@ function buildClasificadorPrompt(contexto = {}) {
     .replace('{{ULTIMA_BUSQUEDA}}', ultimaBusqueda)
     .replace('{{CANTIDAD_PRODUCTOS}}', cantidadProductos.toString())
     .replace('{{ULTIMA_ACCION}}', ultimaAccion)
+    .replace('{{MODO_VENDEDOR}}', modoVendedor)
     .replace('{{PRODUCTOS_MOSTRADOS}}', productosStr);
 }
 
@@ -232,6 +239,7 @@ function validarRespuestaClasificador(respuesta) {
     'SALUDO',
     'BUSQUEDA_PRODUCTO',
     'BUSQUEDA_CATEGORIA',
+    'BUSQUEDA_CLIENTE',
     'CARRITO_CREAR',
     'CARRITO_MODIFICAR',
     'CARRITO_CONSULTAR',
@@ -277,6 +285,7 @@ const ACCIONES_VALIDAS = [
   'PAGINACION',
   'NECESIDAD',
   'CONSULTA_ATRIBUTO',
+  'BUSQUEDA_CLIENTE',
   'CONVERSACION',
   'REINICIAR',
   'DESCONOCIDO'

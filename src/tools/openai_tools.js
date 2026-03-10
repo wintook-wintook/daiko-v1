@@ -2,7 +2,7 @@
 // ACTUALIZADO: V24.0 - PASO 8 (Normalización) + PASO 9 (Canonización) separados
 // Según documento normativo MBC01 v2.2
 
-const { obtenerCategorias, buscarProductos, obtenerDetalleProducto, agregarAlCarrito, agregarVariosArticulosAlCarrito, crearNuevoCarrito, crearNuevoCarritoConVariosArticulos, obtenerCarritosDisponibles, verCarrito, crearOrden, cancelarCarrito, generarPdf, copiarArticulosEntreCarritos, copiarArticulosDeUnCarritoExisenteAUnoNuevo, actualizarObservaciones, consultarAtributoProducto } = require('../utils/crm');
+const { obtenerCategorias, buscarProductos, obtenerDetalleProducto, agregarAlCarrito, agregarVariosArticulosAlCarrito, crearNuevoCarrito, crearNuevoCarritoConVariosArticulos, obtenerCarritosDisponibles, verCarrito, crearOrden, cancelarCarrito, generarPdf, copiarArticulosEntreCarritos, copiarArticulosDeUnCarritoExisenteAUnoNuevo, actualizarObservaciones, consultarAtributoProducto, buscarClientesPorNombre, buscarCliente } = require('../utils/crm');
 const { ejecutarBusquedaExterna } = require('../utils/busqueda_externa_service');
 const { resolverCanonico, resolverMultiplesCanonico } = require('../utils/canonicalizacion_service');
 const UserContext = require('../utils/userContext');
@@ -722,6 +722,45 @@ REGLAS (9.4):
         strict: true
       }
     }
+  },
+  {
+    type: "function",
+    function: {
+      name: "buscar_clientes",
+      description: "Busca clientes por nombre en modo vendedor. Usar cuando el vendedor escribe un nombre de cliente para buscarlo.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Nombre o parte del nombre del cliente a buscar"
+          }
+        },
+        required: ["query"],
+        additionalProperties: false
+      },
+      strict: true
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "asignar_cliente",
+      description: "Selecciona un cliente para trabajar con el en modo vendedor. Todas las operaciones posteriores usaran este cliente.",
+      parameters: {
+        type: "object",
+        properties: {
+          cliente_id: {
+            type: "number",
+            description: "CLIENTE_ID del cliente seleccionado de la lista"
+          }
+        },
+        required: ["cliente_id"],
+        additionalProperties: false
+      },
+      strict: true
+    }
+  }
   ];
 
 
@@ -1389,6 +1428,30 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
 
       case "consultar_atributo_producto": {
         return await consultarAtributoProducto(args.query, args.atributo, accountId);
+      }
+
+      case "buscar_clientes": {
+        const resultadoClientes = await buscarClientesPorNombre(args.query);
+        await userContext.setUltimaAccion('busqueda_clientes');
+        if (resultadoClientes.success && resultadoClientes.data.length > 0) {
+          resultadoClientes.texto_formateado = resultadoClientes.data.map(function(c, i) {
+            return (i + 1) + ') ID: ' + c.CLIENTE_ID + ' - ' + c.NOMBRE_COMERCIAL;
+          }).join('\n') + '\n\nCon cual deseas trabajar?';
+        }
+        return resultadoClientes;
+      }
+
+      case "asignar_cliente": {
+        const clienteAsignado = await buscarCliente(args.cliente_id);
+        if (clienteAsignado) {
+          await userContext.setClienteVendedor(clienteAsignado);
+          return {
+            success: true,
+            data: clienteAsignado,
+            message: 'Trabajando con ' + clienteAsignado.NOMBRE_COMERCIAL + '. Que deseas hacer?'
+          };
+        }
+        return { success: false, message: 'No se encontro el cliente', preserveCurrentCart: true };
       }
 
       default:

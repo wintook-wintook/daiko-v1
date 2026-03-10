@@ -74,10 +74,19 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
   url_crm_zeus = await url_crm_zeus_;
   api_access_token = await api_access_token_;
 
-  //console.log({info});
-
   let {email, phone_number, contact_id, userContext} = info;
   phone_number = (phone_number ? phone_number.substr(-10) : phone_number);
+
+  // Modo vendedor: usar cliente seleccionado por el vendedor
+  const clienteVendedor = await userContext.getClienteVendedor();
+  if (clienteVendedor && clienteVendedor.CLIENTE_ID) {
+    cliente_id = clienteVendedor.CLIENTE_ID;
+    moneda_id = clienteVendedor.MONEDA_ID || moneda_id;
+    vendedor_id = clienteVendedor.VENDEDOR_ID || vendedor_id;
+    celular = phone_number || celular;
+    return { success: true, data: clienteVendedor, preserveCurrentCart: true };
+  }
+
   let cliente_redis = await userContext.getCliente();
 
   let data = JSON.stringify({});
@@ -1084,6 +1093,31 @@ async function copiarArticulosDeUnCarritoExisenteAUnoNuevo(carritoOrigenId, arti
   }
 }
 
+async function buscarClientesPorNombre(nombre) {
+  let data = JSON.stringify({});
+  let config = getConfigApiDaiko('getCustomers', data);
+  try {
+    const response = await getApiData(config);
+    const clientes = response.data;
+    const nombreUpper = nombre.toUpperCase();
+    const filtrados = clientes.filter(function(c) {
+      return c.NOMBRE_COMERCIAL && c.NOMBRE_COMERCIAL.toUpperCase().indexOf(nombreUpper) !== -1;
+    }).slice(0, 10);
+    return {
+      success: true,
+      data: filtrados,
+      message: filtrados.length > 0
+        ? 'Se encontraron ' + filtrados.length + ' cliente(s)'
+        : 'No se encontraron clientes con ese nombre'
+    };
+  } catch (error) {
+    const apiData = error.response && error.response.data ? error.response.data : null;
+    const apiMessage = apiData ? (typeof apiData === 'string' ? apiData : (apiData.message || null)) : null;
+    console.error('Error buscarClientesPorNombre:', error.message, apiData ? JSON.stringify(apiData) : '');
+    return { success: false, data: [], message: apiMessage || 'Error al buscar clientes: ' + error.message };
+  }
+}
+
 module.exports = {
   buscarcliente,
   buscarcliente2,
@@ -1102,5 +1136,7 @@ module.exports = {
   copiarArticulosEntreCarritos,
   copiarArticulosDeUnCarritoExisenteAUnoNuevo,
   actualizarObservaciones,
-  consultarAtributoProducto
+  consultarAtributoProducto,
+  buscarClientesPorNombre,
+  buscarCliente
 };
