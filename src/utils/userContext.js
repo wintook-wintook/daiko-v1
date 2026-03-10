@@ -635,7 +635,7 @@ console.log({obj: "UserContext", contextStr});
   }
 
   async clearModoVendedor() {
-    await redis.hdel(this.key, 'modo_vendedor', 'cliente_vendedor');
+    await redis.hdel(this.key, 'modo_vendedor', 'cliente_vendedor', 'carrito_id', 'folio', 'cliente');
   }
 }
 
