@@ -32,14 +32,14 @@ REGLA CRITICA: Si la respuesta de buscar_clientes contiene texto_formateado, COP
 
 Si no hay texto_formateado, usar este formato exacto:
 
-1) ID: [CLIENTE_ID] - [NOMBRE_COMERCIAL]
-2) ID: [CLIENTE_ID] - [NOMBRE_COMERCIAL]
+1) ID: [CLIENTE_ID] - [NOMBRE]
+2) ID: [CLIENTE_ID] - [NOMBRE]
 
 Con cual deseas trabajar?
 
 ## FORMATO DESPUES DE ASIGNAR CLIENTE
 
-"Trabajando con [NOMBRE_COMERCIAL]. Que deseas hacer?"
+"Trabajando con [NOMBRE]. Que deseas hacer?"
 
 ## FORMATO DE ERRORES
 
@@ -54,7 +54,7 @@ Si no se encuentran clientes: "No encontre clientes con ese nombre. Intenta con 
 
 function buildVendedorPrompt(contexto) {
   const clienteVendedor = contexto.clienteVendedor
-    ? contexto.clienteVendedor.NOMBRE_COMERCIAL || ('ID: ' + contexto.clienteVendedor.CLIENTE_ID)
+    ? contexto.clienteVendedor.NOMBRE || ('ID: ' + contexto.clienteVendedor.CLIENTE_ID)
     : 'ninguno';
 
   return promptVendedor

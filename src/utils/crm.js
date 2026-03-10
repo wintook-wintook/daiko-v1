@@ -1101,7 +1101,7 @@ async function buscarClientesPorNombre(nombre) {
     const clientes = response.data;
     const nombreUpper = nombre.toUpperCase();
     const filtrados = clientes.filter(function(c) {
-      return c.NOMBRE_COMERCIAL && c.NOMBRE_COMERCIAL.toUpperCase().indexOf(nombreUpper) !== -1;
+      return c.NOMBRE && c.NOMBRE.toUpperCase().indexOf(nombreUpper) !== -1;
     }).slice(0, 10);
     return {
       success: true,
@@ -1115,6 +1115,21 @@ async function buscarClientesPorNombre(nombre) {
     const apiMessage = apiData ? (typeof apiData === 'string' ? apiData : (apiData.message || null)) : null;
     console.error('Error buscarClientesPorNombre:', error.message, apiData ? JSON.stringify(apiData) : '');
     return { success: false, data: [], message: apiMessage || 'Error al buscar clientes: ' + error.message };
+  }
+}
+
+async function buscarClientePorIdLocal(id) {
+  let data = JSON.stringify({});
+  let config = getConfigApiDaiko('getCustomers', data);
+  try {
+    const response = await getApiData(config);
+    const cliente = response.data.find(function(c) {
+      return c.CLIENTE_ID === id || c.CLIENTE_ID === parseInt(id, 10);
+    });
+    return cliente || null;
+  } catch (error) {
+    console.error('Error buscarClientePorIdLocal:', error.message);
+    return null;
   }
 }
 
@@ -1138,5 +1153,6 @@ module.exports = {
   actualizarObservaciones,
   consultarAtributoProducto,
   buscarClientesPorNombre,
+  buscarClientePorIdLocal,
   buscarCliente
 };

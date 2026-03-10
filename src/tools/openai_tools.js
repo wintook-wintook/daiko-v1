@@ -2,7 +2,7 @@
 // ACTUALIZADO: V24.0 - PASO 8 (Normalización) + PASO 9 (Canonización) separados
 // Según documento normativo MBC01 v2.2
 
-const { obtenerCategorias, buscarProductos, obtenerDetalleProducto, agregarAlCarrito, agregarVariosArticulosAlCarrito, crearNuevoCarrito, crearNuevoCarritoConVariosArticulos, obtenerCarritosDisponibles, verCarrito, crearOrden, cancelarCarrito, generarPdf, copiarArticulosEntreCarritos, copiarArticulosDeUnCarritoExisenteAUnoNuevo, actualizarObservaciones, consultarAtributoProducto, buscarClientesPorNombre, buscarCliente } = require('../utils/crm');
+const { obtenerCategorias, buscarProductos, obtenerDetalleProducto, agregarAlCarrito, agregarVariosArticulosAlCarrito, crearNuevoCarrito, crearNuevoCarritoConVariosArticulos, obtenerCarritosDisponibles, verCarrito, crearOrden, cancelarCarrito, generarPdf, copiarArticulosEntreCarritos, copiarArticulosDeUnCarritoExisenteAUnoNuevo, actualizarObservaciones, consultarAtributoProducto, buscarClientesPorNombre, buscarClientePorIdLocal } = require('../utils/crm');
 const { ejecutarBusquedaExterna } = require('../utils/busqueda_externa_service');
 const { resolverCanonico, resolverMultiplesCanonico } = require('../utils/canonicalizacion_service');
 const UserContext = require('../utils/userContext');
@@ -1434,20 +1434,20 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
         await userContext.setUltimaAccion('busqueda_clientes');
         if (resultadoClientes.success && resultadoClientes.data.length > 0) {
           resultadoClientes.texto_formateado = resultadoClientes.data.map(function(c, i) {
-            return (i + 1) + ') ID: ' + c.CLIENTE_ID + ' - ' + c.NOMBRE_COMERCIAL;
+            return (i + 1) + ') ID: ' + c.CLIENTE_ID + ' - ' + c.NOMBRE;
           }).join('\n') + '\n\nCon cual deseas trabajar?';
         }
         return resultadoClientes;
       }
 
       case "asignar_cliente": {
-        const clienteAsignado = await buscarCliente(args.cliente_id);
+        const clienteAsignado = await buscarClientePorIdLocal(args.cliente_id);
         if (clienteAsignado) {
           await userContext.setClienteVendedor(clienteAsignado);
           return {
             success: true,
             data: clienteAsignado,
-            message: 'Trabajando con ' + clienteAsignado.NOMBRE_COMERCIAL + '. Que deseas hacer?'
+            message: 'Trabajando con ' + clienteAsignado.NOMBRE + '. Que deseas hacer?'
           };
         }
         return { success: false, message: 'No se encontro el cliente', preserveCurrentCart: true };
