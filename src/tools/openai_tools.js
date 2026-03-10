@@ -721,46 +721,45 @@ REGLAS (9.4):
         },
         strict: true
       }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "buscar_clientes",
-      description: "Busca clientes por nombre en modo vendedor. Usar cuando el vendedor escribe un nombre de cliente para buscarlo.",
-      parameters: {
-        type: "object",
-        properties: {
-          query: {
-            type: "string",
-            description: "Nombre o parte del nombre del cliente a buscar"
-          }
+    },
+    {
+      type: "function",
+      function: {
+        name: "buscar_clientes",
+        description: "Busca clientes por nombre en modo vendedor. Usar cuando el vendedor escribe un nombre de cliente para buscarlo.",
+        parameters: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "Nombre o parte del nombre del cliente a buscar"
+            }
+          },
+          required: ["query"],
+          additionalProperties: false
         },
-        required: ["query"],
-        additionalProperties: false
-      },
-      strict: true
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "asignar_cliente",
-      description: "Selecciona un cliente para trabajar con el en modo vendedor. Todas las operaciones posteriores usaran este cliente.",
-      parameters: {
-        type: "object",
-        properties: {
-          cliente_id: {
-            type: "number",
-            description: "CLIENTE_ID del cliente seleccionado de la lista"
-          }
+        strict: true
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "asignar_cliente",
+        description: "Selecciona un cliente para trabajar con el en modo vendedor. Todas las operaciones posteriores usaran este cliente.",
+        parameters: {
+          type: "object",
+          properties: {
+            cliente_id: {
+              type: "number",
+              description: "CLIENTE_ID del cliente seleccionado de la lista"
+            }
+          },
+          required: ["cliente_id"],
+          additionalProperties: false
         },
-        required: ["cliente_id"],
-        additionalProperties: false
-      },
-      strict: true
+        strict: true
+      }
     }
-  }
   ];
 
 
