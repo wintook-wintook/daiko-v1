@@ -616,6 +616,10 @@ console.log({obj: "UserContext", contextStr});
 
   async setModoVendedor(activo) {
     await redis.hset(this.key, 'modo_vendedor', activo ? 'true' : 'false');
+    if (activo) {
+      await redis.hset(this.key, 'carrito_id', '');
+      await redis.hset(this.key, 'folio', '');
+    }
     await redis.expire(this.key, this.ttl);
   }
 
