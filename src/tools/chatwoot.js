@@ -39,6 +39,8 @@ const {
   resolverParametrosClasificador
 } = require('../services/referencia_service');
 
+const { ejecutarQueryComando } = require('../utils/query_commands');
+
 // Feature toggle para activación gradual
 const USAR_MULTI_PROMPT = process.env.USAR_MULTI_PROMPT === 'true' || false;
 
@@ -228,6 +230,43 @@ async function procesarMensajeWebhook(webhookData) {
             break;
           }
         }
+      }
+    }
+
+    // ============================================================
+    // COMANDOS DE CONSULTA (prefijo '?') - antes del clasificador
+    // Usan cliente_id/celular ya seteados por buscarcliente2
+    // ============================================================
+    if (messageContent.trim().startsWith('?')) {
+      const resultadoQuery = await ejecutarQueryComando(messageContent);
+      if (resultadoQuery !== null) {
+        let respuestaQuery;
+        if (!resultadoQuery.success) {
+          respuestaQuery = resultadoQuery.error;
+        } else {
+          const gptFormat = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [
+              {
+                role: 'system',
+                content: 'Eres un asistente de ventas. Formatea el siguiente resultado de la API de forma natural y concisa para el usuario. Sin markdown ni símbolos especiales.'
+              },
+              {
+                role: 'user',
+                content: `Comando: ${resultadoQuery.cmd}\nResultado: ${JSON.stringify(resultadoQuery.data)}`
+              }
+            ],
+            temperature: 0.3,
+            max_tokens: 500
+          });
+          respuestaQuery = gptFormat.choices[0].message.content;
+        }
+        conversationHistory.push({ role: 'assistant', content: respuestaQuery });
+        return {
+          success: true,
+          data: { conversationId, response: respuestaQuery, fileName: '', userId, senderName, originalMessage: messageContent },
+          message: 'Mensaje procesado correctamente'
+        };
       }
     }
 

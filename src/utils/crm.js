@@ -1118,6 +1118,42 @@ async function buscarClientesPorNombre(nombre) {
   }
 }
 
+async function getBalanceDue() {
+  let data = JSON.stringify({ cliente_id, celular });
+  let config = getConfigApiDaiko('getBalanceDue', data);
+  try {
+    const response = await getApiData(config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error('Error getBalanceDue:', error.message);
+    return { success: false, data: null, message: error.message };
+  }
+}
+
+async function getStockArticle(articulo_id) {
+  let data = JSON.stringify({ cliente_id, celular, articulo_id });
+  let config = getConfigApiDaiko('getStockArticle', data);
+  try {
+    const response = await getApiData(config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error('Error getStockArticle:', error.message);
+    return { success: false, data: null, message: error.message };
+  }
+}
+
+async function getTrackingPedido(folio) {
+  let data = JSON.stringify({ cliente_id, celular, folio });
+  let config = getConfigApiDaiko('getTrackingPedido', data);
+  try {
+    const response = await getApiData(config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error('Error getTrackingPedido:', error.message);
+    return { success: false, data: null, message: error.message };
+  }
+}
+
 async function buscarClientePorIdLocal(id) {
   let data = JSON.stringify({});
   let config = getConfigApiDaiko('getCustomers', data);
@@ -1154,5 +1190,8 @@ module.exports = {
   consultarAtributoProducto,
   buscarClientesPorNombre,
   buscarClientePorIdLocal,
-  buscarCliente
+  buscarCliente,
+  getBalanceDue,
+  getStockArticle,
+  getTrackingPedido
 };
