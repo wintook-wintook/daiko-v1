@@ -112,6 +112,11 @@ Regla 9 - Distincion de modos de observaciones:
 - cambia/reemplaza/actualiza/modifica → modo="reemplazar" (sobreescribe todo)
 - quita/borra/elimina/limpia → modo="quitar" (deja vacio)
 
+Regla 10 - Consulta de carrito SIEMPRE desde API (CRITICA):
+- Cuando el cliente pide ver su carrito, SIEMPRE llamar ver_carrito({{CARRITO_ID}}) aunque ya existan datos del carrito en el historial de la conversacion
+- NUNCA responder con datos del historial al mostrar un carrito. El contenido puede haber cambiado desde afuera del bot
+- Esta regla aplica sin excepcion incluso si el carrito se mostro hace un momento
+
 ## EJEMPLOS DE OPERACIONES
 
 Ejemplo 1: "agrégalo" (sin carrito activo)
