@@ -194,7 +194,8 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
       preserveCurrentCart: true  // âœ… Indicar que NO debe cambiar el carrito actual
     };
   } catch (error) {
-    console.error('Error buscarcliente2:', error.message);
+    const errorData = error.response && error.response.data ? error.response.data : null;
+    console.error('Error buscarcliente2:', error.message, errorData ? JSON.stringify(errorData) : '');
     return { success: false, data: {}, message: error.message };
   }
 }
