@@ -90,8 +90,8 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
   let cliente_redis = await userContext.getCliente();
 
   let data = JSON.stringify({});
-  let urlExtra = '';
-  
+  let urlExtra;
+
   let buscarContacto = false;
 
   if(email && email.length > 4){
@@ -133,22 +133,24 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
 
 
 
-  let config = getConfigApiDaiko('', data, '', urlExtra);
+  let config;
   let response = [];
 
-
-  try {
-
-    response = await getApiData(config);
-    contacto = response.data[0];
-
-  } catch (error) {
-    // No se encontrÃ³ el contacto recuperar el CLIENTE_ID usando el CONTACTO_ID ASIGNADO
-
-    data = JSON.stringify({CLIENTE_ID: contact_id});
-    urlExtra = 'api/v1/org/get_Organizacion';
+  if (urlExtra) {
     config = getConfigApiDaiko('', data, '', urlExtra);
+    try {
+      response = await getApiData(config);
+      contacto = response.data[0];
+    } catch (error) {
+      buscarContacto = true;
+    }
+  } else {
     buscarContacto = true;
+  }
+
+  if (buscarContacto) {
+    data = JSON.stringify({ CLIENTE_ID: contact_id });
+    config = getConfigApiDaiko('', data, '', 'api/v1/org/get_Organizacion');
   }
 
   try {
