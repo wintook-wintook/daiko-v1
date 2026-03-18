@@ -193,7 +193,7 @@ async function procesarMensajeWebhook(webhookData) {
       userContext.toSystemContext()
     ]);
 
-    if (Cliente.data.NOMBRE_COMERCIAL) {
+    if (Cliente && Cliente.data && Cliente.data.NOMBRE_COMERCIAL) {
       await userContext.setNombre(Cliente.data.NOMBRE_COMERCIAL);
     }
 
