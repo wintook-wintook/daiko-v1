@@ -150,6 +150,32 @@ async function procesarMensajeWebhook(webhookData) {
     const userContext = new UserContext(userId);
 
     // ============================================================
+    // COMANDOS DE SISTEMA (prioridad absoluta - antes de cualquier API)
+    // ============================================================
+    const msgNormEarly = messageContent.trim().toLowerCase();
+    let respuestaComandoSistema = null;
+
+    if (/^(reinici(ar|ate|a)|reset|borrar\s*conversaci[oó]n|empezar\s*de\s*nuevo)\s*[!.?]*$/i.test(msgNormEarly)) {
+      await userContext.reset();
+      respuestaComandoSistema = 'Claro, a partir de este momento inicia una conversación nueva';
+    } else if (msgNormEarly === '/vendedor') {
+      await userContext.setModoVendedor(true);
+      respuestaComandoSistema = 'Modo vendedor activado. Con que cliente deseas trabajar?';
+    } else if (msgNormEarly === '/salirvendedor') {
+      await userContext.clearModoVendedor();
+      respuestaComandoSistema = 'Modo vendedor desactivado.';
+    }
+
+    if (respuestaComandoSistema !== null) {
+      console.log('⚡ Comando de sistema detectado:', msgNormEarly);
+      return {
+        success: true,
+        data: { conversationId, response: respuestaComandoSistema, fileName: '', userId, senderName, originalMessage: messageContent },
+        message: 'Mensaje procesado correctamente'
+      };
+    }
+
+    // ============================================================
     // FASE 1: Llamadas independientes en PARALELO
     // getOPENAI_APIKEY, getHooksCrm, keepAlive (todos independientes)
     // ============================================================
@@ -369,31 +395,6 @@ async function procesarMensajeWebhook(webhookData) {
       }
     } else {
       console.log('ℹ️ Multi-prompt desactivado (USAR_MULTI_PROMPT=false)');
-    }
-
-    // ============================================================
-    // COMANDOS DE MODO VENDEDOR (sin GPT)
-    // ============================================================
-    const msgNorm = messageContent.trim().toLowerCase();
-    if (msgNorm === '/vendedor') {
-      await userContext.setModoVendedor(true);
-      const respuestaVendedor = 'Modo vendedor activado. Con que cliente deseas trabajar?';
-      conversationHistory.push({ role: 'assistant', content: respuestaVendedor });
-      return {
-        success: true,
-        data: { conversationId, response: respuestaVendedor, fileName: '', userId, senderName, originalMessage: messageContent },
-        message: 'Mensaje procesado correctamente'
-      };
-    }
-    if (msgNorm === '/salirvendedor') {
-      await userContext.clearModoVendedor();
-      const respuestaSalir = 'Modo vendedor desactivado.';
-      conversationHistory.push({ role: 'assistant', content: respuestaSalir });
-      return {
-        success: true,
-        data: { conversationId, response: respuestaSalir, fileName: '', userId, senderName, originalMessage: messageContent },
-        message: 'Mensaje procesado correctamente'
-      };
     }
 
     // ============================================================
