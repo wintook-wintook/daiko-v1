@@ -196,7 +196,8 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
   } catch (error) {
     const errorData = error.response && error.response.data ? error.response.data : null;
     console.error('Error buscarcliente2:', error.message, errorData ? JSON.stringify(errorData) : '');
-    return { success: false, data: {}, message: error.message };
+    const apiMsg = Array.isArray(errorData) ? (errorData[0]?.opc || errorData[0]?.message) : (errorData?.opc || errorData?.message);
+    return { success: false, data: {}, message: apiMsg || error.message };
   }
 }
 
