@@ -193,6 +193,16 @@ async function procesarMensajeWebhook(webhookData) {
       userContext.toSystemContext()
     ]);
 
+    if (Cliente && !Cliente.success) {
+      console.error('❌ buscarcliente2 falló, abortando procesamiento:', Cliente.message);
+      const errorMsg = Cliente.message || 'No fue posible identificar al cliente. Por favor intenta más tarde.';
+      return {
+        success: true,
+        data: { conversationId, response: errorMsg, fileName: '', userId, senderName, originalMessage: messageContent },
+        message: 'Mensaje procesado correctamente'
+      };
+    }
+
     if (Cliente && Cliente.data && Cliente.data.NOMBRE_COMERCIAL) {
       await userContext.setNombre(Cliente.data.NOMBRE_COMERCIAL);
     }
