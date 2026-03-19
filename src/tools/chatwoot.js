@@ -549,7 +549,19 @@ async function procesarMensajeWebhook(webhookData) {
               tool_call_id: id,
               content: JSON.stringify(functionResult)
             });
-            
+
+            // Si la API devuelve error, cortar loop y responder al usuario directamente
+            if (functionResult && (functionResult.error === true || functionResult.success === false)) {
+              const errorMsg = functionResult.message || 'Ocurrió un error al procesar la solicitud.';
+              console.error(`  ❌ Tool ${name} devolvió error:`, errorMsg);
+              conversationHistory.push({ role: 'assistant', content: errorMsg });
+              return {
+                success: true,
+                data: { conversationId, response: errorMsg, fileName: '', userId, senderName, originalMessage: messageContent },
+                message: 'Mensaje procesado correctamente'
+              };
+            }
+
             console.log(`  ✅ Tool ${name} ejecutada exitosamente`);
 
           } catch (error) {
