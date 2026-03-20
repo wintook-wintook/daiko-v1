@@ -15,12 +15,24 @@ const { getApiData } = require('./functions');
 const { generarPDFCotizacion } = require('./pdf-make');
 
 let evalError = (data, title = '') => {
-  if (data.error && data.error === true) {
+  // Error nativo de JS (timeout, red, etc.)
+  if (data instanceof Error) {
+    const apiData = data.response && data.response.data ? data.response.data : null;
+    const apiMsg = Array.isArray(apiData)
+      ? (apiData[0] && (apiData[0].opc || apiData[0].message))
+      : (apiData && (apiData.opc || apiData.message));
+    const msg = apiMsg || data.message;
+    return { success: false, message: title ? title + msg : msg, preserveCurrentCart: true };
+  }
+  // Error explícito de la API ({ error: true, message: '...' })
+  if (data && data.error && data.error === true) {
     data.success = false;
     data.preserveCurrentCart = true;
-    data.message = title + data.message;
+    if (title) data.message = title + data.message;
     console.log(data);
+    return data;
   }
+  return null;
 }
 
 function getConfigApiDaiko(api, data, version = '1', urlExtra = ''){
@@ -64,11 +76,12 @@ async function buscarcliente(name){
       }
     };
   } catch (error) {
-    console.error('Error:', error.message);
+    console.error('Error buscarcliente:', error.message);
+    return evalError(error);
   }
 }
 
-  
+
 async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
   almacen_id = await info.almacen_id;
   url_crm_zeus = await url_crm_zeus_;
@@ -194,10 +207,8 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
       preserveCurrentCart: true  // âœ… Indicar que NO debe cambiar el carrito actual
     };
   } catch (error) {
-    const errorData = error.response && error.response.data ? error.response.data : null;
-    console.error('Error buscarcliente2:', error.message, errorData ? JSON.stringify(errorData) : '');
-    const apiMsg = Array.isArray(errorData) ? (errorData[0]?.opc || errorData[0]?.message) : (errorData?.opc || errorData?.message);
-    return { success: false, data: {}, message: apiMsg || error.message };
+    console.error('Error buscarcliente2:', error.message);
+    return evalError(error);
   }
 }
 
@@ -219,10 +230,11 @@ async function obtenerCategorias() {
       preserveCurrentCart: true  // âœ… Indicar que NO debe cambiar el carrito actual
     };
   } catch (error) {
-    console.error('Error:', error.message);
+    console.error('Error obtenerCategorias:', error.message);
+    return evalError(error);
   }
 }
-  
+
 async function buscarProductos(query, categoria = null, etiquetas = null, precioMax = null, current_page=1, per_page=100, filtros = null) {
   let data = { cliente_id: cliente_id, moneda_id: moneda_id, per_page };
   
@@ -348,9 +360,8 @@ async function buscarProductos(query, categoria = null, etiquetas = null, precio
       preserveCurrentCart: true  // ✅ Indicar que NO debe cambiar el carrito actual
     };
   } catch (error) {
-    console.error('Error:', error.message);
-    evalError(error)
-    return error;
+    console.error('Error buscarProductos:', error.message);
+    return evalError(error);
   }
 }
 
@@ -365,7 +376,8 @@ async function consultarAtributoProducto(query, atributo, accountId) {
   if (!resultado.success) {
     return {
       success: false,
-      message: resultado.message || `No se encontraron productos para "${query}"`
+      message: resultado.message || `No se encontraron productos para "${query}"`,
+      preserveCurrentCart: true
     };
   }
 
@@ -423,7 +435,8 @@ async function obtenerDetalleProducto(id) {
       preserveCurrentCart: true  // âœ… Indicar que NO debe cambiar el carrito actual
     };
   } catch (error) {
-    console.error('Error:', error.message);
+    console.error('Error obtenerDetalleProducto:', error.message);
+    return evalError(error);
   }
 }
 
@@ -446,10 +459,11 @@ async function agregarAlCarrito(productoId, cantidad, carritoId, opcion = "add")
       preserveCurrentCart: true  // âœ… Indicar que NO debe cambiar el carrito actual
     };
   } catch (error) {
-    console.error('Error:', error.message);
+    console.error('Error agregarAlCarrito:', error.message);
+    return evalError(error);
   }
 }
-  
+
 async function agregarVariosArticulosAlCarrito(carritoId, Productos, opcion = "add") {
   //console.log({carritoId, Productos, opcion});
 
@@ -474,11 +488,11 @@ async function agregarVariosArticulosAlCarrito(carritoId, Productos, opcion = "a
       };
     }
   } catch (error) {
-    console.error('Error:', error.message);
+    console.error('Error agregarVariosArticulosAlCarrito:', error.message);
+    return evalError(error);
   }
-
 }
-  
+
 async function crearNuevoCarrito(productoId, cantidad) {
   let data = JSON.stringify({ 
     "almacen_id":  almacen_id,
@@ -512,15 +526,10 @@ async function crearNuevoCarrito(productoId, cantidad) {
       preserveCurrentCart: true
     };
   } catch (error) {
-    console.error('Error:', error.message);
-    return {
-      success: false,
-      error: true,
-      message: `Error al crear carrito: ${error.message}`,
-      error_detalle: error.message
-    };
+    console.error('Error crearNuevoCarrito:', error.message);
+    return evalError(error, 'Error al crear carrito: ');
   }
-  
+
 }
 
 async function crearNuevoCarritoConVariosArticulos(Productos) {
@@ -554,13 +563,8 @@ async function crearNuevoCarritoConVariosArticulos(Productos) {
       preserveCurrentCart: true
     };
   } catch (error) {
-    console.error('Error:', error.message);
-    return {
-      success: false,
-      error: true,
-      message: `Error al crear carrito: ${error.message}`,
-      error_detalle: error.message
-    };
+    console.error('Error crearNuevoCarritoConVariosArticulos:', error.message);
+    return evalError(error, 'Error al crear carrito: ');
   }
 
 }
@@ -592,7 +596,8 @@ async function obtenerCarritosDisponibles() {
       };
     }
   } catch (error) {
-    console.error('Error:', error.message);
+    console.error('Error obtenerCarritosDisponibles:', error.message);
+    return evalError(error, 'Error al obtener carritos: ');
   }
 }
 
@@ -605,7 +610,8 @@ async function verCarrito(carrito_id) {
         total: 0,
         cantidad: 0,
       },
-      message: "No hay carrito asignado"
+      message: "No hay carrito asignado",
+      preserveCurrentCart: true
     };
   }
   let data = JSON.stringify({});
@@ -647,7 +653,8 @@ async function verCarrito(carrito_id) {
       };
     }
   } catch (error) {
-    console.error('Error:', error.message);
+    console.error('Error verCarrito:', error.message);
+    return evalError(error, 'Error al ver carrito: ');
   }
 }
 
@@ -658,7 +665,8 @@ async function crearOrden(carritoId) {
     return {
       success: false,
       data: [],
-      message: `El carrito no fue proporcionado`
+      message: `El carrito no fue proporcionado`,
+      preserveCurrentCart: true
     };
   }
   let data = JSON.stringify({ tipo_docto: tipoDocto, cliente_id, celular });
@@ -671,7 +679,8 @@ async function crearOrden(carritoId) {
       return {
         success: false,
         data: orden,
-        message: response.data.message
+        message: response.data.message,
+        preserveCurrentCart: true
       };
     }else{
       return {
@@ -681,14 +690,8 @@ async function crearOrden(carritoId) {
       };
     }
   } catch (error) {
-    const apiData = error.response && error.response.data ? error.response.data : null;
-    const apiMessage = apiData ? (typeof apiData === 'string' ? apiData : (apiData.message || null)) : null;
-    console.error('Error crearOrden:', error.message, apiData ? JSON.stringify(apiData) : '');
-    return {
-      success: false,
-      data: [],
-      message: apiMessage || `Error al crear el pedido: ${error.message}`
-    };
+    console.error('Error crearOrden:', error.message);
+    return evalError(error, 'Error al crear el pedido: ');
   }
 }
 
@@ -701,7 +704,8 @@ async function cancelarCarrito(carrito_id) {
         total: 0,
         cantidad: 0,
       },
-      message: "No hay carrito asignado"
+      message: "No hay carrito asignado",
+      preserveCurrentCart: true
     };
   }
   let data = JSON.stringify({});
@@ -736,9 +740,10 @@ async function cancelarCarrito(carrito_id) {
       };
     }
   } catch (error) {
-    console.error('Error:', error.message);
+    console.error('Error cancelarCarrito:', error.message);
+    return evalError(error, 'Error al cancelar el carrito: ');
   }
-  
+
 }
 
 async function actualizarObservaciones(carritoId, observaciones, modo = "set") {
@@ -852,7 +857,8 @@ async function generarPdf(carrito_id) {
         total: 0,
         cantidad: 0,
       },
-      message: "No hay carrito asignado"
+      message: "No hay carrito asignado",
+      preserveCurrentCart: true
     };
   }
   let {data} = await verCarrito(carrito_id);
@@ -923,14 +929,16 @@ async function copiarArticulosEntreCarritos(carritoOrigenId, carritoDestinoId, a
     if (!carritoOrigen.success) {
       return {
         success: false,
-        message: `El carrito origen ${carritoOrigenId} no existe o no se pudo acceder`
+        message: `El carrito origen ${carritoOrigenId} no existe o no se pudo acceder`,
+        preserveCurrentCart: true
       };
     }
 
     if (!carritoDestino.success) {
       return {
         success: false,
-        message: `El carrito destino ${carritoDestinoId} no existe o no se pudo acceder`
+        message: `El carrito destino ${carritoDestinoId} no existe o no se pudo acceder`,
+        preserveCurrentCart: true
       };
     }
 
@@ -966,7 +974,8 @@ async function copiarArticulosEntreCarritos(carritoOrigenId, carritoDestinoId, a
     } else {
       return {
         success: false,
-        message: 'Debes especificar artÃ­culos cuando usas modo "especificos"'
+        message: 'Debes especificar artÃ­culos cuando usas modo "especificos"',
+        preserveCurrentCart: true
       };
     }
 
@@ -974,7 +983,8 @@ async function copiarArticulosEntreCarritos(carritoOrigenId, carritoDestinoId, a
     if (articulosACopiar.length === 0) {
       return {
         success: false,
-        message: 'No hay artÃ­culos para copiar'
+        message: 'No hay artÃ­culos para copiar',
+        preserveCurrentCart: true
       };
     }
 
@@ -996,16 +1006,17 @@ async function copiarArticulosEntreCarritos(carritoOrigenId, carritoDestinoId, a
     } else {
       return {
         success: false,
-        message: `Error al agregar artÃ­culos al carrito destino: ${resultado.message}`
+        message: `Error al agregar artÃ­culos al carrito destino: ${resultado.message}`,
+        preserveCurrentCart: true
       };
     }
 
   } catch (error) {
-    console.error('âŒ Error en copiarArticulosEntreCarritos:', error);
-    return {
-      success: false,
-      message: `Error al copiar artÃ­culos: ${error.message}`
-    };
+    console.error('Error copiarArticulosEntreCarritos:', error.message);
+    return evalError(error, 'Error al copiar artículos: ');
+
+
+
   }
 }
 
@@ -1018,7 +1029,8 @@ async function copiarArticulosDeUnCarritoExisenteAUnoNuevo(carritoOrigenId, arti
     if (!carritoOrigen.success) {
       return {
         success: false,
-        message: `El carrito origen ${carritoOrigenId} no existe o no se pudo acceder`
+        message: `El carrito origen ${carritoOrigenId} no existe o no se pudo acceder`,
+        preserveCurrentCart: true
       };
     }
 
@@ -1054,7 +1066,8 @@ async function copiarArticulosDeUnCarritoExisenteAUnoNuevo(carritoOrigenId, arti
     } else {
       return {
         success: false,
-        message: 'Debes especificar artÃ­culos cuando usas modo "especificos"'
+        message: 'Debes especificar artÃ­culos cuando usas modo "especificos"',
+        preserveCurrentCart: true
       };
     }
 
@@ -1062,7 +1075,8 @@ async function copiarArticulosDeUnCarritoExisenteAUnoNuevo(carritoOrigenId, arti
     if (articulosACopiar.length === 0) {
       return {
         success: false,
-        message: 'No hay artÃ­culos para copiar'
+        message: 'No hay artÃ­culos para copiar',
+        preserveCurrentCart: true
       };
     }
 
@@ -1085,16 +1099,17 @@ async function copiarArticulosDeUnCarritoExisenteAUnoNuevo(carritoOrigenId, arti
     } else {
       return {
         success: false,
-        message: `Error al agregar artÃ­culos al carrito destino: ${resultado.message}`
+        message: `Error al agregar artÃ­culos al carrito destino: ${resultado.message}`,
+        preserveCurrentCart: true
       };
     }
 
   } catch (error) {
-    console.error('âŒ Error en copiarArticulosEntreCarritos:', error);
-    return {
-      success: false,
-      message: `Error al copiar artÃ­culos: ${error.message}`
-    };
+    console.error('Error copiarArticulosDeUnCarritoExisenteAUnoNuevo:', error.message);
+    return evalError(error, 'Error al copiar artículos: ');
+
+
+
   }
 }
 
@@ -1116,10 +1131,8 @@ async function buscarClientesPorNombre(nombre) {
         : 'No se encontraron clientes con ese nombre'
     };
   } catch (error) {
-    const apiData = error.response && error.response.data ? error.response.data : null;
-    const apiMessage = apiData ? (typeof apiData === 'string' ? apiData : (apiData.message || null)) : null;
-    console.error('Error buscarClientesPorNombre:', error.message, apiData ? JSON.stringify(apiData) : '');
-    return { success: false, data: [], message: apiMessage || 'Error al buscar clientes: ' + error.message };
+    console.error('Error buscarClientesPorNombre:', error.message);
+    return evalError(error, 'Error al buscar clientes: ');
   }
 }
 
@@ -1131,7 +1144,7 @@ async function getBalanceDue() {
     return { success: true, data: response.data };
   } catch (error) {
     console.error('Error getBalanceDue:', error.message);
-    return { success: false, data: null, message: error.message };
+    return evalError(error, 'Error al consultar saldo: ');
   }
 }
 
@@ -1143,7 +1156,7 @@ async function getStockArticle(articulo_id) {
     return { success: true, data: response.data };
   } catch (error) {
     console.error('Error getStockArticle:', error.message);
-    return { success: false, data: null, message: error.message };
+    return evalError(error, 'Error al consultar existencia: ');
   }
 }
 
@@ -1155,7 +1168,7 @@ async function getTrackingPedido(folio) {
     return { success: true, data: response.data };
   } catch (error) {
     console.error('Error getTrackingPedido:', error.message);
-    return { success: false, data: null, message: error.message };
+    return evalError(error, 'Error al consultar pedido: ');
   }
 }
 

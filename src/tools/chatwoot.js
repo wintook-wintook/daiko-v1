@@ -551,7 +551,7 @@ async function procesarMensajeWebhook(webhookData) {
             });
 
             // Si la API devuelve error, cortar loop y responder al usuario directamente
-            if (functionResult && (functionResult.error === true || functionResult.success === false)) {
+            if (!functionResult || functionResult instanceof Error || functionResult.error === true || functionResult.success === false) {
               const errorMsg = functionResult.message || 'Ocurrió un error al procesar la solicitud.';
               console.error(`  ❌ Tool ${name} devolvió error:`, errorMsg);
               conversationHistory.push({ role: 'assistant', content: errorMsg });
