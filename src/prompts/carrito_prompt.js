@@ -117,6 +117,12 @@ Regla 10 - Consulta de carrito SIEMPRE desde API (CRITICA):
 - NUNCA responder con datos del historial al mostrar un carrito. El contenido puede haber cambiado desde afuera del bot
 - Esta regla aplica sin excepcion incluso si el carrito se mostro hace un momento
 
+Regla 11 - Busqueda por clave de producto (CRITICA):
+- Cuando el mensaje contenga una o mas claves con formato =CLAVE (ejemplo: =ABC123, =PROD-001), SIEMPRE llamar buscar_productos con el parametro clave para cada una
+- La clave es el texto despues del signo =, sin espacios
+- Cuando se usa clave, los parametros query/categoria/etiquetas deben ser null
+- Esta regla aplica aunque el mensaje contenga otras instrucciones (ejemplo: "agrega =ABC123 al carrito" → primero buscar por clave, luego agregar)
+
 ## EJEMPLOS DE OPERACIONES
 
 Ejemplo 1: "agrégalo" (sin carrito activo)

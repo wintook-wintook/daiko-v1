@@ -235,9 +235,10 @@ async function obtenerCategorias() {
   }
 }
 
-async function buscarProductos(query, categoria = null, etiquetas = null, precioMax = null, current_page=1, per_page=100, filtros = null) {
+async function buscarProductos(query, categoria = null, etiquetas = null, precioMax = null, current_page=1, per_page=100, filtros = null, clave = null) {
   let data = { cliente_id: cliente_id, moneda_id: moneda_id, per_page };
-  
+
+  if (clave) { data.clave = clave; }
   if (categoria) { data.categoria = categoria; }
   if (query) { data.query = query; }
   if (etiquetas && etiquetas.length > 0) { 
@@ -288,10 +289,11 @@ async function buscarProductos(query, categoria = null, etiquetas = null, precio
 
   data.filtros = filtros;
   data = JSON.stringify(data);
-  let url = `s`;  
-  if (!categoria && (!etiquetas || etiquetas.length == 0)) { url = `Search/${query}`; }
-  if (!query && (!etiquetas || etiquetas.length == 0)) { url = `ByCategory/${categoria}`; }
-  if (!query && !categoria) { url = `ByLabels/`; }
+  let url = `s`;
+  if (clave) { url = `ByKey`; } // TODO: confirmar endpoint con equipo API
+  else if (!categoria && (!etiquetas || etiquetas.length == 0)) { url = `Search/${query}`; }
+  else if (!query && (!etiquetas || etiquetas.length == 0)) { url = `ByCategory/${categoria}`; }
+  else if (!query && !categoria) { url = `ByLabels/`; }
   let config = getConfigApiDaiko('getProduct' + url, data);
   try {
     const response = await getApiData(config);

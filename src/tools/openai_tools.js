@@ -181,13 +181,17 @@ REGLAS (9.4):
       type: "function",
       function: {
         name: "buscar_productos",
-        description: "Busca productos en el catálogo. IMPORTANTE: query/categoria/etiquetas SOLO llevan el SUSTANTIVO. Todo lo demás (marca, medida, características) va en filtros.",
+        description: "Busca productos en el catálogo. IMPORTANTE: query/categoria/etiquetas SOLO llevan el SUSTANTIVO. Todo lo demás (marca, medida, características) va en filtros. Cuando el mensaje contenga =CLAVE usar el parámetro clave en lugar de query.",
         parameters: {
           type: "object",
           properties: {
+            clave: {
+              type: ["string", "null"],
+              description: "Clave exacta del producto cuando el usuario escribe =CLAVE en su mensaje. Cuando se usa este campo, query/categoria/etiquetas deben ser null."
+            },
             query: {
-              type: "string",
-              description: "SOLO el sustantivo principal normalizado en SINGULAR (ejemplo: 'monitor', 'azucar', 'tuberia'). NUNCA incluir marca, medida ni características."
+              type: ["string", "null"],
+              description: "SOLO el sustantivo principal normalizado en SINGULAR (ejemplo: 'monitor', 'azucar', 'tuberia'). NUNCA incluir marca, medida ni características. Null cuando se usa clave."
             },
             categoria: {
               type: ["string", "null"],
@@ -243,7 +247,7 @@ REGLAS (9.4):
               description: "Cantidad de productos a recuperar - DEBE SER SIEMPRE 100"
             },
           },
-          required: ["query", "categoria", "etiquetas", "filtros", "precio_max", "current_page", "per_page"],
+          required: ["clave", "query", "categoria", "etiquetas", "filtros", "precio_max", "current_page", "per_page"],
           additionalProperties: false
         },
         strict: true
@@ -1071,7 +1075,7 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
       }
         
       case "buscar_productos": {
-          console.log(`🔍 BÚSQUEDA DE PRODUCTOS - Query: "${args.query}"`);
+          console.log(`🔍 BÚSQUEDA DE PRODUCTOS - Query: "${args.query}" Clave: "${args.clave}"`);
           console.log(`📦 Filtros recibidos:`, JSON.stringify(args.filtros, null, 2));
 
           // ✅ Validar que filtros sea un objeto
@@ -1082,6 +1086,15 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
               message: "Error interno: filtros invalido",
               preserveCurrentCart: true
             };
+          }
+
+          // Búsqueda por clave: saltar canonización
+          if (args.clave) {
+            console.log(`🔑 BÚSQUEDA POR CLAVE: "${args.clave}"`);
+            const filtrosNormalizados = {
+              marca: [], medida: [], caracteristicas: [], tipo: [], compatibilidad: []
+            };
+            return buscarProductos(null, null, null, null, 1, 100, filtrosNormalizados, args.clave);
           }
 
           // ============================================================
