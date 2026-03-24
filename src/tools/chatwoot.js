@@ -170,12 +170,12 @@ async function procesarMensajeWebhook(webhookData) {
     if (/^(reinici(ar|ate|a)|reset|borrar\s*conversaci[oó]n|empezar\s*de\s*nuevo)\s*[!.?]*$/i.test(msgNormEarly)) {
       await userContext.reset();
       respuestaComandoSistema = 'Claro, a partir de este momento inicia una conversación nueva';
-    } else if (msgNormEarly === '/vendedor') {
+    } else if (msgNormEarly === '/cotizar') {
       await userContext.setModoVendedor(true);
-      respuestaComandoSistema = 'Modo vendedor activado. Con que cliente deseas trabajar?';
-    } else if (msgNormEarly === '/salirvendedor') {
+      respuestaComandoSistema = 'Modo cotizar activado. ¿Con qué cliente deseas trabajar?';
+    } else if (msgNormEarly === '/salir') {
       await userContext.clearModoVendedor();
-      respuestaComandoSistema = 'Modo vendedor desactivado.';
+      respuestaComandoSistema = 'Modo desactivado.';
     }
 
     if (respuestaComandoSistema !== null) {

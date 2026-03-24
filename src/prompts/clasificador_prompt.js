@@ -55,7 +55,7 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 
 ### Para modo vendedor (PRIORIDAD MAXIMA):
 - Si {{MODO_VENDEDOR}} = true → clasificar SIEMPRE como BUSQUEDA_CLIENTE sin importar el contenido del mensaje
-- Excepcion: si el mensaje empieza con "/" (comando de sistema) → REINICIAR u otras acciones de sistema
+- Excepcion: si el mensaje empieza con "/" (comando de sistema como /cotizar, /salir) → REINICIAR u otras acciones de sistema
 
 ### Para búsqueda por clave de producto (PRIORIDAD ALTA):
 - Si el mensaje contiene una o más palabras con formato =CLAVE (ejemplo: =ABC123, =SERV-, =DREP, =PROD-001) → SIEMPRE es BUSQUEDA_PRODUCTO (sub_accion: buscar_por_clave)
