@@ -57,6 +57,11 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 - Si {{MODO_VENDEDOR}} = true → clasificar SIEMPRE como BUSQUEDA_CLIENTE sin importar el contenido del mensaje
 - Excepcion: si el mensaje empieza con "/" (comando de sistema) → REINICIAR u otras acciones de sistema
 
+### Para búsqueda por clave de producto (PRIORIDAD ALTA):
+- Si el mensaje contiene una o más palabras con formato =CLAVE (ejemplo: =ABC123, =SERV-, =DREP, =PROD-001) → SIEMPRE es BUSQUEDA_PRODUCTO (sub_accion: buscar_por_clave)
+- Esto aplica aunque el mensaje contenga otras palabras como "quiero", "busca", "agrega"
+- El símbolo = seguido de texto es una clave de producto, NO un comando de sistema
+
 ### Para distinguir BUSQUEDA_PRODUCTO vs NECESIDAD:
 - Si el mensaje menciona un producto o sustantivo concreto → SIEMPRE es BUSQUEDA_PRODUCTO, sin importar el verbo usado
   Ejemplos: "necesito agua" → BUSQUEDA_PRODUCTO (menciona "agua")
@@ -185,7 +190,13 @@ Mensaje: "qué tamaños de azúcar hay"
 Respuesta: {"accion":"CONSULTA_ATRIBUTO","sub_accion":"medida","confianza":0.97,"parametros":{"atributo":"medida","texto_busqueda":"azúcar"},"razon":"Cliente consulta tamaños/medidas disponibles de un producto"}
 
 Mensaje: "qué modelos de monitor manejan"
-Respuesta: {"accion":"CONSULTA_ATRIBUTO","sub_accion":"tipo","confianza":0.95,"parametros":{"atributo":"tipo","texto_busqueda":"monitor"},"razon":"Cliente consulta modelos/tipos disponibles de un producto"}`;
+Respuesta: {"accion":"CONSULTA_ATRIBUTO","sub_accion":"tipo","confianza":0.95,"parametros":{"atributo":"tipo","texto_busqueda":"monitor"},"razon":"Cliente consulta modelos/tipos disponibles de un producto"}
+
+Mensaje: "quiero =DREP"
+Respuesta: {"accion":"BUSQUEDA_PRODUCTO","sub_accion":"buscar_por_clave","confianza":0.99,"parametros":{"texto_busqueda":"DREP"},"razon":"Mensaje contiene clave de producto con prefijo ="}
+
+Mensaje: "agrega =ABC123 al carrito"
+Respuesta: {"accion":"BUSQUEDA_PRODUCTO","sub_accion":"buscar_por_clave","confianza":0.99,"parametros":{"texto_busqueda":"ABC123"},"razon":"Mensaje contiene clave de producto con prefijo =, primero buscar luego agregar"}`;
 
 /**
  * Construye el prompt del clasificador con el contexto actual
