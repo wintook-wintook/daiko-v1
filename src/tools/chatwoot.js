@@ -285,7 +285,7 @@ async function procesarMensajeWebhook(webhookData) {
     // COMANDOS DE CONSULTA (prefijo '?') - antes del clasificador
     // Usan cliente_id/celular ya seteados por buscarcliente2
     // ============================================================
-    if (messageContent.trim().startsWith('?')) {
+    if (messageContent && messageContent.trim().startsWith('?')) {
       const resultadoQuery = await ejecutarQueryComando(messageContent);
       if (resultadoQuery !== null) {
         let respuestaQuery;
@@ -513,7 +513,7 @@ async function procesarMensajeWebhook(webhookData) {
         mensajeSaludo = nombreCliente
           ? `Hasta pronto, ${nombreCliente}! Fue un placer atenderte.`
           : 'Hasta pronto! Fue un placer atenderte.';
-      } else if (messageContent.toLowerCase().includes('gracias')) {
+      } else if (messageContent && messageContent.toLowerCase().includes('gracias')) {
         mensajeSaludo = 'Con gusto! Si necesitas algo mas, aqui estare.';
       } else {
         mensajeSaludo = nombreCliente
