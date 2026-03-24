@@ -125,7 +125,9 @@ function formatearRespuestaImagen(encontrados, noEncontrados, resultadoCarrito, 
     lineas.push('Productos encontrados:');
     encontrados.forEach(function(e, i) {
       const nombre = e.producto.NOMBRE || e.producto.DESCRIPCION || 'Sin nombre';
-      const precio = e.producto.PRECIO ? ' | Precio: $' + e.producto.PRECIO : '';
+      const precio = e.producto.PRECIO !== undefined && e.producto.PRECIO !== null
+        ? ' | Precio: $' + e.producto.PRECIO
+        : '';
       const cantidad = e.itemOriginal.cantidad || 1;
       lineas.push((i + 1) + ') ID: ' + e.producto.ARTICULO_ID + ' - ' + nombre + precio + ' | Cant: ' + cantidad);
     });
@@ -138,7 +140,7 @@ function formatearRespuestaImagen(encontrados, noEncontrados, resultadoCarrito, 
       const desc = item.clave
         ? (item.clave + (item.descripcion ? ' - ' + item.descripcion : ''))
         : item.descripcion;
-      lineas.push((i + 1) + '. ' + desc);
+      lineas.push((i + 1) + ') ' + desc);
     });
   }
 
