@@ -125,8 +125,9 @@ function formatearRespuestaImagen(encontrados, noEncontrados, resultadoCarrito, 
     lineas.push('Productos encontrados:');
     encontrados.forEach(function(e, i) {
       const nombre = e.producto.NOMBRE || e.producto.DESCRIPCION || 'Sin nombre';
-      const precio = e.producto.PRECIO ? ' - $' + e.producto.PRECIO : '';
-      lineas.push((i + 1) + '. ' + nombre + precio + ' (cant: ' + (e.itemOriginal.cantidad || 1) + ')');
+      const precio = e.producto.PRECIO ? ' | Precio: $' + e.producto.PRECIO : '';
+      const cantidad = e.itemOriginal.cantidad || 1;
+      lineas.push((i + 1) + ') ID: ' + e.producto.ARTICULO_ID + ' - ' + nombre + precio + ' | Cant: ' + cantidad);
     });
   }
 
