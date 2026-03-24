@@ -37,7 +37,7 @@ async function extraerListaDeImagen(imageUrl, openai) {
     temperature: 0
   });
 
-  const raw = response.choices[0].message.content.trim();
+  const raw = response.choices[0].message.content.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
   console.log('📝 OCR resultado raw:', raw);
 
   try {
