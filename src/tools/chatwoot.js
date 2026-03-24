@@ -853,19 +853,17 @@ const getMessages = async (token, account_id, conversation_id, contextStr) => {
     let item = data.payload[idx];
     let addMessage = true;
     if (item.message_type != 0) {
-      if (item.content.includes(fuenteWeb)) { addMessage = false; }
+      if (item.content && item.content.includes(fuenteWeb)) { addMessage = false; }
     }
+    if (idx == data.payload.length - 1) {
+      messages.push({ role: 'system', content: contextStr });
+    }
+    if (!item.content) { continue; }
     if (addMessage || true) {
-      if (idx == data.payload.length - 1) {
-        messages.push({
-          //role: 'assistant', content: contextStr
-          role: 'system', content: contextStr
-        })
-      }
       messages.push({
-        role: (item.message_type != 0 ? 'assistant' : 'user' ),
+        role: (item.message_type != 0 ? 'assistant' : 'user'),
         content: item.content
-      })
+      });
     }
   }
   /*
