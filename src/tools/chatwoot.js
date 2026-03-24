@@ -40,6 +40,14 @@ const {
 } = require('../services/referencia_service');
 
 const { ejecutarQueryComando } = require('../utils/query_commands');
+const {
+  extraerListaDeImagen,
+  buscarItemsLista,
+  agregarEncontradosAlCarrito,
+  formatearRespuestaImagen,
+  mensajePideCarrito,
+  esImagenAdjunta
+} = require('../utils/imagen_service');
 
 // Feature toggle para activación gradual
 const USAR_MULTI_PROMPT = process.env.USAR_MULTI_PROMPT === 'true' || false;
@@ -90,14 +98,15 @@ async function toggleTyping(token, account_id, conversation_id, status = 'on') {
 function extraerDatosWebhook(webhookData) {
     try {
       // Extraer información del webhook de Chatwoot
-      const conversationId = webhookData.conversation?.id;
+      const conversationId = webhookData.conversation && webhookData.conversation.id;
       const messageContent = webhookData.content;
-      const senderId = webhookData.sender?.id;
-      const senderName = webhookData.sender?.name;
+      const senderId = webhookData.sender && webhookData.sender.id;
+      const senderName = webhookData.sender && webhookData.sender.name;
       const messageType = webhookData.message_type;
-      const inboxId = webhookData.inbox?.id;
-      const inboxName = webhookData.inbox?.name;
-      
+      const inboxId = webhookData.inbox && webhookData.inbox.id;
+      const inboxName = webhookData.inbox && webhookData.inbox.name;
+      const attachments = webhookData.attachments || [];
+
       return {
         success: true,
         data: {
@@ -107,7 +116,8 @@ function extraerDatosWebhook(webhookData) {
           senderName,
           messageType,
           inboxId,
-          inboxName
+          inboxName,
+          attachments
         },
         message: "Datos extraídos correctamente del webhook"
       };
@@ -133,9 +143,11 @@ async function procesarMensajeWebhook(webhookData) {
       return extractedData;
     }
 
-    const { conversationId, messageContent, senderId, senderName, messageType, inboxId } = extractedData.data;
+    const { conversationId, messageContent, senderId, senderName, messageType, inboxId, attachments } = extractedData.data;
 
-    if (messageType !== 'incoming' || !messageContent) {
+    const imagenAdjunta = attachments.find(esImagenAdjunta) || null;
+
+    if (messageType !== 'incoming' || (!messageContent && !imagenAdjunta)) {
       return {
         success: false,
         message: "Mensaje no procesable - solo se procesan mensajes entrantes con contenido"
@@ -152,7 +164,7 @@ async function procesarMensajeWebhook(webhookData) {
     // ============================================================
     // COMANDOS DE SISTEMA (prioridad absoluta - antes de cualquier API)
     // ============================================================
-    const msgNormEarly = messageContent.trim().toLowerCase();
+    const msgNormEarly = messageContent ? messageContent.trim().toLowerCase() : '';
     let respuestaComandoSistema = null;
 
     if (/^(reinici(ar|ate|a)|reset|borrar\s*conversaci[oó]n|empezar\s*de\s*nuevo)\s*[!.?]*$/i.test(msgNormEarly)) {
@@ -301,6 +313,57 @@ async function procesarMensajeWebhook(webhookData) {
         return {
           success: true,
           data: { conversationId, response: respuestaQuery, fileName: '', userId, senderName, originalMessage: messageContent },
+          message: 'Mensaje procesado correctamente'
+        };
+      }
+    }
+
+    // ============================================================
+    // IMAGEN CON LISTA DE COMPRAS - antes del clasificador
+    // ============================================================
+    if (imagenAdjunta) {
+      console.log('🖼️  Imagen adjunta detectada, procesando lista de compras...');
+      try {
+        const imageUrl = imagenAdjunta.data_url;
+        const items = await extraerListaDeImagen(imageUrl, openai);
+
+        if (!items || items.length === 0) {
+          const respuestaOcr = 'No pude identificar productos en la imagen. ¿Podrías enviar una imagen más clara o escribir los productos directamente?';
+          conversationHistory.push({ role: 'assistant', content: respuestaOcr });
+          return {
+            success: true,
+            data: { conversationId, response: respuestaOcr, fileName: '', userId, senderName, originalMessage: messageContent || '' },
+            message: 'Mensaje procesado correctamente'
+          };
+        }
+
+        console.log('📋 Items extraídos de imagen:', items.length);
+        const { encontrados, noEncontrados } = await buscarItemsLista(items);
+
+        const pideCarrito = mensajePideCarrito(messageContent);
+        let resultadoCarrito = null;
+
+        if (pideCarrito && noEncontrados.length === 0 && encontrados.length > 0) {
+          const carritoId = await userContext.getCarrito();
+          resultadoCarrito = await agregarEncontradosAlCarrito(encontrados, carritoId);
+          if (resultadoCarrito && resultadoCarrito.success && !carritoId) {
+            await userContext.setCarrito(resultadoCarrito.carritoId, resultadoCarrito.folio || null);
+          }
+        }
+
+        const respuestaImagen = formatearRespuestaImagen(encontrados, noEncontrados, resultadoCarrito, pideCarrito);
+        conversationHistory.push({ role: 'assistant', content: respuestaImagen });
+        return {
+          success: true,
+          data: { conversationId, response: respuestaImagen, fileName: '', userId, senderName, originalMessage: messageContent || '' },
+          message: 'Mensaje procesado correctamente'
+        };
+      } catch (errorImagen) {
+        console.error('❌ Error procesando imagen:', errorImagen.message);
+        const respuestaError = 'Ocurrió un error al procesar la imagen. Por favor intenta de nuevo.';
+        return {
+          success: true,
+          data: { conversationId, response: respuestaError, fileName: '', userId, senderName, originalMessage: messageContent || '' },
           message: 'Mensaje procesado correctamente'
         };
       }
