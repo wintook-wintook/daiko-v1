@@ -217,7 +217,7 @@ async function procesarWizardProspecto(wizardState, messageContent, userContext,
         if (resultado && resultado.success) {
           return 'Prospecto registrado exitosamente.';
         }
-        return `Error al registrar el prospecto: ${resultado ? resultado.message : 'Error desconocido'}`;
+        return resultado ? resultado.message : 'Error desconocido al registrar el prospecto.';
       }
       if (['no', 'n'].includes(inputLower)) {
         await userContext.clearWizardState();
