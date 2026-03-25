@@ -14,7 +14,7 @@ const conversations = new Map(); // userId -> conversation history
 
 const { openaiConfig, systemPrompt } = require('../config/openai_prompt');
 const { functionDefinitions, executeFunctionCall } = require('../tools/openai_tools');
-const {buscarcliente, buscarcliente2} = require('../utils/crm');
+const {buscarcliente, buscarcliente2, crearProspecto} = require('../utils/crm');
 const { getApiData } = require('../utils/functions');
 let urlWA = process.env.CHATWOOT_URL; // 'https://app.chatzeus.com/';
 
@@ -130,6 +130,108 @@ function extraerDatosWebhook(webhookData) {
   }
   
 // ============================================================
+// WIZARD /+prospecto - Helpers
+// ============================================================
+
+function validarNombre(input) {
+  if (!input || input.trim().length < 3) return false;
+  return /[a-záéíóúüñA-ZÁÉÍÓÚÜÑA-Z]/.test(input);
+}
+
+function validarTelefono(tel) {
+  const digitos = (tel || '').replace(/\D/g, '');
+  return digitos.length >= 10 && digitos.length <= 15;
+}
+
+function formatearResumenProspecto(datos) {
+  return (
+    'Resumen del prospecto:\n' +
+    `• Nombre del prospecto: ${datos.nombre_prospecto}\n` +
+    `• Nombre del contacto: ${datos.nombre_contacto}\n` +
+    `• Celular: ${datos.celular}\n` +
+    `• Teléfono de oficina: ${datos.telefono_oficina || 'No proporcionado'}\n\n` +
+    '¿Los datos son correctos? Responde *sí* para confirmar o *no* para cancelar.'
+  );
+}
+
+async function procesarWizardProspecto(wizardState, messageContent, userContext, url_crm_zeus, api_access_token) {
+  const paso = wizardState.paso;
+  const datos = wizardState.datos;
+  const input = (messageContent || '').trim();
+  const inputLower = input.toLowerCase();
+
+  if (inputLower === '/salir') {
+    await userContext.clearWizardState();
+    return 'Registro de prospecto cancelado.';
+  }
+
+  switch (paso) {
+    case 1: {
+      if (!validarNombre(input)) {
+        return 'Por favor ingresa un nombre de prospecto válido (mínimo 3 caracteres).';
+      }
+      datos.nombre_prospecto = input;
+      await userContext.setWizardState({ tipo: 'prospecto', paso: 2, datos });
+      return '¿Cuál es el nombre del contacto?';
+    }
+    case 2: {
+      if (!validarNombre(input)) {
+        return 'Por favor ingresa un nombre de contacto válido (mínimo 3 caracteres).';
+      }
+      datos.nombre_contacto = input;
+      await userContext.setWizardState({ tipo: 'prospecto', paso: 3, datos });
+      return '¿Cuál es el número de celular del prospecto?';
+    }
+    case 3: {
+      if (!validarTelefono(input)) {
+        return 'Por favor ingresa un número de celular válido (mínimo 10 dígitos).';
+      }
+      datos.celular = input.replace(/\D/g, '');
+      await userContext.setWizardState({ tipo: 'prospecto', paso: 4, datos });
+      return '¿Deseas agregar un número de teléfono de oficina? (sí/no)';
+    }
+    case 4: {
+      if (['si', 'sí', 's', 'yes'].includes(inputLower)) {
+        await userContext.setWizardState({ tipo: 'prospecto', paso: 5, datos });
+        return '¿Cuál es el número de teléfono de oficina?';
+      }
+      if (['no', 'n'].includes(inputLower)) {
+        datos.telefono_oficina = null;
+        await userContext.setWizardState({ tipo: 'prospecto', paso: 6, datos });
+        return formatearResumenProspecto(datos);
+      }
+      return 'Por favor responde *sí* o *no*. ¿Deseas agregar un número de teléfono de oficina?';
+    }
+    case 5: {
+      if (!validarTelefono(input)) {
+        return 'Por favor ingresa un número de teléfono de oficina válido (mínimo 10 dígitos).';
+      }
+      datos.telefono_oficina = input.replace(/\D/g, '');
+      await userContext.setWizardState({ tipo: 'prospecto', paso: 6, datos });
+      return formatearResumenProspecto(datos);
+    }
+    case 6: {
+      if (['si', 'sí', 's', 'yes'].includes(inputLower)) {
+        await userContext.clearWizardState();
+        const resultado = await crearProspecto(url_crm_zeus, api_access_token, datos);
+        if (resultado && resultado.success) {
+          return 'Prospecto registrado exitosamente.';
+        }
+        return `Error al registrar el prospecto: ${resultado ? resultado.message : 'Error desconocido'}`;
+      }
+      if (['no', 'n'].includes(inputLower)) {
+        await userContext.clearWizardState();
+        return 'Registro cancelado. Los datos no fueron guardados.';
+      }
+      return formatearResumenProspecto(datos);
+    }
+    default:
+      await userContext.clearWizardState();
+      return 'Ocurrió un error en el flujo. Por favor intenta de nuevo con /+prospecto.';
+  }
+}
+
+// ============================================================
 // HANDLER CORREGIDO - procesarMensajeWebhook()
 // Tool-Calling Loop Real - DAIKO V23.3.0
 // ============================================================
@@ -171,10 +273,18 @@ async function procesarMensajeWebhook(webhookData) {
       await userContext.reset();
       respuestaComandoSistema = 'Claro, a partir de este momento inicia una conversación nueva';
     } else if (msgNormEarly === '/cotizar') {
-      await userContext.setModoVendedor(true);
-      respuestaComandoSistema = 'Modo cotizar activado. ¿Con qué cliente deseas trabajar?';
+      const comandoActivo = await userContext.getComandoActivo();
+      if (comandoActivo) {
+        respuestaComandoSistema = comandoActivo.mensaje;
+      } else {
+        await userContext.setModoVendedor(true);
+        respuestaComandoSistema = 'Modo cotizar activado. ¿Con qué cliente deseas trabajar?';
+      }
     } else if (msgNormEarly === '/salir') {
-      await userContext.clearModoVendedor();
+      await Promise.all([
+        userContext.clearModoVendedor(),
+        userContext.clearWizardState()
+      ]);
       respuestaComandoSistema = 'Modo desactivado.';
     }
 
@@ -249,6 +359,40 @@ async function procesarMensajeWebhook(webhookData) {
 
     if (!conversations.has(userId)) {
       conversations.set(userId, []);
+    }
+
+    // ============================================================
+    // WIZARD /+prospecto (después de FASE 2 para tener credenciales CRM)
+    // ============================================================
+    const wizardState = await userContext.getWizardState();
+
+    if (wizardState && wizardState.tipo === 'prospecto') {
+      const respuestaWizard = await procesarWizardProspecto(wizardState, messageContent, userContext, url_crm_zeus, api_access_token);
+      toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off');
+      return {
+        success: true,
+        data: { conversationId, response: respuestaWizard, fileName: '', userId, senderName, originalMessage: messageContent },
+        message: 'Mensaje procesado correctamente'
+      };
+    }
+
+    if (msgNormEarly === '/+prospecto') {
+      const comandoActivo = await userContext.getComandoActivo();
+      if (comandoActivo) {
+        toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off');
+        return {
+          success: true,
+          data: { conversationId, response: comandoActivo.mensaje, fileName: '', userId, senderName, originalMessage: messageContent },
+          message: 'Mensaje procesado correctamente'
+        };
+      }
+      await userContext.setWizardState({ tipo: 'prospecto', paso: 1, datos: {} });
+      toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off');
+      return {
+        success: true,
+        data: { conversationId, response: '¿Cuál es el nombre del prospecto?', fileName: '', userId, senderName, originalMessage: messageContent },
+        message: 'Mensaje procesado correctamente'
+      };
     }
 
     // FASE 3: getMessages (necesita contextStr de FASE 2)

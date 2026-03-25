@@ -1189,6 +1189,27 @@ async function buscarClientePorIdLocal(id) {
   }
 }
 
+async function crearProspecto(url_crm_, token_, datos) {
+  url_crm_zeus = url_crm_;
+  api_access_token = token_;
+  const data = JSON.stringify({
+    nombre_prospecto: datos.nombre_prospecto,
+    nombre_contacto: datos.nombre_contacto,
+    celular: datos.celular,
+    telefono_oficina: datos.telefono_oficina || null
+  });
+  let config = getConfigApiDaiko('createProspecto', data);
+  try {
+    const response = await getApiData(config);
+    const err = evalError(response.data, 'Error al crear prospecto: ');
+    if (err) return err;
+    return { success: true, data: response.data, message: 'Prospecto creado exitosamente' };
+  } catch (error) {
+    console.error('Error crearProspecto:', error.message);
+    return evalError(error, 'Error al crear prospecto: ');
+  }
+}
+
 module.exports = {
   buscarcliente,
   buscarcliente2,
@@ -1213,5 +1234,6 @@ module.exports = {
   buscarCliente,
   getBalanceDue,
   getStockArticle,
-  getTrackingPedido
+  getTrackingPedido,
+  crearProspecto
 };

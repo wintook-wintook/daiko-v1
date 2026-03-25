@@ -471,6 +471,7 @@ console.log({obj: "UserContext", contextStr});
     pipeline.hset(this.key, 'filtros_activos', '');
     pipeline.hset(this.key, 'ultimos_resultados', '');
     pipeline.hset(this.key, 'ultima_accion', '');
+    pipeline.hset(this.key, 'wizard_state', '');
 
     // Establecer valores básicos
     pipeline.hset(this.key, 'nombre_usuario', '');
@@ -642,6 +643,50 @@ console.log({obj: "UserContext", contextStr});
     await redis.hdel(this.key, 'modo_vendedor', 'cliente_vendedor', 'cliente');
     await redis.hset(this.key, 'carrito_id', '');
     await redis.hset(this.key, 'folio', '');
+  }
+
+  // ============================================================
+  // WIZARD STATE (flujos paso a paso, ej: /+prospecto)
+  // ============================================================
+
+  async setWizardState(state) {
+    await redis.hset(this.key, 'wizard_state', JSON.stringify(state));
+    await redis.expire(this.key, this.ttl);
+  }
+
+  async getWizardState() {
+    const data = await redis.hget(this.key, 'wizard_state');
+    if (!data) return null;
+    try {
+      return JSON.parse(data);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async clearWizardState() {
+    await redis.hdel(this.key, 'wizard_state');
+  }
+
+  async getComandoActivo() {
+    const [modoVendedor, wizardRaw] = await Promise.all([
+      redis.hget(this.key, 'modo_vendedor'),
+      redis.hget(this.key, 'wizard_state')
+    ]);
+    if (modoVendedor === 'true') return {
+      tipo: 'vendedor',
+      mensaje: 'Ya tienes el modo cotizar activo. Escribe /salir para finalizarlo antes de iniciar otro comando.'
+    };
+    if (wizardRaw) {
+      try {
+        const ws = JSON.parse(wizardRaw);
+        if (ws && ws.tipo) return {
+          tipo: ws.tipo,
+          mensaje: `Ya tienes el comando /${ws.tipo} activo. Escribe /salir para finalizarlo antes de iniciar otro comando.`
+        };
+      } catch (e) {}
+    }
+    return null;
   }
 }
 
