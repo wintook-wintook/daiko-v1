@@ -601,13 +601,22 @@ console.log({obj: "UserContext", contextStr});
       }
     }
 
+    let clienteVendedor = false;
+    if (data.cliente_vendedor) {
+      try {
+        const cv = JSON.parse(data.cliente_vendedor);
+        clienteVendedor = !!(cv && cv.CLIENTE_ID);
+      } catch (e) {}
+    }
+
     return {
       carritoId: data.carrito_id || null,
       folio: data.folio || null,
       ultimaBusqueda,
       productos,
       ultimaAccion: data.ultima_accion || null,
-      modoVendedor: data.modo_vendedor === 'true'
+      modoVendedor: data.modo_vendedor === 'true',
+      clienteVendedor
     };
   }
 

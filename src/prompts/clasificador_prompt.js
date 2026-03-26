@@ -40,6 +40,7 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 - Cantidad de productos mostrados: {{CANTIDAD_PRODUCTOS}}
 - Última acción ejecutada: {{ULTIMA_ACCION}}
 - Modo vendedor activo: {{MODO_VENDEDOR}}
+- Cliente vendedor ya seleccionado: {{CLIENTE_VENDEDOR}}
 - Productos mostrados recientemente:
 {{PRODUCTOS_MOSTRADOS}}
 
@@ -54,7 +55,8 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 ## REGLAS ESPECIALES
 
 ### Para modo vendedor (PRIORIDAD MAXIMA):
-- Si {{MODO_VENDEDOR}} = true → clasificar SIEMPRE como BUSQUEDA_CLIENTE sin importar el contenido del mensaje
+- Si {{MODO_VENDEDOR}} = true Y {{CLIENTE_VENDEDOR}} = false → clasificar SIEMPRE como BUSQUEDA_CLIENTE (aún no hay cliente seleccionado)
+- Si {{MODO_VENDEDOR}} = true Y {{CLIENTE_VENDEDOR}} = true → usar clasificación normal de acciones (BUSQUEDA_PRODUCTO, CARRITO_CREAR, CARRITO_MODIFICAR, etc.), el vendedor ya tiene cliente asignado
 - Excepcion: si el mensaje empieza con "/" (comando de sistema como /cotizar, /salir) → REINICIAR u otras acciones de sistema
 
 ### Para búsqueda por clave de producto (PRIORIDAD ALTA):
@@ -217,6 +219,7 @@ function buildClasificadorPrompt(contexto = {}) {
   const cantidadProductos = productos.length;
   const ultimaAccion = contexto.ultimaAccion || 'ninguna';
   const modoVendedor = contexto.modoVendedor ? 'true' : 'false';
+  const clienteVendedor = contexto.clienteVendedor ? 'true' : 'false';
 
   // Formatear productos mostrados
   let productosStr = 'Ninguno';
@@ -236,6 +239,7 @@ function buildClasificadorPrompt(contexto = {}) {
     .replace('{{CANTIDAD_PRODUCTOS}}', cantidadProductos.toString())
     .replace('{{ULTIMA_ACCION}}', ultimaAccion)
     .replace('{{MODO_VENDEDOR}}', modoVendedor)
+    .replace('{{CLIENTE_VENDEDOR}}', clienteVendedor)
     .replace('{{PRODUCTOS_MOSTRADOS}}', productosStr);
 }
 
