@@ -1193,7 +1193,7 @@ async function crearProspecto(url_crm_, token_, datos) {
   url_crm_zeus = url_crm_;
   api_access_token = token_;
   const data = JSON.stringify({
-    nombre_prospecto: datos.nombre_prospecto,
+    nombre: datos.nombre_prospecto,
     nombre_contacto: datos.nombre_contacto,
     celular: datos.celular,
     telefono_oficina: datos.telefono_oficina || null
