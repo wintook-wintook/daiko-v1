@@ -77,6 +77,15 @@ async function clasificarIntencion(mensaje, contexto, apiKey) {
       return crearRespuestaFallback(mensaje, 'Respuesta inválida', tiempoMs);
     }
 
+    // Override programático: en modo vendedor sin cliente asignado, forzar BUSQUEDA_CLIENTE
+    if (contexto.modoVendedor === true && contexto.clienteVendedor === false) {
+      if (resultado.accion !== 'BUSQUEDA_CLIENTE') {
+        console.log(`⚠️  Override clasificador: ${resultado.accion} → BUSQUEDA_CLIENTE (modo vendedor sin cliente)`);
+        resultado.accion = 'BUSQUEDA_CLIENTE';
+        resultado.razon = '[override] Modo vendedor activo sin cliente asignado';
+      }
+    }
+
     // Log de resultado
     console.log(`✅ Acción clasificada: ${resultado.accion}`);
     console.log(`   Sub-acción: ${resultado.sub_accion || 'N/A'}`);
