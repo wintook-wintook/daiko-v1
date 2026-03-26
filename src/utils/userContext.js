@@ -472,6 +472,8 @@ console.log({obj: "UserContext", contextStr});
     pipeline.hset(this.key, 'ultimos_resultados', '');
     pipeline.hset(this.key, 'ultima_accion', '');
     pipeline.hset(this.key, 'wizard_state', '');
+    pipeline.hset(this.key, 'modo_vendedor', 'false');
+    pipeline.hset(this.key, 'cliente_vendedor', '');
 
     // Establecer valores básicos
     pipeline.hset(this.key, 'nombre_usuario', '');
