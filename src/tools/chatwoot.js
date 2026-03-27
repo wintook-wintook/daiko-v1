@@ -146,7 +146,7 @@ function validarTelefono(tel) {
 function formatearResumenProspecto(datos) {
   return (
     'Resumen del prospecto:\n' +
-    `• Nombre del prospecto: ${datos.nombre_prospecto}\n` +
+    `• Nombre de la organización: ${datos.nombre_prospecto}\n` +
     `• Nombre del contacto: ${datos.nombre_contacto}\n` +
     `• Celular: ${datos.celular}\n` +
     `• Teléfono de oficina: ${datos.telefono_oficina || 'No proporcionado'}\n\n` +
@@ -168,7 +168,7 @@ async function procesarWizardProspecto(wizardState, messageContent, userContext,
   switch (paso) {
     case 1: {
       if (!validarNombre(input)) {
-        return 'Por favor ingresa un nombre de prospecto válido (mínimo 3 caracteres).';
+        return 'Por favor ingresa un nombre de organización válido (mínimo 3 caracteres).';
       }
       datos.nombre_prospecto = input;
       await userContext.setWizardState({ tipo: 'prospecto', paso: 2, datos });
@@ -180,7 +180,7 @@ async function procesarWizardProspecto(wizardState, messageContent, userContext,
       }
       datos.nombre_contacto = input;
       await userContext.setWizardState({ tipo: 'prospecto', paso: 3, datos });
-      return '¿Cuál es el número de celular del prospecto?';
+      return '¿Cuál es el número de celular del contacto?';
     }
     case 3: {
       if (!validarTelefono(input)) {
@@ -390,7 +390,7 @@ async function procesarMensajeWebhook(webhookData) {
       toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off');
       return {
         success: true,
-        data: { conversationId, response: '¿Cuál es el nombre del prospecto?', fileName: '', userId, senderName, originalMessage: messageContent },
+        data: { conversationId, response: '¿Cuál es el nombre de la organización?', fileName: '', userId, senderName, originalMessage: messageContent },
         message: 'Mensaje procesado correctamente'
       };
     }
