@@ -1175,13 +1175,14 @@ async function getTrackingPedido(folio) {
 }
 
 async function buscarClientePorIdLocal(id) {
-  let data = JSON.stringify({});
+  let data = JSON.stringify(id ? { cliente_id: parseInt(id, 10) } : {});
   let config = getConfigApiDaiko('getCustomers', data);
   try {
     const response = await getApiData(config);
-    const cliente = response.data.find(function(c) {
-      return c.CLIENTE_ID === id || c.CLIENTE_ID === parseInt(id, 10);
-    });
+    const clientes = response.data;
+    const cliente = Array.isArray(clientes)
+      ? clientes.find(function(c) { return c.CLIENTE_ID === parseInt(id, 10); })
+      : clientes;
     return cliente || null;
   } catch (error) {
     console.error('Error buscarClientePorIdLocal:', error.message);
