@@ -1116,7 +1116,7 @@ async function copiarArticulosDeUnCarritoExisenteAUnoNuevo(carritoOrigenId, arti
 }
 
 async function buscarClientesPorNombre(nombre) {
-  let data = JSON.stringify({});
+  let data = JSON.stringify(nombre ? { name: nombre } : {});
   let config = getConfigApiDaiko('getCustomers', data);
   try {
     const response = await getApiData(config);
