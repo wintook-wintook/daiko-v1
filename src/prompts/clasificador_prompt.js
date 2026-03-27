@@ -25,7 +25,7 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 | CARRITO_CANCELAR | Cancelar o vaciar carrito | "cancela el carrito", "vacía mi carrito", "borra todo" |
 | ORDEN | Finalizar compra o generar documentos | "confirmar compra", "generar PDF", "cotización", "factura", "finalizar pedido", "pasame la nota", "dame el presupuesto", "manda el documento", "manda el pdf", "quiero el pdf", "dame el pdf" |
 | PAGINACION | Ver más resultados de búsqueda anterior | "hay más", "ver más", "siguiente", "otros", "más opciones" |
-| NECESIDAD | Expresa problema/condición SIN mencionar ningún producto concreto | "tengo sed", "me duele la cabeza", "tengo hambre", "hace calor" |
+| NECESIDAD | Expresa problema/condición SIN producto concreto, O pide recomendación/asesoría para hacer algo | "tengo sed", "me duele la cabeza", "tengo hambre", "hace calor", "quiero hacer un pastel", "qué necesito para pintar mi cuarto", "qué me recomiendas para limpiar azulejos" |
 | CONSULTA_ATRIBUTO | Cliente pregunta por marcas, tamaños, modelos o presentaciones de un producto | "qué marcas de pintura", "qué tamaños de azúcar", "qué modelos de monitor", "qué presentaciones de aceite" |
 | CONVERSACION | Preguntas generales, charla, dudas sobre el bot | "cómo funciona", "qué puedes hacer", "ayuda", "eres un robot" |
 | REINICIAR | Reiniciar o borrar la conversación | "reiniciar", "reiniciate", "reinicia", "borrar conversación", "empezar de nuevo", "reset" |
@@ -66,15 +66,17 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 - El símbolo = seguido de texto es una clave de producto, NO un comando de sistema
 
 ### Para distinguir BUSQUEDA_PRODUCTO vs NECESIDAD:
-- Si el mensaje menciona un producto o sustantivo concreto → SIEMPRE es BUSQUEDA_PRODUCTO, sin importar el verbo usado
-  Ejemplos: "necesito agua" → BUSQUEDA_PRODUCTO (menciona "agua")
-  "requiero azúcar" → BUSQUEDA_PRODUCTO (menciona "azúcar")
-  "necesito cable hdmi" → BUSQUEDA_PRODUCTO (menciona "cable hdmi")
-  "quiero leche" → BUSQUEDA_PRODUCTO (menciona "leche")
-- NECESIDAD es SOLO cuando NO hay producto/sustantivo concreto, solo una condición o estado
-  Ejemplos: "tengo sed" → NECESIDAD (no menciona producto, solo estado)
-  "me duele la cabeza" → NECESIDAD (condición sin producto)
-  "tengo hambre" → NECESIDAD (estado sin producto)
+- BUSQUEDA_PRODUCTO: el usuario quiere COMPRAR o ENCONTRAR un producto específico (verbo directo: "quiero", "dame", "busco", "tienes", "necesito")
+  Ejemplos: "necesito agua" → BUSQUEDA_PRODUCTO, "quiero azúcar" → BUSQUEDA_PRODUCTO, "busco cable hdmi" → BUSQUEDA_PRODUCTO
+- NECESIDAD: el usuario pide RECOMENDACIÓN, ASESORÍA o quiere HACER/LOGRAR algo, aunque mencione un sustantivo
+  Señales clave: "quiero hacer", "necesito para hacer", "qué me recomiendas", "qué necesito para", "cómo puedo", "qué uso para", "me ayudas a"
+  Ejemplos:
+  "quiero hacer un pastel" → NECESIDAD (quiere hacer algo, no comprar "pastel")
+  "qué necesito para pintar mi cuarto" → NECESIDAD (pide lista de productos para un fin)
+  "qué me recomiendas para limpiar azulejos" → NECESIDAD (pide recomendación)
+  "me ayudas a armar una computadora" → NECESIDAD (asesoría)
+- NECESIDAD también aplica cuando NO hay producto/sustantivo concreto, solo una condición o estado:
+  "tengo sed" → NECESIDAD, "me duele la cabeza" → NECESIDAD, "tengo hambre" → NECESIDAD
 
 ### Para distinguir BUSQUEDA vs CARRITO:
 - Si el usuario menciona un producto con nombre (sustantivo) y NO hay productos mostrados recientemente → BUSQUEDA_PRODUCTO
