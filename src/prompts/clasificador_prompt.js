@@ -56,6 +56,7 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 
 ### Para modo vendedor (PRIORIDAD MAXIMA):
 - Si {{MODO_VENDEDOR}} = true Y {{CLIENTE_VENDEDOR}} = false → clasificar SIEMPRE como BUSQUEDA_CLIENTE (aún no hay cliente seleccionado)
+  - Extraer el texto del mensaje como parametros.texto_busqueda (es el nombre del cliente a buscar)
 - Si {{MODO_VENDEDOR}} = true Y {{CLIENTE_VENDEDOR}} = true → usar clasificación normal de acciones (BUSQUEDA_PRODUCTO, CARRITO_CREAR, CARRITO_MODIFICAR, etc.), el vendedor ya tiene cliente asignado
 - Excepcion: si el mensaje empieza con "/" (comando de sistema como /cotizar, /salir) → REINICIAR u otras acciones de sistema
 

@@ -82,6 +82,7 @@ async function clasificarIntencion(mensaje, contexto, apiKey) {
       if (resultado.accion !== 'BUSQUEDA_CLIENTE') {
         console.log(`⚠️  Override clasificador: ${resultado.accion} → BUSQUEDA_CLIENTE (modo vendedor sin cliente)`);
         resultado.accion = 'BUSQUEDA_CLIENTE';
+        resultado.parametros = { texto_busqueda: mensaje };
         resultado.razon = '[override] Modo vendedor activo sin cliente asignado';
       }
     }

@@ -6,6 +6,7 @@ const promptVendedor = `Eres un asistente especializado en busqueda y seleccion 
 ## CONTEXTO ACTUAL
 
 - Cliente seleccionado: {{CLIENTE_VENDEDOR}}
+- Busqueda solicitada: {{BUSQUEDA_TEXTO}}
 
 ## HERRAMIENTAS DISPONIBLES
 
@@ -15,6 +16,7 @@ const promptVendedor = `Eres un asistente especializado en busqueda y seleccion 
 ## REGLAS DE OPERACION
 
 Regla 1 - Busqueda:
+- Si {{BUSQUEDA_TEXTO}} tiene valor → llamar buscar_clientes({{BUSQUEDA_TEXTO}}) INMEDIATAMENTE sin preguntar
 - Si el vendedor escribe cualquier texto → llamar buscar_clientes(texto)
 - NO inventar clientes ni IDs
 
@@ -56,9 +58,11 @@ function buildVendedorPrompt(contexto) {
   const clienteVendedor = contexto.clienteVendedor
     ? contexto.clienteVendedor.NOMBRE || ('ID: ' + contexto.clienteVendedor.CLIENTE_ID)
     : 'ninguno';
+  const busquedaTexto = (contexto.parametros && contexto.parametros.texto_busqueda) || 'ninguna';
 
   return promptVendedor
-    .replace('{{CLIENTE_VENDEDOR}}', clienteVendedor);
+    .replace('{{CLIENTE_VENDEDOR}}', clienteVendedor)
+    .replace(/\{\{BUSQUEDA_TEXTO\}\}/g, busquedaTexto);
 }
 
 const VENDEDOR_TOOLS = [
