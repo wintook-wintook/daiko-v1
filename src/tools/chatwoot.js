@@ -145,7 +145,7 @@ function validarTelefono(tel) {
 
 function formatearResumenProspecto(datos) {
   return (
-    'Resumen del prospecto:\n' +
+    'Resumen:\n' +
     `• Nombre de la organización: ${datos.nombre_prospecto}\n` +
     `• Nombre del contacto: ${datos.nombre_contacto}\n` +
     `• Celular: ${datos.celular}\n` +
