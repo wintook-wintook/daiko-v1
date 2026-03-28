@@ -14,7 +14,7 @@ const conversations = new Map(); // userId -> conversation history
 
 const { openaiConfig, systemPrompt } = require('../config/openai_prompt');
 const { functionDefinitions, executeFunctionCall } = require('../tools/openai_tools');
-const {buscarcliente, buscarcliente2, crearProspecto} = require('../utils/crm');
+const {buscarcliente, buscarcliente2, crearProspecto, actualizarObservaciones} = require('../utils/crm');
 const { getApiData } = require('../utils/functions');
 let urlWA = process.env.CHATWOOT_URL; // 'https://app.chatzeus.com/';
 
@@ -152,6 +152,35 @@ function formatearResumenProspecto(datos) {
     `• Teléfono de oficina: ${datos.telefono_oficina || 'No proporcionado'}\n\n` +
     '¿Los datos son correctos? Responde *sí* para confirmar o *no* para cancelar.'
   );
+}
+
+async function procesarWizardImagenNotas(wizardState, messageContent, userContext) {
+  const inputLower = messageContent.trim().toLowerCase();
+  const { noEncontrados, carritoId } = wizardState;
+
+  if (['si', 'sí', 's', 'yes'].includes(inputLower)) {
+    await userContext.clearWizardState();
+    const textoNotas = 'Productos no encontrados:\n' + noEncontrados.map(function(item, i) {
+      const desc = item.descripcion || item.clave || 'Sin descripción';
+      return (i + 1) + ') ' + desc + (item.cantidad && item.cantidad > 1 ? ' x' + item.cantidad : '');
+    }).join('\n');
+    const resultado = await actualizarObservaciones(carritoId, textoNotas, 'append');
+    if (resultado && resultado.success) {
+      return 'Listo, los productos no encontrados fueron agregados como nota en el carrito.';
+    }
+    return 'No fue posible agregar las notas: ' + (resultado ? resultado.message : 'error desconocido');
+  }
+
+  if (['no', 'n'].includes(inputLower)) {
+    await userContext.clearWizardState();
+    return 'De acuerdo, los productos no encontrados no fueron agregados como nota.';
+  }
+
+  // Respuesta inválida — re-preguntar con la lista
+  const lista = noEncontrados.map(function(item, i) {
+    return (i + 1) + ') ' + (item.descripcion || item.clave || 'Sin descripción');
+  }).join('\n');
+  return 'Por favor responde *sí* o *no*.\n\nProductos no encontrados:\n' + lista + '\n\n¿Deseas agregarlos como nota al carrito?';
 }
 
 async function procesarWizardProspecto(wizardState, messageContent, userContext, url_crm_zeus, api_access_token) {
@@ -366,6 +395,16 @@ async function procesarMensajeWebhook(webhookData) {
     // ============================================================
     const wizardState = await userContext.getWizardState();
 
+    if (wizardState && wizardState.tipo === 'imagen_notas') {
+      const respuestaWizard = await procesarWizardImagenNotas(wizardState, messageContent, userContext);
+      toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off');
+      return {
+        success: true,
+        data: { conversationId, response: respuestaWizard, fileName: '', userId, senderName, originalMessage: messageContent },
+        message: 'Mensaje procesado correctamente'
+      };
+    }
+
     if (wizardState && wizardState.tipo === 'prospecto') {
       const respuestaWizard = await procesarWizardProspecto(wizardState, messageContent, userContext, url_crm_zeus, api_access_token);
       toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off');
@@ -487,11 +526,21 @@ async function procesarMensajeWebhook(webhookData) {
         const pideCarrito = mensajePideCarrito(messageContent);
         let resultadoCarrito = null;
 
-        if (pideCarrito && noEncontrados.length === 0 && encontrados.length > 0) {
-          const carritoId = await userContext.getCarrito();
-          resultadoCarrito = await agregarEncontradosAlCarrito(encontrados, carritoId);
-          if (resultadoCarrito && resultadoCarrito.success && !carritoId) {
-            await userContext.setCarrito(resultadoCarrito.carritoId, resultadoCarrito.folio || null);
+        if (pideCarrito && encontrados.length > 0) {
+          const carritoIdActual = await userContext.getCarrito();
+          resultadoCarrito = await agregarEncontradosAlCarrito(encontrados, carritoIdActual);
+          if (resultadoCarrito && resultadoCarrito.success) {
+            const nuevoCarritoId = resultadoCarrito.carritoId || carritoIdActual;
+            if (!carritoIdActual) {
+              await userContext.setCarrito(nuevoCarritoId, resultadoCarrito.folio || null);
+            }
+            if (noEncontrados.length > 0) {
+              await userContext.setWizardState({
+                tipo: 'imagen_notas',
+                noEncontrados,
+                carritoId: nuevoCarritoId
+              });
+            }
           }
         }
 

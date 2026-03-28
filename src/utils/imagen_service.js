@@ -147,14 +147,16 @@ function formatearRespuestaImagen(encontrados, noEncontrados, resultadoCarrito, 
   if (resultadoCarrito) {
     lineas.push('');
     if (resultadoCarrito.success) {
-      lineas.push('Productos agregados al carrito correctamente.');
+      if (noEncontrados.length > 0) {
+        lineas.push('Los productos encontrados fueron agregados al carrito.');
+        lineas.push('');
+        lineas.push('¿Deseas agregar los productos no encontrados como nota al carrito? (sí/no)');
+      } else {
+        lineas.push('Productos agregados al carrito correctamente.');
+      }
     } else {
       lineas.push('No fue posible agregar los productos al carrito: ' + (resultadoCarrito.message || 'error desconocido'));
     }
-  } else if (pediaCarrito && noEncontrados.length > 0) {
-    lineas.push('');
-    lineas.push('No se agregó ningún producto al carrito porque algunos artículos no fueron encontrados.');
-    lineas.push('¿Deseas continuar solo con los productos encontrados, o prefieres que busquemos los faltantes primero?');
   } else if (!pediaCarrito && encontrados.length > 0) {
     lineas.push('');
     lineas.push('¿Deseas agregar estos productos al carrito?');
