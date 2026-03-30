@@ -1182,9 +1182,10 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
             if (productosConId.length === 0) {
               console.warn(`⚠️ ALERTA: Todos los productos fueron filtrados por falta de ARTICULO_ID`);
               return {
-                success: false,
+                success: true,
                 data: [],
-                message: "No encontré productos disponibles con información completa para esta búsqueda.",
+                sinResultados: true,
+                message: `No encontré productos para "${args.query || args.clave}" con información completa.`,
                 preserveCurrentCart: true
               };
             }
@@ -1239,9 +1240,10 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
           if (!productosNormalizadosBusqueda.length) {
             console.warn(`⚠️ No hay productos normalizados válidos después del segundo filtro`);
             return {
-              success: false,
+              success: true,
               data: [],
-              message: "No encontré productos disponibles para esta búsqueda.",
+              sinResultados: true,
+              message: `No encontré productos para "${args.query || args.clave}" en el catálogo.`,
               preserveCurrentCart: true
             };
           }
