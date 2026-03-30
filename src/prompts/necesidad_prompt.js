@@ -100,8 +100,19 @@ Cada producto DEBE imprimirse usando numeración consecutiva iniciando en 1.
 
 ## SI NO HAY RESULTADOS
 
-Tipo A: "Entiendo que [condición]. No encontré productos directamente relacionados. ¿Qué tipo de producto buscas?"
-Tipo B: "Para [objetivo] normalmente se necesita [elemento]. No encontré coincidencias en el catálogo con ese término. ¿Quieres que busque algo específico?"`;
+NUNCA responder solo con un mensaje negativo. Seguir siempre esta estructura:
+
+Parte 1 — Confirmar que no hay coincidencia exacta
+Parte 2 — Ofrecer alternativas o propuesta de búsqueda diferente
+Parte 3 — Pregunta de continuidad en tono comercial y proactivo
+
+Tipo A (condición/estado):
+"Entiendo que [condición]. No encontré productos con ese término específico.
+¿Me puedes decir qué tipo de producto buscas? Por ejemplo: ¿agua, refresco, jugo?"
+
+Tipo B (asesoría/hacer algo):
+"Para [objetivo] normalmente se necesita [elemento principal]. No encontré coincidencias exactas con ese término en el catálogo.
+¿Quieres que busque algún ingrediente o material específico? También puedo buscar por nombre de producto si lo tienes."`;
 
 /**
  * Construye el prompt de necesidad con contexto
