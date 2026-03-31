@@ -183,6 +183,36 @@ async function procesarWizardImagenNotas(wizardState, messageContent, userContex
   return 'Por favor responde *sí* o *no*.\n\nProductos no encontrados:\n' + lista + '\n\n¿Deseas agregarlos como nota al carrito?';
 }
 
+async function procesarWizardImagenCarrito(wizardState, messageContent, userContext) {
+  const inputLower = messageContent.trim().toLowerCase();
+  const { encontrados, noEncontrados } = wizardState;
+
+  if (['si', 'sí', 's', 'yes'].includes(inputLower)) {
+    await userContext.clearWizardState();
+    const carritoIdActual = await userContext.getCarrito();
+    const resultadoCarrito = await agregarEncontradosAlCarrito(encontrados, carritoIdActual);
+    if (resultadoCarrito && resultadoCarrito.success) {
+      const nuevoCarritoId = resultadoCarrito.carritoId || carritoIdActual;
+      if (!carritoIdActual) {
+        await userContext.setCarrito(nuevoCarritoId, resultadoCarrito.folio || null);
+      }
+      if (noEncontrados && noEncontrados.length > 0) {
+        await userContext.setWizardState({ tipo: 'imagen_notas', noEncontrados, carritoId: nuevoCarritoId });
+        return 'Los productos encontrados fueron agregados al carrito.\n\n¿Deseas agregar los productos no encontrados como nota al carrito? (sí/no)';
+      }
+      return 'Productos agregados al carrito correctamente.';
+    }
+    return 'No fue posible agregar los productos al carrito: ' + (resultadoCarrito ? resultadoCarrito.message : 'error desconocido');
+  }
+
+  if (['no', 'n'].includes(inputLower)) {
+    await userContext.clearWizardState();
+    return 'De acuerdo, los productos no fueron agregados al carrito.';
+  }
+
+  return 'Por favor responde *sí* o *no*.\n\n¿Deseas agregar estos productos al carrito?';
+}
+
 async function procesarWizardProspecto(wizardState, messageContent, userContext, url_crm_zeus, api_access_token) {
   const paso = wizardState.paso;
   const datos = wizardState.datos;
@@ -395,6 +425,16 @@ async function procesarMensajeWebhook(webhookData) {
     // ============================================================
     const wizardState = await userContext.getWizardState();
 
+    if (wizardState && wizardState.tipo === 'imagen_carrito') {
+      const respuestaWizard = await procesarWizardImagenCarrito(wizardState, messageContent, userContext);
+      toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off');
+      return {
+        success: true,
+        data: { conversationId, response: respuestaWizard, fileName: '', userId, senderName, originalMessage: messageContent },
+        message: 'Mensaje procesado correctamente'
+      };
+    }
+
     if (wizardState && wizardState.tipo === 'imagen_notas') {
       const respuestaWizard = await procesarWizardImagenNotas(wizardState, messageContent, userContext);
       toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off');
@@ -542,6 +582,10 @@ async function procesarMensajeWebhook(webhookData) {
               });
             }
           }
+        }
+
+        if (!pideCarrito && encontrados.length > 0) {
+          await userContext.setWizardState({ tipo: 'imagen_carrito', encontrados, noEncontrados });
         }
 
         const respuestaImagen = formatearRespuestaImagen(encontrados, noEncontrados, resultadoCarrito, pideCarrito);
