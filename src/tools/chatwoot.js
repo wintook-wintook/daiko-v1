@@ -765,9 +765,15 @@ async function procesarMensajeWebhook(webhookData) {
       } else if (messageContent && messageContent.toLowerCase().includes('gracias')) {
         mensajeSaludo = 'Con gusto! Si necesitas algo mas, aqui estare.';
       } else {
-        mensajeSaludo = nombreCliente
-          ? `${saludoHora}, ${nombreCliente}! En que puedo ayudarte hoy?`
-          : `${saludoHora}! Soy tu asesor comercial. En que puedo ayudarte?`;
+        if (senderName && nombreCliente) {
+          mensajeSaludo = `${saludoHora} ${senderName}, tu organizacion es ${nombreCliente}! En que puedo ayudarte hoy?`;
+        } else if (senderName) {
+          mensajeSaludo = `${saludoHora} ${senderName}! En que puedo ayudarte hoy?`;
+        } else if (nombreCliente) {
+          mensajeSaludo = `${saludoHora}, ${nombreCliente}! En que puedo ayudarte hoy?`;
+        } else {
+          mensajeSaludo = `${saludoHora}! Soy tu asesor comercial. En que puedo ayudarte?`;
+        }
       }
 
       conversationHistory.push({ role: "assistant", content: mensajeSaludo });
