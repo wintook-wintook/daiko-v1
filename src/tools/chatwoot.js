@@ -422,6 +422,9 @@ async function procesarMensajeWebhook(webhookData) {
     if (Cliente && Cliente.data && Cliente.data.NOMBRE_COMERCIAL) {
       await userContext.setNombre(Cliente.data.NOMBRE_COMERCIAL);
     }
+    if (senderName) {
+      await userContext.setNombreContacto(senderName);
+    }
 
     const systemPromptWithContext = systemPrompt;
 

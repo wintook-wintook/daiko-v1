@@ -59,6 +59,17 @@ class UserContext {
     return await redis.hget(this.key, 'nombre_usuario');
   }
 
+  // Guardar nombre del contacto (persona física, ej: senderName de Chatwoot)
+  async setNombreContacto(nombre) {
+    await redis.hset(this.key, 'nombre_contacto', nombre);
+    await redis.expire(this.key, this.ttl);
+  }
+
+  // Obtener nombre del contacto
+  async getNombreContacto() {
+    return await redis.hget(this.key, 'nombre_contacto');
+  }
+
   // Guardar carrito
   async setCarrito(carritoId, folio) {
     await redis.hset(this.key, 'carrito_id', carritoId);
@@ -340,8 +351,11 @@ class UserContext {
 
     let contextStr = '\\n=== CONTEXTO DEL USUARIO ACTUAL ===\\n';
     
+    if (context.nombre_contacto) {
+      contextStr += `- Nombre del contacto: ${context.nombre_contacto}\\n`;
+    }
     if (context.nombre_usuario) {
-      contextStr += `- Nombre: ${context.nombre_usuario}\\n`;
+      contextStr += `- Organización: ${context.nombre_usuario}\\n`;
     }
     
     if (context.carrito_id) {
@@ -477,6 +491,7 @@ console.log({obj: "UserContext", contextStr});
 
     // Establecer valores básicos
     pipeline.hset(this.key, 'nombre_usuario', '');
+    pipeline.hset(this.key, 'nombre_contacto', '');
     pipeline.hset(this.key, 'cliente', JSON.stringify({}));
     pipeline.hset(this.key, 'ultima_categoria', '');
     pipeline.hset(this.key, 'created_at', new Date().toISOString());
