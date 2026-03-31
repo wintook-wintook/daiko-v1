@@ -183,6 +183,15 @@ async function procesarWizardImagenNotas(wizardState, messageContent, userContex
   return 'Por favor responde *sí* o *no*.\n\nProductos no encontrados:\n' + lista + '\n\n¿Deseas agregarlos como nota al carrito?';
 }
 
+async function appendCarritoFooter(texto, userContext) {
+  const carritoActivo = await userContext.getCarrito();
+  if (carritoActivo && !texto.includes('Carrito activo:')) {
+    const folioActivo = await userContext.getFolio();
+    return texto + '\n\nCarrito activo: ' + carritoActivo + (folioActivo ? ' | Folio: ' + folioActivo : '');
+  }
+  return texto;
+}
+
 async function procesarWizardImagenCarrito(wizardState, messageContent, userContext) {
   const inputLower = messageContent.trim().toLowerCase();
   const { encontrados, noEncontrados } = wizardState;
@@ -426,7 +435,8 @@ async function procesarMensajeWebhook(webhookData) {
     const wizardState = await userContext.getWizardState();
 
     if (wizardState && wizardState.tipo === 'imagen_carrito') {
-      const respuestaWizard = await procesarWizardImagenCarrito(wizardState, messageContent, userContext);
+      let respuestaWizard = await procesarWizardImagenCarrito(wizardState, messageContent, userContext);
+      respuestaWizard = await appendCarritoFooter(respuestaWizard, userContext);
       toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off');
       return {
         success: true,
@@ -436,7 +446,8 @@ async function procesarMensajeWebhook(webhookData) {
     }
 
     if (wizardState && wizardState.tipo === 'imagen_notas') {
-      const respuestaWizard = await procesarWizardImagenNotas(wizardState, messageContent, userContext);
+      let respuestaWizard = await procesarWizardImagenNotas(wizardState, messageContent, userContext);
+      respuestaWizard = await appendCarritoFooter(respuestaWizard, userContext);
       toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off');
       return {
         success: true,
@@ -588,7 +599,8 @@ async function procesarMensajeWebhook(webhookData) {
           await userContext.setWizardState({ tipo: 'imagen_carrito', encontrados, noEncontrados });
         }
 
-        const respuestaImagen = formatearRespuestaImagen(encontrados, noEncontrados, resultadoCarrito, pideCarrito);
+        let respuestaImagen = formatearRespuestaImagen(encontrados, noEncontrados, resultadoCarrito, pideCarrito);
+        respuestaImagen = await appendCarritoFooter(respuestaImagen, userContext);
         conversationHistory.push({ role: 'assistant', content: respuestaImagen });
         return {
           success: true,
