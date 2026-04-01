@@ -42,11 +42,13 @@ const {
 const { ejecutarQueryComando } = require('../utils/query_commands');
 const {
   extraerListaDeImagen,
+  extraerListaDeExcel,
   buscarItemsLista,
   agregarEncontradosAlCarrito,
   formatearRespuestaImagen,
   mensajePideCarrito,
-  esImagenAdjunta
+  esImagenAdjunta,
+  esExcelAdjunto
 } = require('../utils/imagen_service');
 
 // Feature toggle para activación gradual
@@ -316,8 +318,9 @@ async function procesarMensajeWebhook(webhookData) {
     const { conversationId, messageContent, senderId, senderName, messageType, inboxId, attachments } = extractedData.data;
 
     const imagenAdjunta = attachments.find(esImagenAdjunta) || null;
+    const excelAdjunto = attachments.find(esExcelAdjunto) || null;
 
-    if (messageType !== 'incoming' || (!messageContent && !imagenAdjunta)) {
+    if (messageType !== 'incoming' || (!messageContent && !imagenAdjunta && !excelAdjunto)) {
       return {
         success: false,
         message: "Mensaje no procesable - solo se procesan mensajes entrantes con contenido"
@@ -550,6 +553,68 @@ async function procesarMensajeWebhook(webhookData) {
         return {
           success: true,
           data: { conversationId, response: respuestaQuery, fileName: '', userId, senderName, originalMessage: messageContent },
+          message: 'Mensaje procesado correctamente'
+        };
+      }
+    }
+
+    // ============================================================
+    // EXCEL / CSV CON LISTA DE COMPRAS - antes del clasificador
+    // ============================================================
+    if (excelAdjunto) {
+      console.log('📊 Excel adjunto detectado, procesando lista de compras...');
+      try {
+        const fileUrl = excelAdjunto.data_url || excelAdjunto.file_url;
+        const items = await extraerListaDeExcel(fileUrl);
+
+        if (!items || items.length === 0) {
+          const respuestaExcel = 'No pude identificar productos en el archivo. Verifica que tenga columnas con encabezados: clave, nombre y/o cantidad.';
+          conversationHistory.push({ role: 'assistant', content: respuestaExcel });
+          return {
+            success: true,
+            data: { conversationId, response: respuestaExcel, fileName: '', userId, senderName, originalMessage: messageContent || '' },
+            message: 'Mensaje procesado correctamente'
+          };
+        }
+
+        console.log('📋 Items extraídos de Excel:', items.length);
+        const { encontrados, noEncontrados } = await buscarItemsLista(items);
+
+        const pideCarrito = mensajePideCarrito(messageContent);
+        let resultadoCarrito = null;
+
+        if (pideCarrito && encontrados.length > 0) {
+          const carritoIdActual = await userContext.getCarrito();
+          resultadoCarrito = await agregarEncontradosAlCarrito(encontrados, carritoIdActual);
+          if (resultadoCarrito && resultadoCarrito.success) {
+            const nuevoCarritoId = resultadoCarrito.carritoId || carritoIdActual;
+            if (!carritoIdActual) {
+              await userContext.setCarrito(nuevoCarritoId, resultadoCarrito.folio || null);
+            }
+            if (noEncontrados.length > 0) {
+              await userContext.setWizardState({ tipo: 'imagen_notas', noEncontrados, carritoId: nuevoCarritoId });
+            }
+          }
+        }
+
+        if (!pideCarrito && encontrados.length > 0) {
+          await userContext.setWizardState({ tipo: 'imagen_carrito', encontrados, noEncontrados });
+        }
+
+        let respuestaExcel = formatearRespuestaImagen(encontrados, noEncontrados, resultadoCarrito, pideCarrito);
+        respuestaExcel = await appendCarritoFooter(respuestaExcel, userContext);
+        conversationHistory.push({ role: 'assistant', content: respuestaExcel });
+        return {
+          success: true,
+          data: { conversationId, response: respuestaExcel, fileName: '', userId, senderName, originalMessage: messageContent || '' },
+          message: 'Mensaje procesado correctamente'
+        };
+      } catch (errorExcel) {
+        console.error('❌ Error procesando Excel:', errorExcel.message);
+        const respuestaError = 'Ocurrió un error al procesar el archivo. Por favor intenta de nuevo.';
+        return {
+          success: true,
+          data: { conversationId, response: respuestaError, fileName: '', userId, senderName, originalMessage: messageContent || '' },
           message: 'Mensaje procesado correctamente'
         };
       }

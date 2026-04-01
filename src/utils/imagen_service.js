@@ -1,7 +1,10 @@
 // src/utils/imagen_service.js
-// Procesamiento de imágenes con listas de compras via GPT-4o Vision
+// Procesamiento de imágenes y archivos Excel con listas de compras
 
 const { buscarProductos, agregarVariosArticulosAlCarrito, crearNuevoCarritoConVariosArticulos } = require('./crm');
+const XLSX = require('xlsx');
+const https = require('https');
+const http = require('http');
 
 const PROMPT_OCR = `Eres un asistente OCR especializado en listas de compras.
 Analiza la imagen y extrae todos los productos listados.
@@ -183,11 +186,103 @@ function esImagenAdjunta(attachment) {
   return fileType === 'image' || contentType.startsWith('image/');
 }
 
+/**
+ * Detecta si un attachment de Chatwoot es un archivo Excel o CSV.
+ */
+function esExcelAdjunto(attachment) {
+  if (!attachment) return false;
+  const contentType = (attachment.content_type || '').toLowerCase();
+  const dataUrl = (attachment.data_url || attachment.file_url || '').toLowerCase();
+  const excelTypes = [
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-excel',
+    'text/csv',
+    'application/csv'
+  ];
+  if (excelTypes.includes(contentType)) return true;
+  return /\.(xlsx|xls|csv)$/.test(dataUrl);
+}
+
+/**
+ * Descarga un archivo desde una URL y retorna el buffer.
+ */
+function descargarArchivo(url) {
+  return new Promise(function(resolve, reject) {
+    const client = url.startsWith('https') ? https : http;
+    client.get(url, function(res) {
+      const chunks = [];
+      res.on('data', function(chunk) { chunks.push(chunk); });
+      res.on('end', function() { resolve(Buffer.concat(chunks)); });
+      res.on('error', reject);
+    }).on('error', reject);
+  });
+}
+
+/**
+ * Normaliza el nombre de una columna para detectar clave, nombre o cantidad.
+ */
+function detectarTipoColumna(header) {
+  const h = (header || '').toString().toLowerCase().trim();
+  if (/^(clave|id|codigo|c[oó]digo|sku|art[ií]culo|articulo)$/.test(h)) return 'clave';
+  if (/^(nombre|descripci[oó]n|descripcion|producto|name|desc)$/.test(h)) return 'nombre';
+  if (/^(cantidad|qty|piezas|unidades|cant|q)$/.test(h)) return 'cantidad';
+  return null;
+}
+
+/**
+ * Extrae la lista de productos de un archivo Excel o CSV.
+ * @param {string} fileUrl - URL del archivo
+ * @returns {Promise<Array>} - Array de { clave, descripcion, cantidad }
+ */
+async function extraerListaDeExcel(fileUrl) {
+  console.log('📊 Parseando Excel:', fileUrl);
+  const buffer = await descargarArchivo(fileUrl);
+  const workbook = XLSX.read(buffer, { type: 'buffer' });
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+  if (rows.length < 2) return [];
+
+  // Detectar columnas por header
+  const headers = rows[0];
+  const colMap = { clave: -1, nombre: -1, cantidad: -1 };
+  headers.forEach(function(h, i) {
+    const tipo = detectarTipoColumna(h);
+    if (tipo && colMap[tipo] === -1) colMap[tipo] = i;
+  });
+
+  console.log('📋 Mapa de columnas detectado:', colMap);
+
+  const items = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const clave = colMap.clave >= 0 ? (row[colMap.clave] || '').toString().trim() : null;
+    const nombre = colMap.nombre >= 0 ? (row[colMap.nombre] || '').toString().trim() : null;
+    const cantRaw = colMap.cantidad >= 0 ? row[colMap.cantidad] : null;
+    const cantidad = cantRaw ? parseInt(cantRaw, 10) || 1 : 1;
+
+    // Ignorar filas vacías
+    if (!clave && !nombre) continue;
+
+    items.push({
+      clave: clave || null,
+      descripcion: nombre || null,
+      cantidad
+    });
+  }
+
+  console.log('📝 Items extraídos de Excel:', items.length);
+  return items;
+}
+
 module.exports = {
   extraerListaDeImagen,
+  extraerListaDeExcel,
   buscarItemsLista,
   agregarEncontradosAlCarrito,
   formatearRespuestaImagen,
   mensajePideCarrito,
-  esImagenAdjunta
+  esImagenAdjunta,
+  esExcelAdjunto
 };
