@@ -319,11 +319,6 @@ async function procesarMensajeWebhook(webhookData) {
 
     const imagenAdjunta = attachments.find(esImagenAdjunta) || null;
     const excelAdjunto = attachments.find(esExcelAdjunto) || null;
-    if (attachments && attachments.length > 0) {
-      console.log('📎 Attachments recibidos:', JSON.stringify(attachments.map(function(a) {
-        return { file_type: a.file_type, content_type: a.content_type, data_url: a.data_url, file_url: a.file_url };
-      })));
-    }
 
     if (messageType !== 'incoming' || (!messageContent && !imagenAdjunta && !excelAdjunto)) {
       return {

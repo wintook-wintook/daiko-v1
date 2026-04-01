@@ -200,7 +200,7 @@ function esExcelAdjunto(attachment) {
     'application/csv'
   ];
   if (excelTypes.includes(contentType)) return true;
-  return /\.(xlsx|xls|csv)$/.test(dataUrl);
+  return /\.(xlsx|xls|csv)/i.test(dataUrl);
 }
 
 /**
