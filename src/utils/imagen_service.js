@@ -204,12 +204,17 @@ function esExcelAdjunto(attachment) {
 }
 
 /**
- * Descarga un archivo desde una URL y retorna el buffer.
+ * Descarga un archivo desde una URL siguiendo redirects y retorna el buffer.
  */
-function descargarArchivo(url) {
+function descargarArchivo(url, maxRedirects) {
+  maxRedirects = maxRedirects === undefined ? 5 : maxRedirects;
   return new Promise(function(resolve, reject) {
     const client = url.startsWith('https') ? https : http;
     client.get(url, function(res) {
+      if ((res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308) && res.headers.location) {
+        if (maxRedirects === 0) return reject(new Error('Demasiados redirects'));
+        return resolve(descargarArchivo(res.headers.location, maxRedirects - 1));
+      }
       const chunks = [];
       res.on('data', function(chunk) { chunks.push(chunk); });
       res.on('end', function() { resolve(Buffer.concat(chunks)); });
