@@ -232,7 +232,7 @@ function descargarArchivo(url, maxRedirects) {
  */
 function detectarTipoColumna(header) {
   const h = (header || '').toString().toLowerCase().trim();
-  if (/^(clave|id|codigo|c[oó]digo|sku|art[ií]culo|articulo)$/.test(h)) return 'clave';
+  if (/^clave|^(id|codigo|c[oó]digo|sku|art[ií]culo|articulo)$/.test(h)) return 'clave';
   if (/^(nombre|descripci[oó]n|descripcion|producto|name|desc)$/.test(h)) return 'nombre';
   if (/^(cantidad|qty|piezas|unidades|cant|q)$/.test(h)) return 'cantidad';
   return null;
