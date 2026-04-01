@@ -69,6 +69,10 @@ async function buscarItemsLista(items) {
       if (item.clave) {
         console.log('🔑 Buscando por clave:', item.clave);
         resultado = await buscarProductos(null, null, null, null, 1, 10, filtrosVacios, item.clave);
+        if ((!resultado || !resultado.success || !resultado.data || resultado.data.length === 0) && item.descripcion) {
+          console.log('🔍 Clave no encontrada, intentando por descripción:', item.descripcion);
+          resultado = await buscarProductos(item.descripcion, null, null, null, 1, 10, filtrosVacios);
+        }
       } else {
         console.log('🔍 Buscando por descripción:', item.descripcion);
         resultado = await buscarProductos(item.descripcion, null, null, null, 1, 10, filtrosVacios);
