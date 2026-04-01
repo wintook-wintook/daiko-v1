@@ -195,7 +195,7 @@ async function appendCarritoFooter(texto, userContext) {
 }
 
 async function procesarWizardImagenCarrito(wizardState, messageContent, userContext) {
-  const inputLower = messageContent.trim().toLowerCase();
+  const inputLower = (messageContent || '').trim().toLowerCase();
   const { encontrados, noEncontrados } = wizardState;
 
   if (['si', 'sí', 's', 'yes'].includes(inputLower)) {
