@@ -165,7 +165,8 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
             nombre_prospecto: nombreProspecto,
             nombre_contacto: nombreProspecto,
             celular: phone_number,
-            telefono_oficina: null
+            telefono_oficina: null,
+            permisos_default: true
           });
           if (resultadoProspecto && resultadoProspecto.success) {
             const prospectoId = resultadoProspecto.data && resultadoProspecto.data.PROSPECTO_ID;
@@ -1232,7 +1233,8 @@ async function crearProspecto(url_crm_, token_, datos) {
     nombre: datos.nombre_prospecto,
     nombre_contacto: datos.nombre_contacto,
     celular: datos.celular,
-    telefono_oficina: datos.telefono_oficina || null
+    telefono_oficina: datos.telefono_oficina || null,
+    permisos_default: datos.permisos_default !== undefined ? datos.permisos_default : false
   });
   let config = getConfigApiDaiko('createProspecto', data);
   try {
