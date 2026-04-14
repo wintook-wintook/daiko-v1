@@ -87,7 +87,7 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
   url_crm_zeus = await url_crm_zeus_;
   api_access_token = await api_access_token_;
 
-  let {email, phone_number, contact_id, userContext} = info;
+  let {email, phone_number, contact_id, senderName, userContext} = info;
   phone_number = (phone_number ? phone_number.substr(-10) : phone_number);
 
   // Modo vendedor: usar cliente seleccionado por el vendedor
@@ -155,6 +155,41 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
       response = await getApiData(config);
       contacto = response.data[0];
     } catch (error) {
+      const apiData = error.response && error.response.data;
+      const opc = Array.isArray(apiData) && apiData[0] && apiData[0].opc;
+      if (opc === 'No se encontraron contactos registrados.' && phone_number) {
+        console.log('⚠️ Contacto no encontrado, creando prospecto automáticamente...');
+        try {
+          const nombreProspecto = senderName || 'Sin nombre';
+          const resultadoProspecto = await crearProspecto(url_crm_zeus, api_access_token, {
+            nombre_prospecto: nombreProspecto,
+            nombre_contacto: nombreProspecto,
+            celular: phone_number,
+            telefono_oficina: null
+          });
+          if (resultadoProspecto && resultadoProspecto.success) {
+            const prospectoId = resultadoProspecto.data && resultadoProspecto.data.PROSPECTO_ID;
+            console.log('✅ Prospecto creado automáticamente:', prospectoId);
+            cliente_id = prospectoId;
+            celular = phone_number;
+            await userContext.setNombre(nombreProspecto);
+            return {
+              success: true,
+              esProspecto: true,
+              data: {
+                ALMACEN_ID: almacen_id,
+                CLIENTE_ID: prospectoId,
+                MONEDA_ID: moneda_id,
+                VENDEDOR_ID: vendedor_id,
+                NOMBRE_COMERCIAL: nombreProspecto
+              },
+              preserveCurrentCart: true
+            };
+          }
+        } catch (errProspecto) {
+          console.error('Error creando prospecto automático:', errProspecto.message);
+        }
+      }
       buscarContacto = true;
     }
   } else {

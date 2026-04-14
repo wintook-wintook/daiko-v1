@@ -407,6 +407,7 @@ async function procesarMensajeWebhook(webhookData) {
         phone_number: sender.phone_number,
         contact_id: contact_id,
         almacen_id: almacen_id,
+        senderName,
         userContext
       }),
       userContext.toSystemContext()
