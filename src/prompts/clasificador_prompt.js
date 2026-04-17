@@ -17,8 +17,8 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 | Acción | Cuándo usar | Ejemplos |
 |--------|-------------|----------|
 | SALUDO | Saludos, cortesía, despedidas | "hola", "buenos días", "gracias", "adiós", "cómo estás" |
-| BUSQUEDA_PRODUCTO | Busca un producto específico (menciona sustantivo concreto) | "quiero azúcar", "tienes monitores", "busco tubería", "necesito cable", "necesito agua", "requiero leche" |
-| BUSQUEDA_CATEGORIA | Explora catálogo sin producto específico | "qué vendes", "muéstrame categorías", "tu catálogo", "qué productos tienes" |
+| BUSQUEDA_PRODUCTO | Busca un producto específico (menciona sustantivo concreto) | "quiero azúcar", "tienes monitores", "busco tubería", "necesito cable", "necesito agua", "requiero leche", "qué cervezas tienes", "qué productos de res tienes", "tienes jugos", "tienen refrescos" |
+| BUSQUEDA_CATEGORIA | Explora catálogo SIN mencionar ningún producto concreto | "qué vendes", "muéstrame categorías", "tu catálogo", "qué productos tienes", "qué tienes" |
 | CARRITO_CREAR | Agregar productos cuando NO tiene carrito activo | "agrégalo", "ponme 2", "lo quiero", "dame ese" |
 | CARRITO_MODIFICAR | Modificar carrito existente (agregar, quitar, actualizar, observaciones/notas/comentarios) | "quítame el segundo", "ponme 5 del primero", "elimina el producto", "agrega 3 más", "agrega nota: entrega urgente", "pon observaciones", "quita los comentarios" |
 | CARRITO_CONSULTAR | Ver o gestionar carritos | "ver mi carrito", "mis carritos", "qué tengo en el carrito", "muéstrame mi pedido", "muéstrame el contenido", "ver el contenido", "qué tiene mi carrito" |
@@ -77,6 +77,20 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
   "me ayudas a armar una computadora" → NECESIDAD (asesoría)
 - NECESIDAD también aplica cuando NO hay producto/sustantivo concreto, solo una condición o estado:
   "tengo sed" → NECESIDAD, "me duele la cabeza" → NECESIDAD, "tengo hambre" → NECESIDAD
+
+### Para distinguir BUSQUEDA_PRODUCTO vs BUSQUEDA_CATEGORIA (REGLA CRITICA):
+- BUSQUEDA_CATEGORIA es SOLO para mensajes que no mencionan ningún producto concreto: "qué vendes", "tu catálogo", "qué tienes", "muéstrame todo"
+- Si el mensaje menciona un sustantivo concreto (aunque sea en plural o con "qué ... tienes?") → SIEMPRE es BUSQUEDA_PRODUCTO
+  Ejemplos BUSQUEDA_PRODUCTO:
+  "qué cervezas tienes?" → BUSQUEDA_PRODUCTO (sustantivo: "cerveza")
+  "tienes jugos?" → BUSQUEDA_PRODUCTO (sustantivo: "jugo")
+  "qué productos de res tienes?" → BUSQUEDA_PRODUCTO (sustantivo: "res")
+  "tienen refrescos?" → BUSQUEDA_PRODUCTO (sustantivo: "refresco")
+  "qué otros productos de leche hay?" → BUSQUEDA_PRODUCTO (sustantivo: "leche")
+  Ejemplos BUSQUEDA_CATEGORIA:
+  "qué vendes?" → BUSQUEDA_CATEGORIA (sin sustantivo concreto)
+  "qué tienes?" → BUSQUEDA_CATEGORIA (sin sustantivo concreto)
+  "muéstrame el catálogo" → BUSQUEDA_CATEGORIA (sin sustantivo concreto)
 
 ### Para distinguir BUSQUEDA vs CARRITO:
 - Si el usuario menciona un producto con nombre (sustantivo) y NO hay productos mostrados recientemente → BUSQUEDA_PRODUCTO
