@@ -243,14 +243,22 @@ function resolverParametrosClasificador(parametros, productosMostrados) {
   // Si NO coincide, NO resolver referencia (dejar que GPT busque el producto)
   if (parametros.texto_busqueda && productosMostrados && productosMostrados.length > 0) {
     const textoBusqueda = parametros.texto_busqueda.toLowerCase();
-    const coincide = productosMostrados.some(p => {
+    const productoCoincide = productosMostrados.find(p => {
       const nombre = (p.NOMBRE || p.DESCRIPCION || '').toLowerCase();
       return nombre.includes(textoBusqueda) || textoBusqueda.includes(nombre.split(' ')[0]);
     });
 
-    if (!coincide) {
+    if (!productoCoincide) {
       console.log(`   ⚠️ texto_busqueda "${parametros.texto_busqueda}" NO coincide con productos mostrados - NO resolver referencia`);
-      // No resolver, dejar que GPT busque
+      resultado.cantidad = parametros.cantidad || 1;
+      return resultado;
+    }
+
+    // Producto encontrado por nombre y no hay referencia posicional → resolver directamente por nombre
+    if (!parametros.referencia && typeof parametros.referencia_idx !== 'number') {
+      console.log(`   ✅ Resuelto por nombre: "${parametros.texto_busqueda}" → ID: ${productoCoincide.ARTICULO_ID}`);
+      resultado.articulo_id = productoCoincide.ARTICULO_ID;
+      resultado.producto_resuelto = productoCoincide;
       resultado.cantidad = parametros.cantidad || 1;
       return resultado;
     }

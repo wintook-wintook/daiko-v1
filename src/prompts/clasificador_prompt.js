@@ -132,6 +132,16 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 - "un par" → cantidad: 2
 - "media docena" → cantidad: 6
 
+### Para palabras de unidad + referencia posicional (REGLA CRITICA):
+- Palabras como "pieza", "piezas", "unidad", "unidades", "caja", "cajas", "paquete", "paquetes", "artículo", "artículos" seguidas de "del primero/segundo/etc" o "del 1/2/etc" NO son nombres de producto
+- Son indicadores de cantidad + referencia posicional al producto ya mostrado
+- Ejemplos:
+  - "quiero una pieza del dos" → CARRITO_MODIFICAR o CARRITO_CREAR, cantidad:1, referencia:"dos", referencia_idx:1
+  - "dame 3 piezas del primero" → cantidad:3, referencia:"primero", referencia_idx:0
+  - "ponme 2 unidades del tercero" → cantidad:2, referencia:"tercero", referencia_idx:2
+  - "una caja del segundo" → cantidad:1, referencia:"segundo", referencia_idx:1
+- NUNCA clasificar estos casos como BUSQUEDA_PRODUCTO
+
 ### Para operaciones de observaciones/notas/comentarios:
 - Si el usuario menciona "observación", "observaciones", "nota", "notas", "comentario", "comentarios", "indicación", "indicaciones" en el contexto de modificar una cotización → CARRITO_MODIFICAR (sub_accion: "observaciones")
 - Ejemplos:
