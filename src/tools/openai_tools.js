@@ -1338,23 +1338,29 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
       case "actualizar_articulo_del_carrito":
         return agregarAlCarrito(args.producto_id, args.cantidad, args.carrito_id, "update");
   
-      case "crear_nuevo_carrito":
+      case "crear_nuevo_carrito": {
+        const carritoExistente = await userContext.getCarrito();
+        if (carritoExistente) {
+          return await agregarAlCarrito(args.producto_id, args.cantidad, carritoExistente);
+        }
         const nuevoCarrito = await crearNuevoCarrito(args.producto_id, args.cantidad);
-        
-        if (nuevoCarrito.success && nuevoCarrito.carritoId) {          
+        if (nuevoCarrito.success && nuevoCarrito.carritoId) {
           await userContext.setCarrito(nuevoCarrito.carritoId, nuevoCarrito.folio);
         }
-        
         return nuevoCarrito;
+      }
 
-      case "crear_nuevo_carrito_con_varios_articulos":
+      case "crear_nuevo_carrito_con_varios_articulos": {
+        const carritoExistenteV = await userContext.getCarrito();
+        if (carritoExistenteV) {
+          return await agregarVariosArticulosAlCarrito(carritoExistenteV, args.productos);
+        }
         const carritoN = await crearNuevoCarritoConVariosArticulos(args.productos);
-
-        if(carritoN.success){
+        if (carritoN.success) {
           await userContext.setCarrito(carritoN.carritoId, carritoN.folio);
         }
-
         return carritoN;
+      }
   
       case "obtener_carritos_disponibles": {
         await userContext.setUltimaAccion('listar_carritos');
@@ -1385,8 +1391,23 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
         }
         return carritoA;
 
-      case "cancelar_carrito":
-        return cancelarCarrito(args.carrito_id);
+      case "cancelar_carrito": {
+        const resultCancelar = await cancelarCarrito(args.carrito_id);
+        const msgCancelar = (resultCancelar.message || '').toLowerCase();
+        const esCarritoFinalizado = msgCancelar.includes('ganado') || msgCancelar.includes('cerrado') || msgCancelar.includes('confirmado');
+        if (esCarritoFinalizado) {
+          const carritoActualC = await userContext.getCarrito();
+          if (carritoActualC && String(carritoActualC) === String(args.carrito_id)) {
+            await userContext.setCarrito('', '');
+          }
+          return {
+            success: false,
+            message: 'El carrito ya fue convertido en pedido y no puede cancelarse. El carrito activo ha sido liberado.',
+            preserveCurrentCart: false
+          };
+        }
+        return resultCancelar;
+      }
 
       case "generar_pdf":
         return generarPdf(args.carrito_id);
