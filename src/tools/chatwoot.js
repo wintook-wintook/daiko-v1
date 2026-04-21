@@ -500,23 +500,21 @@ async function procesarMensajeWebhook(webhookData) {
     // ============================================================
     const carritoActual = await userContext.getCarrito();
     if (carritoActual === null) {
-      for (let i = conversationHistory.length - 1; i >= 0; i--) {
-        const msg = conversationHistory[i];
-        if (msg.role === 'assistant' && msg.content) {
-          const match = msg.content.match(/Carrito activo:\s*(\d+)(?:\s*\|\s*Folio:\s*(\S+))?/);
-          if (match) {
-            console.log('🔄 Restaurando carrito desde historial:', match[1], match[2] || 'sin folio');
-            await userContext.setCarrito(match[1], match[2] || null);
-            // Actualizar el contextStr stale dentro de conversationHistory
-            // porque toSystemContext() se ejecutó antes de la restauración
-            const contextStrActualizado = await userContext.toSystemContext();
-            for (let j = 0; j < conversationHistory.length; j++) {
-              if (conversationHistory[j].role === 'system') {
-                conversationHistory[j].content = contextStrActualizado;
-                break;
-              }
+      // Solo restaurar desde el mensaje más reciente del asistente.
+      // Si el último mensaje no tiene "Carrito activo:" significa que fue
+      // intencionalmente limpiado (pedido confirmado, reinicio, etc.) — no restaurar.
+      const lastAssistantMsg = [...conversationHistory].reverse().find(m => m.role === 'assistant' && m.content);
+      if (lastAssistantMsg) {
+        const match = lastAssistantMsg.content.match(/Carrito activo:\s*(\d+)(?:\s*\|\s*Folio:\s*(\S+))?/);
+        if (match) {
+          console.log('🔄 Restaurando carrito desde historial (último mensaje):', match[1], match[2] || 'sin folio');
+          await userContext.setCarrito(match[1], match[2] || null);
+          const contextStrActualizado = await userContext.toSystemContext();
+          for (let j = 0; j < conversationHistory.length; j++) {
+            if (conversationHistory[j].role === 'system') {
+              conversationHistory[j].content = contextStrActualizado;
+              break;
             }
-            break;
           }
         }
       }
