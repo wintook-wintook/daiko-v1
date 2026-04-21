@@ -264,7 +264,32 @@ function resolverParametrosClasificador(parametros, productosMostrados) {
     }
   }
 
-  // Si tiene referencia_idx directamente
+  // Si tiene referencia textual que NO es un ordinal (ej: "torres", "bacardi") → buscar por nombre primero
+  if (parametros.referencia && productosMostrados && productosMostrados.length > 0) {
+    const refNorm = parametros.referencia.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const esOrdinal = REFERENCIAS_A_INDICE.hasOwnProperty(refNorm) || /^\d+$/.test(refNorm);
+
+    if (!esOrdinal) {
+      const productoNombre = productosMostrados.find(p => {
+        const nombre = (p.NOMBRE || p.DESCRIPCION || '').toLowerCase();
+        return nombre.includes(refNorm) || refNorm.includes(nombre.split(' ')[0]);
+      });
+      if (productoNombre) {
+        console.log(`   ✅ Resuelto por nombre de referencia: "${parametros.referencia}" → ID: ${productoNombre.ARTICULO_ID}`);
+        resultado.articulo_id = productoNombre.ARTICULO_ID;
+        resultado.producto_resuelto = productoNombre;
+        resultado.referencia_idx = productosMostrados.indexOf(productoNombre);
+        if (!resultado.cantidad || resultado.cantidad < 1) resultado.cantidad = 1;
+        return resultado;
+      }
+      // No encontrado por nombre → dejar que GPT busque
+      console.log(`   ⚠️ Referencia nombre "${parametros.referencia}" no encontrada en productos mostrados`);
+      resultado.cantidad = parametros.cantidad || 1;
+      return resultado;
+    }
+  }
+
+  // Si tiene referencia_idx directamente (ordinal o numérico)
   if (typeof parametros.referencia_idx === 'number') {
     const producto = resolverPorIndice(parametros.referencia_idx, productosMostrados);
     if (producto) {
@@ -272,7 +297,7 @@ function resolverParametrosClasificador(parametros, productosMostrados) {
       resultado.producto_resuelto = producto;
     }
   }
-  // Si tiene referencia textual
+  // Si tiene referencia textual ordinal
   else if (parametros.referencia) {
     const producto = resolverReferencia(parametros.referencia, productosMostrados);
     if (producto) {

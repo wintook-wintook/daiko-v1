@@ -1284,8 +1284,9 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
             current_page: currentPage  // ✅ V22.0: Guardar página actual
           });
 
-          // ✅ V25.0: Guardar últimos resultados para resolver referencias ("el primero", "el segundo")
-          await userContext.setUltimosResultados(visibles);
+          // Guardar TODOS los productos para resolución por nombre ("torres", "licor de melon")
+          // Los índices 0-5 siguen siendo los visibles para referencias posicionales ("el primero")
+          await userContext.setUltimosResultados(productosNormalizadosBusqueda);
           await userContext.setUltimaAccion('busqueda_productos');
 
         return {
