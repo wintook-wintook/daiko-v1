@@ -539,6 +539,12 @@ async function procesarMensajeWebhook(webhookData) {
     // FASE 3: getMessages (necesita contextStr de FASE 2)
     const conversationHistory = await getMessages(webhookData.token, webhookData.account_id, webhookData.conversation_id, contextStr);
 
+    // Si el mensaje es un audio transcrito, agregarlo al historial
+    // (el audio aparece sin contenido en Chatwoot y getMessages lo salta)
+    if (audioAdjunto && messageContent) {
+      conversationHistory.push({ role: 'user', content: messageContent });
+    }
+
     // ============================================================
     // RESTAURAR CARRITO DESDE HISTORIAL SI REDIS EXPIRÓ
     // ============================================================
