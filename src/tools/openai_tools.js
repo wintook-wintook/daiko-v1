@@ -1342,7 +1342,11 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
       case "crear_nuevo_carrito": {
         const carritoExistente = await userContext.getCarrito();
         if (carritoExistente) {
-          return await agregarAlCarrito(args.producto_id, args.cantidad, carritoExistente);
+          const resAgregar = await agregarAlCarrito(args.producto_id, args.cantidad, carritoExistente);
+          if (resAgregar && resAgregar.success) return resAgregar;
+          const msgE = (resAgregar?.message || '').toLowerCase();
+          const esEstatus = msgE.includes('cancelad') || msgE.includes('ganado') || msgE.includes('cerrado');
+          if (!esEstatus) return resAgregar;
         }
         const nuevoCarrito = await crearNuevoCarrito(args.producto_id, args.cantidad);
         if (nuevoCarrito.success && nuevoCarrito.carritoId) {
@@ -1354,7 +1358,11 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
       case "crear_nuevo_carrito_con_varios_articulos": {
         const carritoExistenteV = await userContext.getCarrito();
         if (carritoExistenteV) {
-          return await agregarVariosArticulosAlCarrito(carritoExistenteV, args.productos);
+          const resAgregarV = await agregarVariosArticulosAlCarrito(carritoExistenteV, args.productos);
+          if (resAgregarV && resAgregarV.success) return resAgregarV;
+          const msgEV = (resAgregarV?.message || '').toLowerCase();
+          const esEstatusV = msgEV.includes('cancelad') || msgEV.includes('ganado') || msgEV.includes('cerrado');
+          if (!esEstatusV) return resAgregarV;
         }
         const carritoN = await crearNuevoCarritoConVariosArticulos(args.productos);
         if (carritoN.success) {
