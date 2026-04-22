@@ -48,7 +48,8 @@ const {
   formatearRespuestaImagen,
   mensajePideCarrito,
   esImagenAdjunta,
-  esExcelAdjunto
+  esExcelAdjunto,
+  esAudioAdjunto
 } = require('../utils/imagen_service');
 
 // Feature toggle para activación gradual
@@ -185,6 +186,31 @@ async function procesarWizardImagenNotas(wizardState, messageContent, userContex
   return 'Por favor responde *sí* o *no*.\n\nProductos no encontrados:\n' + lista + '\n\n¿Deseas agregarlos como nota al carrito?';
 }
 
+async function transcribirAudio(audioUrl, apiKey) {
+  try {
+    const { toFile } = require('openai/uploads');
+    const axios = require('axios');
+    const openaiWhisper = new OpenAI({ apiKey });
+
+    const respuesta = await axios.get(audioUrl, { responseType: 'arraybuffer', timeout: 30000 });
+    const buffer = Buffer.from(respuesta.data);
+    const ext = (audioUrl.split('?')[0].split('.').pop() || 'ogg').toLowerCase();
+    const file = await toFile(buffer, `audio.${ext}`, { type: `audio/${ext}` });
+
+    const transcripcion = await openaiWhisper.audio.transcriptions.create({
+      file,
+      model: 'whisper-1',
+      language: 'es'
+    });
+
+    console.log(`🎤 Transcripción Whisper: "${(transcripcion.text || '').substring(0, 100)}"`);
+    return transcripcion.text || null;
+  } catch (error) {
+    console.error('Error transcribiendo audio:', error.message);
+    return null;
+  }
+}
+
 async function appendCarritoFooter(texto, userContext) {
   const carritoActivo = await userContext.getCarrito();
   if (carritoActivo && !texto.includes('Carrito activo:')) {
@@ -315,12 +341,13 @@ async function procesarMensajeWebhook(webhookData) {
       return extractedData;
     }
 
-    const { conversationId, messageContent, senderId, senderName, messageType, inboxId, attachments } = extractedData.data;
+    let { conversationId, messageContent, senderId, senderName, messageType, inboxId, attachments } = extractedData.data;
 
     const imagenAdjunta = attachments.find(esImagenAdjunta) || null;
     const excelAdjunto = attachments.find(esExcelAdjunto) || null;
+    const audioAdjunto = attachments.find(esAudioAdjunto) || null;
 
-    if (messageType !== 'incoming' || (!messageContent && !imagenAdjunta && !excelAdjunto)) {
+    if (messageType !== 'incoming' || (!messageContent && !imagenAdjunta && !excelAdjunto && !audioAdjunto)) {
       return {
         success: false,
         message: "Mensaje no procesable - solo se procesan mensajes entrantes con contenido"
@@ -382,6 +409,24 @@ async function procesarMensajeWebhook(webhookData) {
     openai = new OpenAI({
       apiKey: OPENAI_APIKEY[0].settings.api_key
     });
+
+    // Transcribir audio si es un mensaje de voz
+    if (audioAdjunto && !messageContent) {
+      const audioUrl = audioAdjunto.data_url || audioAdjunto.file_url;
+      if (audioUrl) {
+        console.log(`\n🎤 Audio detectado, transcribiendo...`);
+        const transcripcion = await transcribirAudio(audioUrl, OPENAI_APIKEY[0].settings.api_key);
+        if (transcripcion) {
+          messageContent = transcripcion;
+        } else {
+          return {
+            success: true,
+            data: { conversationId, response: 'No pude procesar el mensaje de voz. ¿Puedes escribir tu mensaje?', fileName: '', userId: `chatwoot_${conversationId}`, senderName, originalMessage: '' },
+            message: 'Mensaje procesado correctamente'
+          };
+        }
+      }
+    }
 
     const item = hooks.length >= 1 ? hooks.find((element) => element.inbox.id === inboxId) : null;
 

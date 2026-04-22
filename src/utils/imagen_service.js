@@ -208,6 +208,18 @@ function esExcelAdjunto(attachment) {
 }
 
 /**
+ * Detecta si un attachment de Chatwoot es un audio (mensaje de voz).
+ */
+function esAudioAdjunto(attachment) {
+  if (!attachment) return false;
+  const fileType = (attachment.file_type || '').toLowerCase();
+  const contentType = (attachment.content_type || '').toLowerCase();
+  const dataUrl = (attachment.data_url || attachment.file_url || '').toLowerCase();
+  if (fileType === 'audio' || contentType.startsWith('audio/')) return true;
+  return /\.(ogg|mp3|m4a|wav|webm|oga|opus)(\?|$)/i.test(dataUrl);
+}
+
+/**
  * Descarga un archivo desde una URL siguiendo redirects y retorna el buffer.
  */
 function descargarArchivo(url, maxRedirects) {
@@ -293,5 +305,6 @@ module.exports = {
   formatearRespuestaImagen,
   mensajePideCarrito,
   esImagenAdjunta,
-  esExcelAdjunto
+  esExcelAdjunto,
+  esAudioAdjunto
 };
