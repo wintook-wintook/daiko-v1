@@ -49,7 +49,8 @@ const {
   mensajePideCarrito,
   esImagenAdjunta,
   esExcelAdjunto,
-  esAudioAdjunto
+  esAudioAdjunto,
+  descargarArchivo
 } = require('../utils/imagen_service');
 
 // Feature toggle para activación gradual
@@ -189,11 +190,9 @@ async function procesarWizardImagenNotas(wizardState, messageContent, userContex
 async function transcribirAudio(audioUrl, apiKey) {
   try {
     const { toFile } = require('openai/uploads');
-    const axios = require('axios');
     const openaiWhisper = new OpenAI({ apiKey });
 
-    const respuesta = await axios.get(audioUrl, { responseType: 'arraybuffer', timeout: 30000 });
-    const buffer = Buffer.from(respuesta.data);
+    const buffer = await descargarArchivo(audioUrl);
     const ext = (audioUrl.split('?')[0].split('.').pop() || 'ogg').toLowerCase();
     const file = await toFile(buffer, `audio.${ext}`, { type: `audio/${ext}` });
 

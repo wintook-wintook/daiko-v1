@@ -306,5 +306,6 @@ module.exports = {
   mensajePideCarrito,
   esImagenAdjunta,
   esExcelAdjunto,
-  esAudioAdjunto
+  esAudioAdjunto,
+  descargarArchivo
 };
