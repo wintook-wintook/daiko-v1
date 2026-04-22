@@ -47,12 +47,20 @@ async function clasificarIntencion(mensaje, contexto, apiKey) {
   const startTime = Date.now();
 
   try {
+    // Incluir último mensaje del asistente para que el clasificador entienda confirmaciones ("si", "ok", etc.)
+    const messages = [{ role: "system", content: prompt }];
+    if (contexto.historial && contexto.historial.length > 0) {
+      const lastAssistant = [...contexto.historial].reverse().find(m => m.role === 'assistant');
+      if (lastAssistant) {
+        const content = typeof lastAssistant.content === 'string' ? lastAssistant.content : JSON.stringify(lastAssistant.content);
+        messages.push({ role: "assistant", content });
+      }
+    }
+    messages.push({ role: "user", content: mensaje });
+
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",  // Modelo rápido y económico
-      messages: [
-        { role: "system", content: prompt },
-        { role: "user", content: mensaje }
-      ],
+      messages,
       temperature: 0,  // Determinístico para consistencia
       response_format: { type: "json_object" },
       max_tokens: 300

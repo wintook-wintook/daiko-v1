@@ -111,6 +111,9 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 ### Para confirmaciones (sí/no):
 - Si el mensaje es una confirmación ("sí", "si", "sip", "sipo", "ok", "va", "dale", "adelante", "procede", "claro", "perfecto", "ándale") Y {{ULTIMA_ACCION}} = "ORDEN" → clasificar como ORDEN (sub_accion: confirmar_pedido)
 - Si el mensaje es una negación ("no", "nel", "nop", "cancela") Y {{ULTIMA_ACCION}} = "ORDEN" → clasificar como CONVERSACION
+- Si el mensaje es una confirmación Y el asistente (mensaje previo) preguntó si desea agregar productos al carrito (ej: "¿Deseas que agregue", "¿Quieres que lo agregue", "¿Lo agrego") Y {{TIENE_CARRITO}} = SÍ → clasificar como CARRITO_MODIFICAR (sub_accion: agregar)
+- Si el mensaje es una confirmación Y el asistente (mensaje previo) preguntó si desea agregar productos al carrito Y {{TIENE_CARRITO}} = NO → clasificar como CARRITO_CREAR (sub_accion: agregar)
+- NUNCA clasificar como CONVERSACION un "si/ok/sí" cuando el asistente acaba de ofrecer agregar productos
 
 ### Para referencias según contexto (ULTIMA_ACCION):
 - Si {{ULTIMA_ACCION}} = "listar_carritos" y el usuario dice "el primero", "el segundo", "muéstrame el segundo", etc. → CARRITO_CONSULTAR (sub_accion: asignar_carrito). El usuario se refiere a un CARRITO de la lista y debe quedar como carrito activo.
