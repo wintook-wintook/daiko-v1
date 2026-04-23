@@ -386,16 +386,16 @@ async function procesarMensajeWebhook(webhookData) {
     } else if (msgNormEarly === '/ver_comandos') {
       respuestaComandoSistema =
         'Flujos:\n' +
-        '*reiniciar* — Borra la sesión y empieza una conversación nueva.\n' +
-        '*/cotizar* — Activa el modo vendedor para cotizar a nombre de un cliente.\n' +
-        '*/+prospecto* — Registra un nuevo prospecto en el CRM.\n' +
-        '*/salir* — Desactiva el modo vendedor o cualquier flujo activo.\n\n' +
+        '   reiniciar — Borra la sesión y empieza una conversación nueva.\n' +
+        '   /cotizar — Activa el modo vendedor para cotizar a nombre de un cliente.\n' +
+        '   /+prospecto — Registra un nuevo prospecto en el CRM.\n' +
+        '   /salir — Desactiva el modo vendedor o cualquier flujo activo.\n\n' +
         'Consultas rápidas:\n' +
-        '*?saldo* — Consulta el saldo pendiente del cliente.\n' +
-        '*?existencia <id>* — Consulta la existencia de un artículo por su ID.\n' +
-        '*?estatuspedido <folio>* — Consulta el estado de un pedido por folio.\n\n' +
+        '   ?saldo — Consulta el saldo pendiente del cliente.\n' +
+        '   ?existencia <id> — Consulta la existencia de un artículo por su ID.\n' +
+        '   ?estatuspedido <folio> — Consulta el estado de un pedido por folio.\n\n' +
         'Búsqueda directa:\n' +
-        '*=<clave>* — Busca un artículo por clave exacta. Ej: =ABC123';
+        '   =<clave> — Busca un artículo por clave exacta. Ej: =ABC123';
     }
 
     if (respuestaComandoSistema !== null) {
