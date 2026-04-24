@@ -306,6 +306,14 @@ function preClasificarPorKeywords(mensaje, contexto) {
     };
   }
 
+  // VER_IMAGENES
+  if (/ver\s*(las\s*)?(fotos?|im[aá]genes?)|mu[eé]strame\s*(las\s*)?(fotos?|im[aá]genes?)|quiero\s*ver\s*(las\s*)?(fotos?|im[aá]genes?)|(fotos?|im[aá]genes?)\s*(de\s*(los\s*)?productos?)?/i.test(m)) {
+    return {
+      accion: 'VER_IMAGENES', sub_accion: null, confianza: 0.95,
+      parametros: {}, razon: 'Pre-clasificador: ver imágenes', tiempo_ms: 0, es_preclasificacion: true
+    };
+  }
+
   // CARRITO_CONSULTAR puro
   if (/^(ver\s*(mi\s*)?carrito|mi\s*carrito|qu[eé]\s*tengo|mu[eé]strame\s*(mi\s*)?(carrito|pedido))\s*[?!.]*$/i.test(m)) {
     return {

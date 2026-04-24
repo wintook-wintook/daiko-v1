@@ -14,7 +14,7 @@ const conversations = new Map(); // userId -> conversation history
 
 const { openaiConfig, systemPrompt } = require('../config/openai_prompt');
 const { functionDefinitions, executeFunctionCall } = require('../tools/openai_tools');
-const {buscarcliente, buscarcliente2, crearProspecto, actualizarObservaciones} = require('../utils/crm');
+const {buscarcliente, buscarcliente2, crearProspecto, actualizarObservaciones, verCarrito} = require('../utils/crm');
 const { getApiData } = require('../utils/functions');
 let urlWA = process.env.CHATWOOT_URL; // 'https://app.chatzeus.com/';
 
@@ -749,6 +749,66 @@ async function procesarMensajeWebhook(webhookData) {
     }
 
     // ============================================================
+    // VER IMÁGENES DE PRODUCTOS - antes del clasificador
+    // ============================================================
+    const esVerImagenes = /ver\s*(las\s*)?(fotos?|im[aá]genes?)|mu[eé]strame\s*(las\s*)?(fotos?|im[aá]genes?)|quiero\s*ver\s*(las\s*)?(fotos?|im[aá]genes?)|(fotos?|im[aá]genes?)\s*(de\s*(los\s*)?productos?)?/i.test(messageContent || '');
+
+    if (esVerImagenes) {
+      console.log('🖼️ Solicitud de imágenes detectada');
+      let productosImagenes = await userContext.getUltimosResultados();
+
+      if (!productosImagenes || productosImagenes.length === 0) {
+        const carritoId = await userContext.getCarrito();
+        if (carritoId) {
+          const carritoData = await verCarrito(carritoId);
+          if (carritoData && carritoData.success && carritoData.data && carritoData.data.Carrito) {
+            productosImagenes = carritoData.data.Carrito.map(function(a) {
+              return {
+                ARTICULO_ID: a.ARTICULO_ID,
+                NOMBRE: a.NOMBRE || a.DESCRIPCION || '',
+                PRECIO: a.PRECIO_UNITARIO
+              };
+            });
+          }
+        }
+      }
+
+      if (!productosImagenes || productosImagenes.length === 0) {
+        toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off');
+        return {
+          success: true,
+          data: { conversationId, response: 'No hay productos recientes para mostrar imágenes. Primero realiza una búsqueda o consulta tu carrito.', fileName: '', userId, senderName, originalMessage: messageContent },
+          message: 'Mensaje procesado correctamente'
+        };
+      }
+
+      const imagenesBaseUrl = (process.env.IMAGENES_URL || url_crm_zeus).replace(/\/?$/, '/');
+
+      if (productosImagenes.length <= 6) {
+        for (const producto of productosImagenes) {
+          const imageUrl = `${imagenesBaseUrl}api/imagen/${producto.ARTICULO_ID}`;
+          const caption = `ID: ${producto.ARTICULO_ID}\n${producto.NOMBRE}${producto.PRECIO !== undefined && producto.PRECIO !== null ? '\nPrecio: $' + producto.PRECIO : ''}`;
+          await sendImageMessage(webhookData.token, webhookData.account_id, webhookData.conversation_id, imageUrl, caption);
+        }
+        toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off');
+        return {
+          success: true,
+          data: { conversationId, response: '', fileName: '', userId, senderName, originalMessage: messageContent },
+          message: 'Mensaje procesado correctamente'
+        };
+      } else {
+        const ids = productosImagenes.map(function(p) { return p.ARTICULO_ID; }).join(',');
+        const galeriaUrl = `${imagenesBaseUrl}galeria?ids=${ids}`;
+        toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off');
+        return {
+          success: true,
+          data: { conversationId, response: `Aquí puedes ver las imágenes de los ${productosImagenes.length} productos:\n${galeriaUrl}`, fileName: '', userId, senderName, originalMessage: messageContent },
+          message: 'Mensaje procesado correctamente'
+        };
+      }
+    }
+
+    // ============================================================
     // V25.0 - FASE 1: CLASIFICACIÓN DE INTENCIÓN
     // ============================================================
 
@@ -1341,8 +1401,43 @@ console.log({Ln: 360, obj: "sendMessage"});
 };
 */
 
+async function sendImageMessage(token, account_id, conversation_id, imageUrl, caption) {
+  try {
+    console.log(`🖼️ Descargando imagen: ${imageUrl}`);
+    const { descargarArchivo } = require('../utils/imagen_service');
+    const buffer = await descargarArchivo(imageUrl);
+
+    const frmData = new FormData();
+    const readableStream = new Readable();
+    readableStream._read = () => {};
+    readableStream.push(buffer);
+    readableStream.push(null);
+
+    frmData.append('attachments[]', readableStream, {
+      filename: 'producto.jpg',
+      contentType: 'image/jpeg'
+    });
+    frmData.append('content', caption || '');
+
+    const config = {
+      method: 'post',
+      url: `${urlWA}api/v1/accounts/${account_id}/conversations/${conversation_id}/messages`,
+      headers: { 'api_access_token': token, ...frmData.getHeaders() },
+      data: frmData,
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity
+    };
+
+    const response = await getApiData(config);
+    return response.data;
+  } catch (error) {
+    console.error(`❌ Error enviando imagen (${imageUrl}):`, error.message);
+    return null;
+  }
+}
+
 const sendMessage = async (token, account_id, conversation_id, messageData, fileName = '') => {
-   
+
   const frmData = new FormData();
   
   if (fileName !== '') {

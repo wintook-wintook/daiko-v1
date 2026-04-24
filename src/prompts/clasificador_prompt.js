@@ -29,6 +29,7 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 | CONSULTA_ATRIBUTO | Cliente pregunta por marcas, tamaños, modelos o presentaciones de un producto | "qué marcas de pintura", "qué tamaños de azúcar", "qué modelos de monitor", "qué presentaciones de aceite" |
 | CONVERSACION | Preguntas generales, charla, dudas sobre el bot | "cómo funciona", "qué puedes hacer", "ayuda", "eres un robot" |
 | REINICIAR | Reiniciar o borrar la conversación | "reiniciar", "reiniciate", "reinicia", "borrar conversación", "empezar de nuevo", "reset" |
+| VER_IMAGENES | Ver fotos o imágenes de los productos mostrados recientemente o del carrito | "ver imágenes", "ver fotos", "muéstrame las imágenes", "quiero ver las fotos", "fotos de los productos" |
 | DESCONOCIDO | No se puede clasificar claramente | mensajes ambiguos, fuera de contexto, o sin sentido |
 
 ## CONTEXTO ACTUAL DEL USUARIO
@@ -295,6 +296,7 @@ function validarRespuestaClasificador(respuesta) {
     'CONSULTA_ATRIBUTO',
     'CONVERSACION',
     'REINICIAR',
+    'VER_IMAGENES',
     'DESCONOCIDO'
   ];
 
@@ -333,6 +335,7 @@ const ACCIONES_VALIDAS = [
   'BUSQUEDA_CLIENTE',
   'CONVERSACION',
   'REINICIAR',
+  'VER_IMAGENES',
   'DESCONOCIDO'
 ];
 
