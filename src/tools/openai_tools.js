@@ -360,6 +360,20 @@ REGLAS (9.4):
     {
       type: "function",
       function: {
+        name: "limpiar_carrito_activo",
+        description: "Desvincula el carrito activo del contexto sin cancelarlo en el CRM. Usar cuando el usuario pide crear un carrito nuevo sin especificar productos. El carrito anterior queda en el CRM pero ya no es el activo.",
+        parameters: {
+          type: "object",
+          properties: {},
+          required: [],
+          additionalProperties: false
+        },
+        strict: true
+      }
+    },
+    {
+      type: "function",
+      function: {
         name: "crear_nuevo_carrito",
         description: "Crea un carrito con un producto",
         parameters: {
@@ -1339,6 +1353,11 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
       case "actualizar_articulo_del_carrito":
         return agregarAlCarrito(args.producto_id, args.cantidad, args.carrito_id, "update");
   
+      case "limpiar_carrito_activo": {
+        await userContext.setCarrito('', '');
+        return { success: true, message: 'Carrito activo desvinculado. El siguiente pedido creará un carrito nuevo.' };
+      }
+
       case "crear_nuevo_carrito": {
         const carritoExistente = await userContext.getCarrito();
         if (carritoExistente) {

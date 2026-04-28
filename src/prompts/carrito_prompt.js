@@ -38,6 +38,9 @@ Para CONSULTAR:
 - obtener_carritos_disponibles(): Lista todos los carritos del cliente
 - asignar_carrito(carrito_id): Selecciona un carrito como activo. IMPORTANTE: Esta herramienta ya devuelve el contenido del carrito. Cuando la respuesta incluya productos, MOSTRARLOS INMEDIATAMENTE usando el texto_formateado. NO preguntar "quieres ver el contenido?" porque ya lo tienes.
 
+Para NUEVO CARRITO (sin cancelar el anterior):
+- limpiar_carrito_activo(): Desvincular el carrito activo del contexto. Usar cuando el usuario pide "nuevo carrito", "carrito nuevo", "quiero empezar un carrito nuevo", etc. El carrito anterior queda en el CRM pero ya no está activo. El siguiente producto que se agregue creará un carrito nuevo.
+
 Para CANCELAR:
 - cancelar_carrito(carrito_id): Elimina el carrito
 
@@ -117,7 +120,12 @@ Regla 10 - Consulta de carrito SIEMPRE desde API (CRITICA):
 - NUNCA responder con datos del historial al mostrar un carrito. El contenido puede haber cambiado desde afuera del bot
 - Esta regla aplica sin excepcion incluso si el carrito se mostro hace un momento
 
-Regla 11 - Busqueda por clave de producto (CRITICA):
+Regla 11 - Nuevo carrito sin productos:
+- Si el usuario pide "nuevo carrito", "carrito nuevo", "quiero un carrito nuevo", "empezar nuevo carrito" SIN mencionar productos → llamar limpiar_carrito_activo y responder que puede agregar productos
+- NO llamar crear_nuevo_carrito ni crear_nuevo_carrito_con_varios_articulos sin productos
+- El carrito anterior NO se cancela, solo se desvincular del contexto
+
+Regla 12 - Busqueda por clave de producto (CRITICA):
 - Cuando el mensaje contenga una o mas claves con formato =CLAVE (ejemplo: =ABC123, =PROD-001), SIEMPRE llamar buscar_productos con el parametro clave para cada una
 - La clave es el texto despues del signo =, sin espacios
 - Cuando se usa clave, los parametros query/categoria/etiquetas deben ser null
@@ -294,6 +302,7 @@ function buildCarritoPrompt(contexto) {
  */
 const CARRITO_CREAR_TOOLS = [
   'buscar_productos',
+  'limpiar_carrito_activo',
   'crear_nuevo_carrito',
   'crear_nuevo_carrito_con_varios_articulos'
 ];
