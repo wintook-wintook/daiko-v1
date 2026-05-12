@@ -399,7 +399,7 @@ REGLAS (9.4):
       type: "function",
       function: {
         name: "remover_articulo_del_carrito",
-        description: "Remover un artículo del carrito",
+        description: "Elimina completamente una partida del carrito. Usar cuando el usuario pide quitar/eliminar un producto SIN especificar cantidad: 'quita el licor', 'elimina el jabón', 'quita un aceite', 'elimina la escoba'. Si NO hay número ni cantidad en el mensaje → usar esta función.",
         parameters: {
           type: "object",
           properties: {
@@ -422,7 +422,7 @@ REGLAS (9.4):
       type: "function",
       function: {
         name: "actualizar_articulo_del_carrito",
-        description: "Actualiza las unidades de un artículo del carrito",
+        description: "Actualiza la cantidad de una partida del carrito. Dos casos: (1) 'quita/elimina N producto' → nueva_cantidad = cantidad_actual - N. Si el resultado es ≤ 0 usar remover_articulo_del_carrito en su lugar. (2) 'deja N producto' → nueva_cantidad = N directamente. Para conocer cantidad_actual consultar el carrito del contexto o llamar ver_carrito primero.",
         parameters: {
           type: "object",
           properties: {
