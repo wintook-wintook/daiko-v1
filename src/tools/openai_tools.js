@@ -123,7 +123,7 @@ REGLAS (9.4):
       type: "function",
       function: {
         name: "seleccionar_categoria",
-        description: "Obtiene productos de una categoría especificada",
+        description: "Obtiene productos de una categoría especificada. USAR OBLIGATORIAMENTE cuando el usuario elige una categoría por nombre O por número del listado previo ('categoria 3', 'la opción 2', 'la primera', 'quiero la 5'). El número debe resolverse al nombre de categoría mostrado. NUNCA listar productos sin llamar esta función primero.",
         parameters: {
           type: "object",
           properties: {
