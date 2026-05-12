@@ -325,7 +325,7 @@ REGLAS (9.4):
       type: "function",
       function: {
         name: "crear_nuevo_carrito_con_varios_articulos",
-        description: "Crea un carrito de productos con MÚLTIPLES productos en una sola operación",
+        description: "Crea un carrito con MÚLTIPLES productos en una sola operación. Ejecutar INMEDIATAMENTE cuando el usuario solicita múltiples productos con cantidades ya especificadas. NO pedir confirmación — si el usuario indicó qué quiere y en qué cantidad, crear el carrito directamente sin preguntar.",
         parameters: {
           type: "object",
           properties: {
