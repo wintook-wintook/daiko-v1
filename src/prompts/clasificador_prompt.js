@@ -21,7 +21,7 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 | BUSQUEDA_CATEGORIA | Explora catálogo SIN mencionar ningún producto concreto | "qué vendes", "muéstrame categorías", "tu catálogo", "qué productos tienes", "qué tienes" |
 | CARRITO_CREAR | Agregar productos cuando NO tiene carrito activo | "agrégalo", "ponme 2", "lo quiero", "dame ese" |
 | CARRITO_MODIFICAR | Modificar carrito existente (agregar, quitar, actualizar, observaciones/notas/comentarios) | "quítame el segundo", "ponme 5 del primero", "elimina el producto", "agrega 3 más", "agrega nota: entrega urgente", "pon observaciones", "quita los comentarios" |
-| CARRITO_CONSULTAR | Ver o gestionar carritos | "ver mi carrito", "mis carritos", "qué tengo en el carrito", "muéstrame mi pedido", "muéstrame el contenido", "ver el contenido", "qué tiene mi carrito" |
+| CARRITO_CONSULTAR | Ver o gestionar carritos | "ver mi carrito", "mis carritos", "qué tengo en el carrito", "muéstrame mi pedido", "muéstrame el contenido", "ver el contenido", "qué tiene mi carrito", "mis cotizaciones", "cuántas cotizaciones tengo", "cuántos carritos tengo", "cotizaciones", "carritos" |
 | CARRITO_CANCELAR | Cancelar o vaciar carrito | "cancela el carrito", "vacía mi carrito", "borra todo" |
 | ORDEN | Finalizar compra o generar documentos | "confirmar compra", "generar PDF", "cotización", "factura", "finalizar pedido", "pasame la nota", "dame el presupuesto", "manda el documento", "manda el pdf", "quiero el pdf", "dame el pdf" |
 | PAGINACION | Ver más resultados de búsqueda anterior | "hay más", "ver más", "siguiente", "otros", "más opciones" |
@@ -100,11 +100,18 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
   Ejemplo: Productos mostrados son escobas, usuario dice "agregame frijol del primero" → BUSQUEDA_PRODUCTO (frijol NO es escoba)
   Ejemplo: Productos mostrados son escobas, usuario dice "agregame la primera" → CARRITO_MODIFICAR (no menciona otro producto)
 
+### Para "en otro carrito" / "en un carrito nuevo" con productos (PRIORIDAD SOBRE REGLA DE CARRITO):
+- Si el mensaje contiene "en otro carrito", "en un carrito nuevo", "en un nuevo carrito", "a otro carrito", "carrito aparte", "carrito separado" Y menciona productos → clasificar SIEMPRE como CARRITO_CREAR (sub_accion: nuevo_carrito_con_productos), aunque {{TIENE_CARRITO}} = SÍ
+- Ejemplos:
+  - "en otro carrito quiero dos chocolates" → CARRITO_CREAR, sub_accion: nuevo_carrito_con_productos
+  - "en un carrito nuevo quiero el chicle" → CARRITO_CREAR, sub_accion: nuevo_carrito_con_productos
+  - "ponme el aceite en un carrito aparte" → CARRITO_CREAR, sub_accion: nuevo_carrito_con_productos
+
 ### Para operaciones de carrito (REGLA CRITICA):
 - PRIMERO verificar si {{TIENE_CARRITO}} = SI
 - Si {{TIENE_CARRITO}} = SI y el usuario quiere agregar producto → SIEMPRE es CARRITO_MODIFICAR (sub_accion: agregar)
 - Si {{TIENE_CARRITO}} = NO y el usuario quiere agregar producto → CARRITO_CREAR
-- NUNCA clasificar como CARRITO_CREAR si ya tiene carrito activo
+- NUNCA clasificar como CARRITO_CREAR si ya tiene carrito activo (EXCEPCIÓN: la regla "en otro carrito" de arriba)
 - Si dice "quítame/elimina/borra" un producto → CARRITO_MODIFICAR (sub_accion: eliminar)
 - IMPORTANTE: Solo clasificar como CARRITO si hay productos mostrados Y el usuario hace referencia a ellos
 

@@ -125,6 +125,13 @@ Regla 11 - Nuevo carrito sin productos:
 - NO llamar crear_nuevo_carrito ni crear_nuevo_carrito_con_varios_articulos sin productos
 - El carrito anterior NO se cancela, solo se desvincular del contexto
 
+Regla 13 - Nuevo carrito con productos (CRITICA):
+- Si {{OPERACION}} = "nuevo_carrito_con_productos" O el mensaje contiene "en otro carrito", "en un carrito nuevo", "carrito aparte", "carrito separado":
+  1. Llamar limpiar_carrito_activo para desvincular el carrito actual
+  2. Buscar los productos si no están en {{PRODUCTOS_MOSTRADOS}}
+  3. Llamar crear_nuevo_carrito o crear_nuevo_carrito_con_varios_articulos con los productos
+- NUNCA confirmar que se creó el carrito sin haber ejecutado los pasos anteriores
+
 Regla 12 - Busqueda por clave de producto (CRITICA):
 - Cuando el mensaje contenga una o mas claves con formato =CLAVE (ejemplo: =ABC123, =PROD-001), SIEMPRE llamar buscar_productos con el parametro clave para cada una
 - La clave es el texto despues del signo =, sin espacios
