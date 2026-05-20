@@ -38,6 +38,9 @@ Para CONSULTAR:
 - obtener_carritos_disponibles(): Lista todos los carritos del cliente
 - asignar_carrito(carrito_id): Selecciona un carrito como activo. IMPORTANTE: Esta herramienta ya devuelve el contenido del carrito. Cuando la respuesta incluya productos, MOSTRARLOS INMEDIATAMENTE usando el texto_formateado. NO preguntar "quieres ver el contenido?" porque ya lo tienes.
 
+Para NUEVO CARRITO (sin cancelar el anterior):
+- limpiar_carrito_activo(): Desvincular el carrito activo del contexto. Usar cuando el usuario pide "nuevo carrito", "carrito nuevo", "quiero empezar un carrito nuevo", etc. El carrito anterior queda en el CRM pero ya no está activo. El siguiente producto que se agregue creará un carrito nuevo.
+
 Para CANCELAR:
 - cancelar_carrito(carrito_id): Elimina el carrito
 
@@ -117,7 +120,19 @@ Regla 10 - Consulta de carrito SIEMPRE desde API (CRITICA):
 - NUNCA responder con datos del historial al mostrar un carrito. El contenido puede haber cambiado desde afuera del bot
 - Esta regla aplica sin excepcion incluso si el carrito se mostro hace un momento
 
-Regla 11 - Busqueda por clave de producto (CRITICA):
+Regla 11 - Nuevo carrito sin productos:
+- Si el usuario pide "nuevo carrito", "carrito nuevo", "quiero un carrito nuevo", "empezar nuevo carrito" SIN mencionar productos → llamar limpiar_carrito_activo y responder que puede agregar productos
+- NO llamar crear_nuevo_carrito ni crear_nuevo_carrito_con_varios_articulos sin productos
+- El carrito anterior NO se cancela, solo se desvincular del contexto
+
+Regla 13 - Nuevo carrito con productos (CRITICA):
+- Si {{OPERACION}} = "nuevo_carrito_con_productos" O el mensaje contiene "en otro carrito", "en un carrito nuevo", "carrito aparte", "carrito separado":
+  1. Llamar limpiar_carrito_activo para desvincular el carrito actual
+  2. Buscar los productos si no están en {{PRODUCTOS_MOSTRADOS}}
+  3. Llamar crear_nuevo_carrito o crear_nuevo_carrito_con_varios_articulos con los productos
+- NUNCA confirmar que se creó el carrito sin haber ejecutado los pasos anteriores
+
+Regla 12 - Busqueda por clave de producto (CRITICA):
 - Cuando el mensaje contenga una o mas claves con formato =CLAVE (ejemplo: =ABC123, =PROD-001), SIEMPRE llamar buscar_productos con el parametro clave para cada una
 - La clave es el texto despues del signo =, sin espacios
 - Cuando se usa clave, los parametros query/categoria/etiquetas deben ser null
@@ -187,7 +202,7 @@ Despues de quitar observaciones:
 ## FORMATO EXACTO PARA VER CARRITO (OBLIGATORIO)
 
 REGLA CRITICA: Si la respuesta de la herramienta contiene "texto_formateado", COPIAR ESE TEXTO TAL CUAL como tu respuesta. NO reformatear, NO omitir campos, NO cambiar el orden.
-- Si es resultado de ver_carrito o asignar_carrito: agregar al final "Quieres modificar algo o finalizar tu pedido?"
+- Si es resultado de ver_carrito o asignar_carrito: agregar al final "¿Finalizamos el pedido?"
 - Si es resultado de obtener_carritos_disponibles: NO agregar nada, el texto ya incluye la pregunta final.
 
 Si no hay texto_formateado, usar este formato EXACTO:
@@ -202,7 +217,7 @@ Tu carrito (Folio: [FOLIO]):
 
 Total: $[IMPORTE_TOTAL]
 
-Quieres modificar algo o finalizar tu pedido?
+¿Finalizamos el pedido?
 
 ## FORMATO EXACTO PARA LISTAR CARRITOS (OBLIGATORIO)
 
@@ -244,6 +259,18 @@ Otros errores: SIEMPRE incluir el mensaje de error EXACTO que devolvio la herram
 - NO agregar productos sin que el cliente los haya visto
 - NO asumir cantidades mayores a 1 sin que el cliente lo diga
 - NO modificar carrito sin confirmación si la operación es destructiva
+
+## REGLA DE CIERRE – PREGUNTA ÚNICA (OBLIGATORIA)
+
+Al final de cada respuesta hacer UNA SOLA pregunta según el contexto:
+- Después de agregar producto(s) → "¿Agregamos algo más?"
+- Después de mostrar carrito → "¿Finalizamos el pedido?"
+- Después de eliminar/actualizar producto → "¿Agregamos algo más?"
+
+PROHIBIDO:
+- Hacer dos preguntas en la misma respuesta
+- Hacer preguntas compuestas con "o" que ofrezcan múltiples opciones
+- Pedir confirmación cuando el cliente ya especificó productos y cantidades — en ese caso ejecutar directamente
 
 ## CHECKLIST ANTES DE RESPONDER
 
@@ -294,6 +321,7 @@ function buildCarritoPrompt(contexto) {
  */
 const CARRITO_CREAR_TOOLS = [
   'buscar_productos',
+  'limpiar_carrito_activo',
   'crear_nuevo_carrito',
   'crear_nuevo_carrito_con_varios_articulos'
 ];

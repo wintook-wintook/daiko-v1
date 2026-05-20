@@ -123,7 +123,7 @@ REGLAS (9.4):
       type: "function",
       function: {
         name: "seleccionar_categoria",
-        description: "Obtiene productos de una categoría especificada",
+        description: "Obtiene productos de una categoría especificada. USAR OBLIGATORIAMENTE cuando el usuario elige una categoría por nombre O por número del listado previo ('categoria 3', 'la opción 2', 'la primera', 'quiero la 5'). El número debe resolverse al nombre de categoría mostrado. NUNCA listar productos sin llamar esta función primero.",
         parameters: {
           type: "object",
           properties: {
@@ -325,7 +325,7 @@ REGLAS (9.4):
       type: "function",
       function: {
         name: "crear_nuevo_carrito_con_varios_articulos",
-        description: "Crea un carrito de productos con MÚLTIPLES productos en una sola operación",
+        description: "Crea un carrito con MÚLTIPLES productos en una sola operación. Ejecutar INMEDIATAMENTE cuando el usuario solicita múltiples productos con cantidades ya especificadas. NO pedir confirmación — si el usuario indicó qué quiere y en qué cantidad, crear el carrito directamente sin preguntar.",
         parameters: {
           type: "object",
           properties: {
@@ -360,6 +360,20 @@ REGLAS (9.4):
     {
       type: "function",
       function: {
+        name: "limpiar_carrito_activo",
+        description: "Desvincula el carrito activo del contexto sin cancelarlo en el CRM. Usar cuando el usuario pide crear un carrito nuevo sin especificar productos. El carrito anterior queda en el CRM pero ya no es el activo.",
+        parameters: {
+          type: "object",
+          properties: {},
+          required: [],
+          additionalProperties: false
+        },
+        strict: true
+      }
+    },
+    {
+      type: "function",
+      function: {
         name: "crear_nuevo_carrito",
         description: "Crea un carrito con un producto",
         parameters: {
@@ -385,7 +399,7 @@ REGLAS (9.4):
       type: "function",
       function: {
         name: "remover_articulo_del_carrito",
-        description: "Remover un artículo del carrito",
+        description: "Elimina completamente una partida del carrito. Usar cuando el usuario pide quitar/eliminar un producto SIN especificar cantidad: 'quita el licor', 'elimina el jabón', 'quita un aceite', 'elimina la escoba'. Si NO hay número ni cantidad en el mensaje → usar esta función.",
         parameters: {
           type: "object",
           properties: {
@@ -408,7 +422,7 @@ REGLAS (9.4):
       type: "function",
       function: {
         name: "actualizar_articulo_del_carrito",
-        description: "Actualiza las unidades de un artículo del carrito",
+        description: "Actualiza la cantidad de una partida del carrito. Dos casos: (1) 'quita/elimina N producto' → nueva_cantidad = cantidad_actual - N. Si el resultado es ≤ 0 usar remover_articulo_del_carrito en su lugar. (2) 'deja N producto' → nueva_cantidad = N directamente. Para conocer cantidad_actual consultar el carrito del contexto o llamar ver_carrito primero.",
         parameters: {
           type: "object",
           properties: {
@@ -1339,6 +1353,11 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
       case "actualizar_articulo_del_carrito":
         return agregarAlCarrito(args.producto_id, args.cantidad, args.carrito_id, "update");
   
+      case "limpiar_carrito_activo": {
+        await userContext.setCarrito('', '');
+        return { success: true, message: 'Carrito activo desvinculado. El siguiente pedido creará un carrito nuevo.' };
+      }
+
       case "crear_nuevo_carrito": {
         const carritoExistente = await userContext.getCarrito();
         if (carritoExistente) {
