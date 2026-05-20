@@ -14,7 +14,7 @@ const conversations = new Map(); // userId -> conversation history
 
 const { openaiConfig, systemPrompt } = require('../config/openai_prompt');
 const { functionDefinitions, executeFunctionCall } = require('../tools/openai_tools');
-const {buscarcliente, buscarcliente2, crearProspecto, actualizarObservaciones, verCarrito} = require('../utils/crm');
+const {buscarcliente, buscarcliente2, crearProspecto, actualizarObservaciones, verCarrito, crearOrden, crearDireccionCliente, crearNuevoCarrito, crearNuevoCarritoConVariosArticulos} = require('../utils/crm');
 const { getApiData } = require('../utils/functions');
 let urlWA = process.env.CHATWOOT_URL; // 'https://app.chatzeus.com/';
 
@@ -247,6 +247,104 @@ async function procesarWizardImagenCarrito(wizardState, messageContent, userCont
   }
 
   return 'Por favor responde *sí* o *no*.\n\n¿Deseas agregar estos productos al carrito?';
+}
+
+const KEYWORDS_NUEVA_DIRECCION = ['nueva', 'nueva dirección', 'registrar', 'registrar nueva', 'sí', 'si', 'sip', 'ok'];
+
+async function procesarWizardDireccionEnvio(wizardState, messageContent, userContext) {
+  const { accion, carritoId, productoId, cantidad, productos, direcciones, paso, nuevaDireccion = {} } = wizardState;
+  const input = (messageContent || '').trim();
+  const inputLower = input.toLowerCase();
+
+  async function ejecutarAccionConDirCliId(dirCliId) {
+    if (accion === 'crear_nuevo_carrito') {
+      const nuevoCarrito = await crearNuevoCarrito(productoId, cantidad, dirCliId);
+      if (nuevoCarrito.success) await userContext.setCarrito(nuevoCarrito.carritoId, nuevoCarrito.folio);
+      return nuevoCarrito.success ? nuevoCarrito.message : ('No fue posible crear el carrito: ' + nuevoCarrito.message);
+    }
+    if (accion === 'crear_nuevo_carrito_con_varios_articulos') {
+      const nuevoCarrito = await crearNuevoCarritoConVariosArticulos(productos, dirCliId);
+      if (nuevoCarrito.success) await userContext.setCarrito(nuevoCarrito.carritoId, nuevoCarrito.folio);
+      return nuevoCarrito.success ? nuevoCarrito.message : ('No fue posible crear el carrito: ' + nuevoCarrito.message);
+    }
+    // crear_orden
+    const orden = await crearOrden(carritoId, dirCliId);
+    if (orden.success) await userContext.setCarrito('', '');
+    return orden.success ? orden.message : ('No fue posible crear el pedido: ' + orden.message);
+  }
+
+  if (paso === 0) {
+    const quiereNueva = KEYWORDS_NUEVA_DIRECCION.some(k => inputLower.includes(k));
+    const idx = parseInt(input, 10) - 1;
+    const seleccionValida = !isNaN(idx) && idx >= 0 && idx < direcciones.length;
+
+    if (quiereNueva && !seleccionValida) {
+      await userContext.setWizardState({ ...wizardState, paso: 1, nuevaDireccion: {} });
+      return '¿Cómo quieres llamar a esta dirección? (ej: Casa, Oficina, Sucursal Norte)';
+    }
+
+    if (seleccionValida) {
+      const dirCliId = direcciones[idx].DIR_CLI_ID;
+      await userContext.clearWizardState();
+      return await ejecutarAccionConDirCliId(dirCliId);
+    }
+
+    // Respuesta no reconocida — repetir
+    if (direcciones.length === 0) {
+      return 'No tienes direcciones registradas. ¿Deseas registrar una?';
+    }
+    const lista = direcciones.map((d, i) => `${i + 1}) ID: ${d.DIR_CLI_ID} - ${d.NOMBRE}`).join('\n');
+    const pregunta = direcciones.length === 1
+      ? '¿Quieres usar esta dirección o registrar una nueva?'
+      : '¿Cuál dirección quieres usar o deseas registrar una nueva?';
+    return `${lista}\n\n${pregunta}`;
+  }
+
+  if (paso === 1) {
+    await userContext.setWizardState({ ...wizardState, paso: 2, nuevaDireccion: { nombre_consig: input } });
+    return '¿Cuál es tu código postal?';
+  }
+
+  if (paso === 2) {
+    const cp = input.replace(/\D/g, '');
+    if (cp.length !== 5) {
+      return 'Ingresa un código postal válido de 5 dígitos.';
+    }
+    let ciudad = '';
+    let estado = '';
+    try {
+      const res = await fetch(`https://api.zippopotam.us/mx/${cp}`);
+      if (res.ok) {
+        const json = await res.json();
+        const lugar = json.places?.[0];
+        ciudad = lugar?.['place name'] || '';
+        estado = lugar?.['state'] || '';
+      }
+    } catch { /* fail-open */ }
+    await userContext.setWizardState({
+      ...wizardState, paso: 3,
+      nuevaDireccion: { ...nuevaDireccion, codigo_postal: cp, ciudad, estado }
+    });
+    return '¿Cuál es la calle y número exterior?';
+  }
+
+  if (paso === 3) {
+    await userContext.setWizardState({
+      ...wizardState, paso: 4,
+      nuevaDireccion: { ...nuevaDireccion, nombre_calle: input }
+    });
+    return '¿Cuál es la colonia?';
+  }
+
+  if (paso === 4) {
+    const datosDireccion = { ...nuevaDireccion, colonia: input };
+    const resDireccion = await crearDireccionCliente(datosDireccion);
+    if (!resDireccion || !resDireccion.success) {
+      return 'No fue posible guardar la dirección: ' + (resDireccion?.message || 'error desconocido');
+    }
+    await userContext.clearWizardState();
+    return await ejecutarAccionConDirCliId(resDireccion.dirCliId);
+  }
 }
 
 async function procesarWizardProspecto(wizardState, messageContent, userContext, url_crm_zeus, api_access_token) {
@@ -497,6 +595,17 @@ async function procesarMensajeWebhook(webhookData) {
     // WIZARD /+prospecto (después de FASE 2 para tener credenciales CRM)
     // ============================================================
     const wizardState = await userContext.getWizardState();
+
+    if (wizardState && wizardState.tipo === 'direccion_envio') {
+      let respuestaWizard = await procesarWizardDireccionEnvio(wizardState, messageContent, userContext);
+      respuestaWizard = await appendCarritoFooter(respuestaWizard, userContext);
+      toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off');
+      return {
+        success: true,
+        data: { conversationId, response: respuestaWizard, fileName: '', userId, senderName, originalMessage: messageContent },
+        message: 'Mensaje procesado correctamente'
+      };
+    }
 
     if (wizardState && wizardState.tipo === 'imagen_carrito') {
       let respuestaWizard = await procesarWizardImagenCarrito(wizardState, messageContent, userContext);

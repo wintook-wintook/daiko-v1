@@ -2,7 +2,7 @@
 // ACTUALIZADO: V24.0 - PASO 8 (Normalización) + PASO 9 (Canonización) separados
 // Según documento normativo MBC01 v2.2
 
-const { obtenerCategorias, buscarProductos, obtenerDetalleProducto, agregarAlCarrito, agregarVariosArticulosAlCarrito, crearNuevoCarrito, crearNuevoCarritoConVariosArticulos, obtenerCarritosDisponibles, verCarrito, crearOrden, cancelarCarrito, generarPdf, copiarArticulosEntreCarritos, copiarArticulosDeUnCarritoExisenteAUnoNuevo, actualizarObservaciones, consultarAtributoProducto, buscarClientesPorNombre, buscarClientePorIdLocal } = require('../utils/crm');
+const { obtenerCategorias, buscarProductos, obtenerDetalleProducto, agregarAlCarrito, agregarVariosArticulosAlCarrito, crearNuevoCarrito, crearNuevoCarritoConVariosArticulos, obtenerCarritosDisponibles, verCarrito, crearOrden, cancelarCarrito, generarPdf, copiarArticulosEntreCarritos, copiarArticulosDeUnCarritoExisenteAUnoNuevo, actualizarObservaciones, consultarAtributoProducto, buscarClientesPorNombre, buscarClientePorIdLocal, obtenerDireccionesCliente, crearDireccionCliente } = require('../utils/crm');
 const { ejecutarBusquedaExterna } = require('../utils/busqueda_externa_service');
 const { resolverCanonico, resolverMultiplesCanonico } = require('../utils/canonicalizacion_service');
 const UserContext = require('../utils/userContext');
@@ -781,6 +781,32 @@ REGLAS (9.4):
   ];
 
 
+// ===== HELPER: INICIAR WIZARD DE DIRECCIÓN =====
+async function iniciarWizardDireccion(userContext, wizardExtra) {
+  const resDirecciones = await obtenerDireccionesCliente();
+  const direcciones = (resDirecciones && resDirecciones.success && Array.isArray(resDirecciones.data))
+    ? resDirecciones.data : [];
+
+  await userContext.setWizardState({
+    tipo: 'direccion_envio',
+    direcciones,
+    paso: 0,
+    nuevaDireccion: {},
+    ...wizardExtra
+  });
+
+  if (direcciones.length === 0) {
+    return { success: false, needsAddress: true, message: 'No tienes direcciones registradas. ¿Deseas registrar una?', preserveCurrentCart: true };
+  }
+
+  const lista = direcciones.map((d, i) => `${i + 1}) ID: ${d.DIR_CLI_ID} - ${d.NOMBRE}`).join('\n');
+  const pregunta = direcciones.length === 1
+    ? '¿Quieres usar esta dirección o registrar una nueva?'
+    : '¿Cuál dirección quieres usar o deseas registrar una nueva?';
+
+  return { success: false, needsAddress: true, message: `${lista}\n\n${pregunta}`, preserveCurrentCart: true };
+}
+
 // ===== ROUTER PARA MANEJAR FUNCTION CALLS =====
 /**
  * Pre-formatea el listado de carritos disponibles.
@@ -1367,11 +1393,11 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
           const esEstatus = msgE.includes('cancelad') || msgE.includes('ganado') || msgE.includes('cerrado');
           if (!esEstatus) return resAgregar;
         }
-        const nuevoCarrito = await crearNuevoCarrito(args.producto_id, args.cantidad);
-        if (nuevoCarrito.success && nuevoCarrito.carritoId) {
-          await userContext.setCarrito(nuevoCarrito.carritoId, nuevoCarrito.folio);
-        }
-        return nuevoCarrito;
+        return iniciarWizardDireccion(userContext, {
+          accion: 'crear_nuevo_carrito',
+          productoId: args.producto_id,
+          cantidad: args.cantidad
+        });
       }
 
       case "crear_nuevo_carrito_con_varios_articulos": {
@@ -1383,11 +1409,10 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
           const esEstatusV = msgEV.includes('cancelad') || msgEV.includes('ganado') || msgEV.includes('cerrado');
           if (!esEstatusV) return resAgregarV;
         }
-        const carritoN = await crearNuevoCarritoConVariosArticulos(args.productos);
-        if (carritoN.success) {
-          await userContext.setCarrito(carritoN.carritoId, carritoN.folio);
-        }
-        return carritoN;
+        return iniciarWizardDireccion(userContext, {
+          accion: 'crear_nuevo_carrito_con_varios_articulos',
+          productos: args.productos
+        });
       }
   
       case "obtener_carritos_disponibles": {
@@ -1441,11 +1466,19 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
         return generarPdf(args.carrito_id);
       
       case "crear_orden": {
-        const orden = await crearOrden(args.carrito_id);
-        if (orden.success) {
-          await userContext.setCarrito('', '');
+        // Si el carrito ya tiene dirección asignada, crear la orden directamente
+        const carritoData = await verCarrito(args.carrito_id);
+        const dirExistente = carritoData.success && carritoData.data?.importeCarrito?.DIR_CONSIG_ID;
+        if (dirExistente) {
+          const orden = await crearOrden(args.carrito_id, dirExistente);
+          if (orden.success) await userContext.setCarrito('', '');
+          return orden;
         }
-        return orden;
+        // Sin dirección en el carrito → wizard de selección
+        return iniciarWizardDireccion(userContext, {
+          accion: 'crear_orden',
+          carritoId: args.carrito_id
+        });
       }
       
       case "consultar_orden":

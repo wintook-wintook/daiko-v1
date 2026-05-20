@@ -532,14 +532,16 @@ async function agregarVariosArticulosAlCarrito(carritoId, Productos, opcion = "a
   }
 }
 
-async function crearNuevoCarrito(productoId, cantidad) {
-  let data = JSON.stringify({ 
+async function crearNuevoCarrito(productoId, cantidad, dirCliId) {
+  const payload = {
     "almacen_id":  almacen_id,
-    "moneda_id":   moneda_id, 
-    "vendedor_id": vendedor_id, 
+    "moneda_id":   moneda_id,
+    "vendedor_id": vendedor_id,
     "folio_ventas_id": folio_ventas_id,
-    "productos": [{"articulo_id":productoId, "unidades":cantidad}]    
-  });
+    "productos": [{"articulo_id":productoId, "unidades":cantidad}]
+  };
+  if (dirCliId) payload.DIR_CONSIG_ID = dirCliId;
+  let data = JSON.stringify(payload);
   let config = getConfigApiDaiko(`createCart/${cliente_id}`, data, 2);
 //console.log({crearNuevoCarrito: data, config});
   
@@ -571,15 +573,16 @@ async function crearNuevoCarrito(productoId, cantidad) {
 
 }
 
-async function crearNuevoCarritoConVariosArticulos(Productos) {
- 
-  let data = JSON.stringify({ 
+async function crearNuevoCarritoConVariosArticulos(Productos, dirCliId) {
+  const payload = {
     "almacen_id":  almacen_id,
-    "moneda_id":   moneda_id, 
-    "vendedor_id": vendedor_id, 
+    "moneda_id":   moneda_id,
+    "vendedor_id": vendedor_id,
     "folio_ventas_id": folio_ventas_id,
-    "productos": Productos    
-  });
+    "productos": Productos
+  };
+  if (dirCliId) payload.DIR_CONSIG_ID = dirCliId;
+  let data = JSON.stringify(payload);
   let config = getConfigApiDaiko(`createCart/${cliente_id}`, data, 2);
   try {
     const response = await getApiData(config);
@@ -697,7 +700,31 @@ async function verCarrito(carrito_id) {
   }
 }
 
-async function crearOrden(carritoId) {
+async function obtenerDireccionesCliente() {
+  const data = JSON.stringify({ cliente_id });
+  const config = getConfigApiDaiko('getAddresses', data);
+  try {
+    const response = await getApiData(config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return evalError(error, 'Error al obtener direcciones: ');
+  }
+}
+
+async function crearDireccionCliente(datos) {
+  const data = JSON.stringify({ cliente_id, ...datos });
+  const config = getConfigApiDaiko('createAddress', data);
+  try {
+    const response = await getApiData(config);
+    const err = evalError(response.data, 'Error al crear dirección: ');
+    if (err) return err;
+    return { success: true, dirCliId: response.data.DIR_CLI_ID };
+  } catch (error) {
+    return evalError(error, 'Error al crear dirección: ');
+  }
+}
+
+async function crearOrden(carritoId, dirCliId) {
   // 08/09/2025 Queda pendiente el cambio de la API para que registre correctamente la orden
   let tipoDocto = 'P';
   if(!carritoId){
@@ -708,7 +735,9 @@ async function crearOrden(carritoId) {
       preserveCurrentCart: true
     };
   }
-  let data = JSON.stringify({ tipo_docto: tipoDocto, cliente_id, celular });
+  const payload = { tipo_docto: tipoDocto, cliente_id, celular };
+  if (dirCliId) payload.DIR_CONSIG_ID = dirCliId;
+  let data = JSON.stringify(payload);
   let config = getConfigApiDaiko(`createDocto/${carritoId}`, data, 2);
   try {
     const response = await getApiData(config);
@@ -1275,5 +1304,7 @@ module.exports = {
   getBalanceDue,
   getStockArticle,
   getTrackingPedido,
-  crearProspecto
+  crearProspecto,
+  obtenerDireccionesCliente,
+  crearDireccionCliente
 };
