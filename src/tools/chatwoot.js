@@ -325,7 +325,7 @@ async function procesarWizardDireccionEnvio(wizardState, messageContent, userCon
       ...wizardState, paso: 3,
       nuevaDireccion: { ...nuevaDireccion, codigo_postal: cp, ciudad, estado }
     });
-    return '¿Cuál es la calle y número exterior?';
+    return '¿Cuál es la calle?';
   }
 
   if (paso === 3) {
@@ -333,10 +333,18 @@ async function procesarWizardDireccionEnvio(wizardState, messageContent, userCon
       ...wizardState, paso: 4,
       nuevaDireccion: { ...nuevaDireccion, nombre_calle: input }
     });
-    return '¿Cuál es la colonia?';
+    return '¿Cuál es el número exterior?';
   }
 
   if (paso === 4) {
+    await userContext.setWizardState({
+      ...wizardState, paso: 5,
+      nuevaDireccion: { ...nuevaDireccion, num_exterior: input }
+    });
+    return '¿Cuál es la colonia?';
+  }
+
+  if (paso === 5) {
     const datosDireccion = { ...nuevaDireccion, colonia: input };
     const resDireccion = await crearDireccionCliente(datosDireccion);
     if (!resDireccion || !resDireccion.success) {
