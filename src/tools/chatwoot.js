@@ -312,18 +312,20 @@ async function procesarWizardDireccionEnvio(wizardState, messageContent, userCon
     }
     let ciudad = '';
     let estado = '';
+    let poblacion = '';
     try {
       const res = await getApiData({
         method: 'get',
         url: `https://postalia.com.mx/api/codigos-postales/${cp}`,
         headers: { 'Authorization': `Bearer ${process.env.POSTALIA_TOKEN}` }
       });
-      ciudad = res.data.municipio || '';
+      ciudad = res.data.ciudad || '';
       estado = res.data.estado || '';
+      poblacion = res.data.municipio || '';
     } catch { /* fail-open */ }
     await userContext.setWizardState({
       ...wizardState, paso: 3,
-      nuevaDireccion: { ...nuevaDireccion, codigo_postal: cp, ciudad, estado }
+      nuevaDireccion: { ...nuevaDireccion, codigo_postal: cp, ciudad, estado, poblacion }
     });
     return '¿Cuál es la calle?';
   }
