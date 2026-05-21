@@ -313,13 +313,13 @@ async function procesarWizardDireccionEnvio(wizardState, messageContent, userCon
     let ciudad = '';
     let estado = '';
     try {
-      const res = await fetch(`https://api.zippopotam.us/mx/${cp}`);
-      if (res.ok) {
-        const json = await res.json();
-        const lugar = json.places?.[0];
-        ciudad = lugar?.['place name'] || '';
-        estado = lugar?.['state'] || '';
-      }
+      const res = await getApiData({
+        method: 'get',
+        url: `https://postalia.com.mx/api/codigos-postales/${cp}`,
+        headers: { 'Authorization': `Bearer ${process.env.POSTALIA_TOKEN}` }
+      });
+      ciudad = res.data.municipio || '';
+      estado = res.data.estado || '';
     } catch { /* fail-open */ }
     await userContext.setWizardState({
       ...wizardState, paso: 3,
