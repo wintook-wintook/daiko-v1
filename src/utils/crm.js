@@ -11,7 +11,19 @@ const folio_ventas_id = 92226;
 let api_access_token = ''; // process.env.CRMZEUS_APIACCESSTOKEN;
 let url_crm_zeus = '';     // process.env.CRMZEUS_URL; // 'https://app.chatzeus.com/';
 
-const { getApiData } = require('./functions');
+const { getApiData: _getApiData } = require('./functions');
+
+async function getApiData(config) {
+  const t = Date.now();
+  try {
+    const result = await _getApiData(config);
+    console.log(`[CRM] ${config.url} → ${Date.now() - t}ms`);
+    return result;
+  } catch (error) {
+    console.log(`[CRM] ${config.url} → ${Date.now() - t}ms (ERROR)`);
+    throw error;
+  }
+}
 const { generarPDFCotizacion } = require('./pdf-make');
 
 let evalError = (data, title = '') => {
