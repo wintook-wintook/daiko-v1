@@ -356,6 +356,10 @@ async function procesarMensajeWebhook(webhookData) {
     // Activar indicador "escribiendo..." inmediatamente
     toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'on');
 
+    const _t0 = Date.now();
+    let _tStep = Date.now();
+    console.log(`⏱️ [0] Inicio procesamiento`);
+
     // Preparar contexto del usuario (independiente de APIs externas)
     const userId = `chatwoot_${conversationId}`;
     const userContext = new UserContext(userId);
@@ -411,11 +415,13 @@ async function procesarMensajeWebhook(webhookData) {
     // FASE 1: Llamadas independientes en PARALELO
     // getOPENAI_APIKEY, getHooksCrm, keepAlive (todos independientes)
     // ============================================================
+    _tStep = Date.now();
     const [OPENAI_APIKEY, hooks] = await Promise.all([
       getOPENAI_APIKEY(webhookData.token, webhookData.account_id),
       webhookData._hooks || getHooksCrm(webhookData.token, webhookData.account_id),
       userContext.keepAlive()
     ]);
+    console.log(`⏱️ [1] FASE 1 (getOPENAI_APIKEY + getHooksCrm + keepAlive): ${Date.now() - _tStep}ms`);
 
     // Inicializar OpenAI
     openai = new OpenAI({
@@ -458,6 +464,7 @@ async function procesarMensajeWebhook(webhookData) {
     // FASE 2: buscarcliente2 + toSystemContext en PARALELO
     // (ambos necesitan hooks/userContext pero son independientes entre si)
     // ============================================================
+    _tStep = Date.now();
     const [Cliente, contextStr] = await Promise.all([
       buscarcliente2(url_crm_zeus, api_access_token, {
         email: sender.email,
@@ -469,6 +476,7 @@ async function procesarMensajeWebhook(webhookData) {
       }),
       userContext.toSystemContext()
     ]);
+    console.log(`⏱️ [2] FASE 2 (buscarcliente2 + toSystemContext): ${Date.now() - _tStep}ms`);
 
     if (Cliente && !Cliente.success) {
       console.error('❌ buscarcliente2 falló, abortando procesamiento:', Cliente.message);
@@ -550,7 +558,9 @@ async function procesarMensajeWebhook(webhookData) {
     }
 
     // FASE 3: getMessages (necesita contextStr de FASE 2)
+    _tStep = Date.now();
     const conversationHistory = await getMessages(webhookData.token, webhookData.account_id, webhookData.conversation_id, contextStr);
+    console.log(`⏱️ [3] FASE 3 (getMessages): ${Date.now() - _tStep}ms`);
 
     // Si el mensaje es un audio transcrito, agregarlo al historial
     // (el audio aparece sin contenido en Chatwoot y getMessages lo salta)
@@ -838,6 +848,7 @@ async function procesarMensajeWebhook(webhookData) {
     } else {
       console.log('ℹ️ Multi-prompt desactivado (USAR_MULTI_PROMPT=false)');
     }
+    console.log(`⏱️ [4] Clasificador: ${Date.now() - _tStep}ms`);
 
     // ============================================================
     // EJECUCIÓN DIRECTA PARA REINICIAR (sin GPT - ahorra tokens)
@@ -946,6 +957,7 @@ async function procesarMensajeWebhook(webhookData) {
 
       // ✅ LLAMAR AL MODELO CON TOOLS EN CADA ITERACIÓN
       // V25.0: Usar tools filtradas si están disponibles
+      _tStep = Date.now();
       const response = await openai.chat.completions.create({
         model: "gpt-4o",  // ✅ MISMO MODELO EN TODAS LAS RONDAS
         messages: input,
@@ -953,6 +965,7 @@ async function procesarMensajeWebhook(webhookData) {
         tool_choice: "auto",
         temperature: 0.3
       });
+      console.log(`⏱️ [5.${iteration}] GPT-4o (iteración ${iteration}): ${Date.now() - _tStep}ms`);
 
       const assistantMessage = response.choices[0].message;
       
@@ -976,14 +989,16 @@ async function procesarMensajeWebhook(webhookData) {
           
           try {
             const functionArgs = JSON.parse(args);
-            
+
             // ✅ EJECUTAR TOOL con account_id desde webhookData
+            _tStep = Date.now();
             const functionResult = await executeFunctionCall(
-              name, 
-              functionArgs, 
-              userId, 
+              name,
+              functionArgs,
+              userId,
               webhookData.account_id
             );
+            console.log(`⏱️ [6.${iteration}] Tool "${name}": ${Date.now() - _tStep}ms`);
             
             // Manejo especial para generar_pdf: guardar datos del PDF
             if (name === 'generar_pdf' && functionResult.success && functionResult.data) {
@@ -1069,6 +1084,7 @@ async function procesarMensajeWebhook(webhookData) {
         }
         
         console.log(`🤖 Respuesta final: ${finalResponse}`);
+        console.log(`⏱️ [TOTAL] Procesamiento completo: ${Date.now() - _t0}ms`);
 
         // ============================================================
         // V25.0 - MÉTRICAS DE RENDIMIENTO
