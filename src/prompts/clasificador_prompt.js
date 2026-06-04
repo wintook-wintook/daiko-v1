@@ -31,19 +31,6 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 | REINICIAR | Reiniciar o borrar la conversación | "reiniciar", "reiniciate", "reinicia", "borrar conversación", "empezar de nuevo", "reset" |
 | DESCONOCIDO | No se puede clasificar claramente | mensajes ambiguos, fuera de contexto, o sin sentido |
 
-## CONTEXTO ACTUAL DEL USUARIO
-
-- Tiene carrito activo: {{TIENE_CARRITO}}
-- ID del carrito: {{CARRITO_ID}}
-- Folio del carrito: {{FOLIO}}
-- Última búsqueda realizada: {{ULTIMA_BUSQUEDA}}
-- Cantidad de productos mostrados: {{CANTIDAD_PRODUCTOS}}
-- Última acción ejecutada: {{ULTIMA_ACCION}}
-- Modo vendedor activo: {{MODO_VENDEDOR}}
-- Cliente vendedor ya seleccionado: {{CLIENTE_VENDEDOR}}
-- Productos mostrados recientemente:
-{{PRODUCTOS_MOSTRADOS}}
-
 ## INSTRUCCIONES DE CLASIFICACIÓN
 
 1. Lee cuidadosamente el mensaje del usuario
@@ -235,7 +222,20 @@ Mensaje: "quiero =DREP"
 Respuesta: {"accion":"BUSQUEDA_PRODUCTO","sub_accion":"buscar_por_clave","confianza":0.99,"parametros":{"texto_busqueda":"DREP"},"razon":"Mensaje contiene clave de producto con prefijo ="}
 
 Mensaje: "agrega =ABC123 al carrito"
-Respuesta: {"accion":"BUSQUEDA_PRODUCTO","sub_accion":"buscar_por_clave","confianza":0.99,"parametros":{"texto_busqueda":"ABC123"},"razon":"Mensaje contiene clave de producto con prefijo =, primero buscar luego agregar"}`;
+Respuesta: {"accion":"BUSQUEDA_PRODUCTO","sub_accion":"buscar_por_clave","confianza":0.99,"parametros":{"texto_busqueda":"ABC123"},"razon":"Mensaje contiene clave de producto con prefijo =, primero buscar luego agregar"}
+
+## CONTEXTO ACTUAL DEL USUARIO
+
+- Tiene carrito activo: {{TIENE_CARRITO}}
+- ID del carrito: {{CARRITO_ID}}
+- Folio del carrito: {{FOLIO}}
+- Última búsqueda realizada: {{ULTIMA_BUSQUEDA}}
+- Cantidad de productos mostrados: {{CANTIDAD_PRODUCTOS}}
+- Última acción ejecutada: {{ULTIMA_ACCION}}
+- Modo vendedor activo: {{MODO_VENDEDOR}}
+- Cliente vendedor ya seleccionado: {{CLIENTE_VENDEDOR}}
+- Productos mostrados recientemente:
+{{PRODUCTOS_MOSTRADOS}}`;
 
 /**
  * Construye el prompt del clasificador con el contexto actual
