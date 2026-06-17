@@ -13,7 +13,7 @@ const orders = new Map(); // orderId -> order details
 const conversations = new Map(); // userId -> conversation history
 
 const { openaiConfig, systemPrompt } = require('../config/openai_prompt');
-const { functionDefinitions, executeFunctionCall } = require('../tools/openai_tools');
+const { functionDefinitions, executeFunctionCall, TOOL_BUSCAR_NUMERO_PARTE_EXTERNO } = require('../tools/openai_tools');
 const {buscarcliente, buscarcliente2, crearProspecto, actualizarObservaciones} = require('../utils/crm');
 const { getApiData } = require('../utils/functions');
 let urlWA = process.env.CHATWOOT_URL; // 'https://app.chatzeus.com/';
@@ -791,7 +791,7 @@ async function procesarMensajeWebhook(webhookData) {
     if (modoRefaccionesActivo) {
       console.log('🔧 MODO_REFACCIONES activo - usando prompt especializado');
       promptAUsar = buildRefaccionesPrompt();
-      toolsAUsar = functionDefinitions;
+      toolsAUsar = [...functionDefinitions, TOOL_BUSCAR_NUMERO_PARTE_EXTERNO];
       usarFallback = false;
     } else if (USAR_MULTI_PROMPT) {
       console.log('\n' + '='.repeat(60));

@@ -4,6 +4,7 @@
 
 const { obtenerCategorias, buscarProductos, obtenerDetalleProducto, agregarAlCarrito, agregarVariosArticulosAlCarrito, crearNuevoCarrito, crearNuevoCarritoConVariosArticulos, obtenerCarritosDisponibles, verCarrito, crearOrden, cancelarCarrito, generarPdf, copiarArticulosEntreCarritos, copiarArticulosDeUnCarritoExisenteAUnoNuevo, actualizarObservaciones, consultarAtributoProducto, buscarClientesPorNombre, buscarClientePorIdLocal } = require('../utils/crm');
 const { ejecutarBusquedaExterna } = require('../utils/busqueda_externa_service');
+const { buscarNumeroParteExterno } = require('../utils/fuentes_externas_service');
 const { resolverCanonico, resolverMultiplesCanonico } = require('../utils/canonicalizacion_service');
 const UserContext = require('../utils/userContext');
 
@@ -780,6 +781,43 @@ REGLAS (9.4):
     }
   ];
 
+// ============================================================
+// MODO_REFACCIONES - tool exclusiva del modo, NO se incluye en
+// functionDefinitions para que no se filtre al MOTOR_GENERAL.
+// Se agrega a la lista de tools solo cuando modo_refacciones está activo
+// (ver chatwoot.js).
+// ============================================================
+const TOOL_BUSCAR_NUMERO_PARTE_EXTERNO = {
+  type: "function",
+  function: {
+    name: "buscar_numero_parte_externo",
+    description: "MODO_REFACCIONES: busca el número de parte (clave de refacción) en fuentes externas autorizadas (Apymsa, Rolcar) cuando la pieza depende de aplicación vehicular. Úsala ANTES de buscar_productos para piezas como alternador, balatas, rótula, etc. Una vez que te devuelva un numero_parte, búscalo en buscar_productos usando el parámetro 'clave' con ese número EXACTO (no lo modifiques). Si regresa NO_ENCONTRADO_EN_FUENTE o FUENTE_NO_DISPONIBLE, no inventes un número; informa al usuario y ofrece derivar a un asesor.",
+    parameters: {
+      type: "object",
+      properties: {
+        producto: {
+          type: "string",
+          description: "Nombre de la refacción solicitada, ej: 'alternador', 'rotula', 'balatas delanteras'"
+        },
+        vehiculo: {
+          type: "object",
+          description: "Datos del vehículo ya confirmados con el usuario. Usar null en los campos que no se conozcan.",
+          properties: {
+            marca: { type: ["string", "null"] },
+            modelo: { type: ["string", "null"] },
+            anio: { type: ["string", "null"] },
+            motor: { type: ["string", "null"] }
+          },
+          required: ["marca", "modelo", "anio", "motor"],
+          additionalProperties: false
+        }
+      },
+      required: ["producto", "vehiculo"],
+      additionalProperties: false
+    },
+    strict: true
+  }
+};
 
 // ===== ROUTER PARA MANEJAR FUNCTION CALLS =====
 /**
@@ -1517,6 +1555,28 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
         return { success: false, message: 'No se encontro el cliente', preserveCurrentCart: true };
       }
 
+      // ============================================================
+      // MODO_REFACCIONES - búsqueda en fuentes externas autorizadas
+      // ============================================================
+      case "buscar_numero_parte_externo": {
+        console.log(`🔧 MODO_REFACCIONES - buscar_numero_parte_externo:`, args);
+        try {
+          const resultadoFuente = await buscarNumeroParteExterno(args.producto, args.vehiculo);
+          return {
+            success: true,
+            data: resultadoFuente,
+            preserveCurrentCart: true
+          };
+        } catch (error) {
+          console.error('❌ Error en buscar_numero_parte_externo:', error.message);
+          return {
+            success: true,
+            data: { resultado: 'FUENTE_NO_DISPONIBLE', motivo: error.message },
+            preserveCurrentCart: true
+          };
+        }
+      }
+
       default:
         return {
           success: false,
@@ -1527,6 +1587,7 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
   }
 
   module.exports = {
-    functionDefinitions,    
-    executeFunctionCall
+    functionDefinitions,
+    executeFunctionCall,
+    TOOL_BUSCAR_NUMERO_PARTE_EXTERNO
   };
