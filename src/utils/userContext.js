@@ -488,6 +488,7 @@ console.log({obj: "UserContext", contextStr});
     pipeline.hset(this.key, 'wizard_state', '');
     pipeline.hset(this.key, 'modo_vendedor', 'false');
     pipeline.hset(this.key, 'cliente_vendedor', '');
+    pipeline.hset(this.key, 'modo_refacciones', 'false');
 
     // Establecer valores básicos
     pipeline.hset(this.key, 'nombre_usuario', '');
@@ -695,13 +696,18 @@ console.log({obj: "UserContext", contextStr});
   }
 
   async getComandoActivo() {
-    const [modoVendedor, wizardRaw] = await Promise.all([
+    const [modoVendedor, wizardRaw, modoRefacciones] = await Promise.all([
       redis.hget(this.key, 'modo_vendedor'),
-      redis.hget(this.key, 'wizard_state')
+      redis.hget(this.key, 'wizard_state'),
+      redis.hget(this.key, 'modo_refacciones')
     ]);
     if (modoVendedor === 'true') return {
       tipo: 'vendedor',
       mensaje: 'Ya tienes el modo cotizar activo. Escribe /salir para finalizarlo antes de iniciar otro comando.'
+    };
+    if (modoRefacciones === 'true') return {
+      tipo: 'refacciones',
+      mensaje: 'Ya tienes el modo refacciones activo. Escribe /salir_refacciones para finalizarlo antes de iniciar otro comando.'
     };
     if (wizardRaw) {
       try {
@@ -713,6 +719,20 @@ console.log({obj: "UserContext", contextStr});
       } catch (e) {}
     }
     return null;
+  }
+
+  // ============================================================
+  // MODO REFACCIONES
+  // ============================================================
+
+  async setModoRefacciones(activo) {
+    await redis.hset(this.key, 'modo_refacciones', activo ? 'true' : 'false');
+    await redis.expire(this.key, this.ttl);
+  }
+
+  async getModoRefacciones() {
+    const v = await redis.hget(this.key, 'modo_refacciones');
+    return v === 'true';
   }
 }
 

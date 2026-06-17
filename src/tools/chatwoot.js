@@ -40,6 +40,7 @@ const {
 } = require('../services/referencia_service');
 
 const { ejecutarQueryComando } = require('../utils/query_commands');
+const { buildRefaccionesPrompt } = require('../prompts/refacciones_prompt');
 const {
   extraerListaDeImagen,
   extraerListaDeExcel,
@@ -381,10 +382,22 @@ async function procesarMensajeWebhook(webhookData) {
         await userContext.setModoVendedor(true);
         respuestaComandoSistema = 'Modo cotizar activado. ¿Con qué cliente deseas trabajar?';
       }
+    } else if (msgNormEarly === '/refacciones') {
+      const comandoActivo = await userContext.getComandoActivo();
+      if (comandoActivo) {
+        respuestaComandoSistema = comandoActivo.mensaje;
+      } else {
+        await userContext.setModoRefacciones(true);
+        respuestaComandoSistema = 'Listo, entramos en modo refacciones. Ahora dime qué pieza, servicio o vehículo quieres cotizar.';
+      }
+    } else if (msgNormEarly === '/salir_refacciones') {
+      await userContext.setModoRefacciones(false);
+      respuestaComandoSistema = 'Listo, salimos del modo refacciones. Ahora continuaré con la búsqueda general.';
     } else if (msgNormEarly === '/salir') {
       await Promise.all([
         userContext.clearModoVendedor(),
-        userContext.clearWizardState()
+        userContext.clearWizardState(),
+        userContext.setModoRefacciones(false)
       ]);
       respuestaComandoSistema = 'Modo desactivado.';
     } else if (msgNormEarly === '/ver_comandos') {
@@ -393,6 +406,8 @@ async function procesarMensajeWebhook(webhookData) {
         '   reiniciar — Borra la sesión y empieza una conversación nueva.\n' +
         '   /cotizar — Activa el modo vendedor para cotizar a nombre de un cliente.\n' +
         '   /+prospecto — Registra un nuevo prospecto en el CRM.\n' +
+        '   /refacciones — Activa el modo refacciones (autopartes, servicios y vehículos).\n' +
+        '   /salir_refacciones — Sale del modo refacciones.\n' +
         '   /salir — Desactiva el modo vendedor o cualquier flujo activo.\n\n' +
         'Consultas rápidas:\n' +
         '   ?saldo — Consulta el saldo pendiente del cliente.\n' +
@@ -767,7 +782,18 @@ async function procesarMensajeWebhook(webhookData) {
     let clasificacion = null;
     let usarFallback = true;
 
-    if (USAR_MULTI_PROMPT) {
+    // ============================================================
+    // MODO_REFACCIONES - prioridad sobre el clasificador V25.0
+    // Mientras la sesión esté activa, no se mezcla con MOTOR_GENERAL
+    // ============================================================
+    const modoRefaccionesActivo = await userContext.getModoRefacciones();
+
+    if (modoRefaccionesActivo) {
+      console.log('🔧 MODO_REFACCIONES activo - usando prompt especializado');
+      promptAUsar = buildRefaccionesPrompt();
+      toolsAUsar = functionDefinitions;
+      usarFallback = false;
+    } else if (USAR_MULTI_PROMPT) {
       console.log('\n' + '='.repeat(60));
       console.log('🎯 V25.0 - SISTEMA MULTI-PROMPT ACTIVO');
       console.log('='.repeat(60));
