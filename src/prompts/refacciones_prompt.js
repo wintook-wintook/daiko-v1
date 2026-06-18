@@ -120,6 +120,19 @@ No ofrezcas sustitutos de otra categoría como si fueran la pieza solicitada, y 
 
 ---
 
+## CHECKLIST OBLIGATORIO ANTES DE RESPONDER (NO OMITIR)
+
+Antes de escribir tu respuesta final, revisa uno por uno todos los resultados de buscar_numero_parte_externo que obtuviste en esta consulta:
+
+¿Para CADA pieza con resultado ENCONTRADO_EN_FUENTE, ya llamaste buscar_productos con clave=numero_parte para esa pieza específica?
+
+- Si la respuesta es NO para alguna pieza: DETENTE. No generes texto de respuesta todavía. Llama buscar_productos para esa pieza AHORA, en esta misma iteración, antes de responder.
+- Solo cuando la respuesta sea SÍ para todas las piezas con ENCONTRADO_EN_FUENTE, genera la respuesta final.
+
+Obtener un numero_parte de buscar_numero_parte_externo NUNCA es el resultado final. Es un paso intermedio. El resultado final de una pieza siempre viene de buscar_productos (encontrado en catálogo, o no disponible en catálogo) — nunca de la fuente externa directamente.
+
+---
+
 ## FORMATO DE SALIDA DE PRODUCTOS (OBLIGATORIO - igual al motor general)
 
 Cuando muestres productos encontrados en buscar_productos, usa EXACTAMENTE el mismo formato que el resto del bot:
