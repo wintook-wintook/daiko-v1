@@ -49,11 +49,17 @@ async function buscarConWebSearch(producto, vehiculo, fuente) {
   const descripcionVehiculo = describirVehiculo(vehiculo);
 
   const input = `Busca exclusivamente en el sitio ${fuente.dominio} (usa site:${fuente.dominio} en tu búsqueda) ` +
-    `el número de parte / clave de refacción para: "${producto}"` +
+    `una refacción para: "${producto}"` +
     (descripcionVehiculo ? ` aplicable a: ${descripcionVehiculo}.` : '.') +
-    ' Si encuentras una coincidencia clara, indica el número de parte exacto tal como aparece en el sitio, ' +
-    'la marca/fabricante y cualquier referencia cruzada. No uses información de otros sitios ni de tu conocimiento general. ' +
-    'Si no encuentras nada confiable en ese sitio, dilo explícitamente.';
+    ' Estas páginas de producto suelen mostrar un "Código" propio del catálogo del sitio (la clave interna que ' +
+    'ellos usan para identificar el producto) Y, por separado, varias referencias cruzadas de fabricante ' +
+    '(por ejemplo Hitachi, Bosch, Lester, WAI, número OEM del fabricante del vehículo, etc.). ' +
+    'Necesito específicamente el "Código" propio del sitio — indícalo de forma explícita y por separado, ' +
+    'por ejemplo: "Código del sitio: XXXXXXX". Después, lista aparte cualquier referencia cruzada de fabricante ' +
+    'que encuentres, dejando claro que NO son el código del sitio. ' +
+    'No uses información de otros sitios ni de tu conocimiento general. ' +
+    'Si no encuentras una página de producto clara en ese sitio, o no logras identificar cuál es el "Código" propio ' +
+    'del sitio (solo referencias de fabricante), dilo explícitamente.';
 
   const response = await openai.responses.create({
     model: 'gpt-4o',
@@ -96,9 +102,14 @@ async function extraerNumeroParte(textoBusqueda, citasDelDominio) {
       {
         role: 'system',
         content: 'Extrae el número de parte del siguiente texto de búsqueda. ' +
+          'IMPORTANTE: "numero_parte" debe ser específicamente el "Código" PROPIO del sitio fuente (su clave interna de catálogo, ' +
+          'normalmente mencionado como "Código:" o "Código del sitio:" en el texto). ' +
+          'NUNCA pongas en "numero_parte" un número de referencia de fabricante (Hitachi, Bosch, Lester, WAI, número OEM del vehículo, etc.), ' +
+          'aunque aparezca primero, se repita varias veces o parezca más relevante — esos van únicamente en el arreglo "referencias". ' +
+          'Si el texto no distingue con claridad cuál es el "Código" propio del sitio (por ejemplo, solo menciona referencias de fabricante), ' +
+          'responde resultado=NO_ENCONTRADO_EN_FUENTE con los demás campos en null, en vez de adivinar cuál usar. ' +
           `La "url_fuente" que regreses DEBE ser EXACTAMENTE una de estas URLs, copiada tal cual: ${JSON.stringify(citasDelDominio)}. ` +
-          'No modifiques, abrevies ni completes el número de parte. Si el texto no confirma un número de parte respaldado ' +
-          'por alguna de esas URLs, responde resultado=NO_ENCONTRADO_EN_FUENTE con los demás campos en null.'
+          'No modifiques, abrevies ni completes el número de parte.'
       },
       { role: 'user', content: textoBusqueda }
     ]
