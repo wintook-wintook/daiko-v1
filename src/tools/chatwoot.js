@@ -4,8 +4,6 @@
 const OpenAI = require('openai');
 require('dotenv').config();
 
-let openai ;
-
 const FormData  = require('form-data');
 
 const carts = new Map(); // userId -> cart items
@@ -14,7 +12,7 @@ const conversations = new Map(); // userId -> conversation history
 
 const { openaiConfig, systemPrompt } = require('../config/openai_prompt');
 const { functionDefinitions, executeFunctionCall } = require('../tools/openai_tools');
-const {buscarcliente, buscarcliente2, crearProspecto, actualizarObservaciones} = require('../utils/crm');
+const {buscarcliente, buscarcliente2, crearProspecto, actualizarObservaciones, runWithCrmContext} = require('../utils/crm');
 const { getApiData } = require('../utils/functions');
 let urlWA = process.env.CHATWOOT_URL; // 'https://app.chatzeus.com/';
 
@@ -332,6 +330,11 @@ async function procesarWizardProspecto(wizardState, messageContent, userContext,
 // ============================================================
 
 async function procesarMensajeWebhook(webhookData) {
+  // Envuelve toda la request en su propio contexto aislado de crm.js
+  // (cliente_id, moneda_id, api_access_token, url_crm_zeus, etc.) para que
+  // requests concurrentes de distintos usuarios/cuentas no se mezclen entre sí.
+  return runWithCrmContext(async () => {
+  let openai; // local a esta request (antes era variable de módulo compartida)
   try {
     let sender = webhookData.conversation.meta.sender;
 
@@ -1129,6 +1132,7 @@ async function procesarMensajeWebhook(webhookData) {
       details: error.message
     };
   }
+  }); // fin runWithCrmContext
 }
 
 // ============================================================
