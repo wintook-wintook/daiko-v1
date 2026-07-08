@@ -2,14 +2,40 @@
 
 require('dotenv').config();
 
-let cliente_id = 0;
-let moneda_id  = 1;
-let almacen_id = 0;
-let vendedor_id = 0;
-let celular = '';
+const { AsyncLocalStorage } = require('async_hooks');
+
+// ============================================================
+// CONTEXTO POR REQUEST (AsyncLocalStorage)
+// Reemplaza las antiguas variables de módulo (cliente_id, moneda_id,
+// almacen_id, vendedor_id, celular, api_access_token, url_crm_zeus).
+// Al ser compartidas por TODO el proceso, requests concurrentes de
+// distintos usuarios/cuentas se mezclaban entre sí (ej: un cliente
+// viendo los carritos de otro). Cada request debe envolverse con
+// runWithCrmContext() para tener su propio contexto aislado.
+// ============================================================
+const crmContext = new AsyncLocalStorage();
+
+function defaultCrmContext() {
+  return {
+    cliente_id: 0,
+    moneda_id: 1,
+    almacen_id: 0,
+    vendedor_id: 0,
+    celular: '',
+    api_access_token: '', // process.env.CRMZEUS_APIACCESSTOKEN
+    url_crm_zeus: ''       // process.env.CRMZEUS_URL
+  };
+}
+
+function getContext() {
+  return crmContext.getStore() || defaultCrmContext();
+}
+
+function runWithCrmContext(fn) {
+  return crmContext.run(defaultCrmContext(), fn);
+}
+
 const folio_ventas_id = 92226;
-let api_access_token = ''; // process.env.CRMZEUS_APIACCESSTOKEN;
-let url_crm_zeus = '';     // process.env.CRMZEUS_URL; // 'https://app.chatzeus.com/';
 
 const { getApiData: _getApiData } = require('./functions');
 
@@ -48,6 +74,7 @@ let evalError = (data, title = '') => {
 }
 
 function getConfigApiDaiko(api, data, version = '1', urlExtra = ''){
+  const { api_access_token, url_crm_zeus } = getContext();
   urlExtra = urlExtra.trim();
   let url = ( urlExtra.length == 0 ? `${url_crm_zeus}apiCrm/externalAccess/accessToken/api/Daiko/v${version}/${api}` : `${url_crm_zeus}apiCrm/externalAccess/accessToken/${urlExtra}`) ;
   console.log({url, data});
@@ -56,9 +83,9 @@ function getConfigApiDaiko(api, data, version = '1', urlExtra = ''){
     method: 'post',
     maxBodyLength: Infinity,
     url,
-    headers: { 
-      'api_access_token': api_access_token,     
-      'Content-Type': 'application/json', 
+    headers: {
+      'api_access_token': api_access_token,
+      'Content-Type': 'application/json',
       'Cookie': 'connect.sid=s%3A0tL5QPECvc3vmYUnupoVcskyLwi1-YFm.SByWF6a5CDxboz4KqOVSBZiLokAJwvoHThep%2BnZg8xc'
     },
     data : data
@@ -73,11 +100,10 @@ async function buscarcliente(name){
 //console.log({data: response.data});
     //let cliente  = await response.data;
     let cliente  = await response.data.find(function(user) { // 11 Sep 2025 Filtro temporal
-      return user.CLIENTE_ID === 61448;      
+      return user.CLIENTE_ID === 61448;
     });
     if(cliente){
-      cliente_id = cliente.CLIENTE_ID;
-      moneda_id = cliente.MONEDA_ID;
+      Object.assign(getContext(), { cliente_id: cliente.CLIENTE_ID, moneda_id: cliente.MONEDA_ID });
     }else{
       // recuperar cliente
     }
@@ -95,9 +121,10 @@ async function buscarcliente(name){
 
 
 async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
-  almacen_id = await info.almacen_id;
-  url_crm_zeus = await url_crm_zeus_;
-  api_access_token = await api_access_token_;
+  const ctx = getContext();
+  ctx.almacen_id = await info.almacen_id;
+  ctx.url_crm_zeus = await url_crm_zeus_;
+  ctx.api_access_token = await api_access_token_;
 
   let {email, phone_number, contact_id, senderName, userContext} = info;
   phone_number = (phone_number ? phone_number.substr(-10) : phone_number);
@@ -105,10 +132,10 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
   // Modo vendedor: usar cliente seleccionado por el vendedor
   const clienteVendedor = await userContext.getClienteVendedor();
   if (clienteVendedor && clienteVendedor.CLIENTE_ID) {
-    cliente_id = clienteVendedor.CLIENTE_ID;
-    moneda_id = clienteVendedor.MONEDA_ID || moneda_id;
-    vendedor_id = clienteVendedor.VENDEDOR_ID || vendedor_id;
-    celular = phone_number || celular;
+    ctx.cliente_id = clienteVendedor.CLIENTE_ID;
+    ctx.moneda_id = clienteVendedor.MONEDA_ID || ctx.moneda_id;
+    ctx.vendedor_id = clienteVendedor.VENDEDOR_ID || ctx.vendedor_id;
+    ctx.celular = phone_number || ctx.celular;
     return { success: true, data: clienteVendedor, preserveCurrentCart: true };
   }
 
@@ -137,19 +164,19 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
 
   if(cliente_redis && cliente_redis.CLIENTE_ID){
 
-    vendedor_id = await cliente_redis.VENDEDOR_ID;
-    cliente_id = cliente_redis.CLIENTE_ID;
-    moneda_id = cliente_redis.MONEDA_ID || moneda_id;
-    celular = phone_number || celular; 
+    ctx.vendedor_id = await cliente_redis.VENDEDOR_ID;
+    ctx.cliente_id = cliente_redis.CLIENTE_ID;
+    ctx.moneda_id = cliente_redis.MONEDA_ID || ctx.moneda_id;
+    ctx.celular = phone_number || ctx.celular;
 
     return {
       success: true,
-      data: {        
-        ALMACEN_ID: almacen_id,
-        CLIENTE_ID: cliente_redis.CLIENTE_ID, 
-        MONEDA_ID: cliente_redis.MONEDA_ID || moneda_id, 
-        VENDEDOR_ID: cliente_redis.VENDEDOR_ID, 
-        NOMBRE_COMERCIAL: cliente_redis.NOMBRE_COMERCIAL        
+      data: {
+        ALMACEN_ID: ctx.almacen_id,
+        CLIENTE_ID: cliente_redis.CLIENTE_ID,
+        MONEDA_ID: cliente_redis.MONEDA_ID || ctx.moneda_id,
+        VENDEDOR_ID: cliente_redis.VENDEDOR_ID,
+        NOMBRE_COMERCIAL: cliente_redis.NOMBRE_COMERCIAL
       },
       preserveCurrentCart: true  // âœ… Indicar que NO debe cambiar el carrito actual
     };
@@ -173,7 +200,7 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
         console.log('⚠️ Contacto no encontrado, creando prospecto automáticamente...');
         try {
           const nombreProspecto = senderName || 'Sin nombre';
-          const resultadoProspecto = await crearProspecto(url_crm_zeus, api_access_token, {
+          const resultadoProspecto = await crearProspecto(ctx.url_crm_zeus, ctx.api_access_token, {
             nombre_prospecto: nombreProspecto,
             nombre_contacto: nombreProspecto,
             celular: phone_number,
@@ -184,17 +211,17 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
           if (resultadoProspecto && resultadoProspecto.success) {
             const prospectoId = resultadoProspecto.data && resultadoProspecto.data.PROSPECTO_ID;
             console.log('✅ Prospecto creado automáticamente:', prospectoId);
-            cliente_id = prospectoId;
-            celular = phone_number;
+            ctx.cliente_id = prospectoId;
+            ctx.celular = phone_number;
             await userContext.setNombre(nombreProspecto);
             return {
               success: true,
               esProspecto: true,
               data: {
-                ALMACEN_ID: almacen_id,
+                ALMACEN_ID: ctx.almacen_id,
                 CLIENTE_ID: prospectoId,
-                MONEDA_ID: moneda_id,
-                VENDEDOR_ID: vendedor_id,
+                MONEDA_ID: ctx.moneda_id,
+                VENDEDOR_ID: ctx.vendedor_id,
                 NOMBRE_COMERCIAL: nombreProspecto
               },
               preserveCurrentCart: true
@@ -239,19 +266,19 @@ async function buscarcliente2(url_crm_zeus_, api_access_token_, info){
     await userContext.setCliente(cliente);
     await userContext.setNombre(cliente.NOMBRE_COMERCIAL);
    
-    vendedor_id = await cliente.VENDEDOR_ID;
-    cliente_id = cliente.CLIENTE_ID;
-    moneda_id = cliente.MONEDA_ID || moneda_id;
-    celular = phone_number || celular; 
+    ctx.vendedor_id = await cliente.VENDEDOR_ID;
+    ctx.cliente_id = cliente.CLIENTE_ID;
+    ctx.moneda_id = cliente.MONEDA_ID || ctx.moneda_id;
+    ctx.celular = phone_number || ctx.celular;
 
     return {
       success: true,
-      data: {        
-        ALMACEN_ID: almacen_id,
-        CLIENTE_ID: cliente.CLIENTE_ID, 
-        MONEDA_ID: cliente.MONEDA_ID || moneda_id, 
-        VENDEDOR_ID: cliente.VENDEDOR_ID, 
-        NOMBRE_COMERCIAL: cliente.NOMBRE_COMERCIAL        
+      data: {
+        ALMACEN_ID: ctx.almacen_id,
+        CLIENTE_ID: cliente.CLIENTE_ID,
+        MONEDA_ID: cliente.MONEDA_ID || ctx.moneda_id,
+        VENDEDOR_ID: cliente.VENDEDOR_ID,
+        NOMBRE_COMERCIAL: cliente.NOMBRE_COMERCIAL
       },
       preserveCurrentCart: true  // âœ… Indicar que NO debe cambiar el carrito actual
     };
@@ -285,6 +312,7 @@ async function obtenerCategorias() {
 }
 
 async function buscarProductos(query, categoria = null, etiquetas = null, precioMax = null, current_page=1, per_page=100, filtros = null, clave = null) {
+  const { cliente_id, moneda_id } = getContext();
   let data = { cliente_id: cliente_id, moneda_id: moneda_id, per_page };
 
   if (clave) { data.clave = clave; }
@@ -471,6 +499,7 @@ async function consultarAtributoProducto(query, atributo, accountId) {
 }
 
 async function obtenerDetalleProducto(id) {
+  const { cliente_id, moneda_id } = getContext();
   let data = JSON.stringify({ cliente_id: cliente_id, moneda_id: moneda_id });
   let config = getConfigApiDaiko(`getProduct/${id}`, data);
   try {
@@ -545,12 +574,13 @@ async function agregarVariosArticulosAlCarrito(carritoId, Productos, opcion = "a
 }
 
 async function crearNuevoCarrito(productoId, cantidad) {
-  let data = JSON.stringify({ 
+  const { cliente_id, moneda_id, almacen_id, vendedor_id } = getContext();
+  let data = JSON.stringify({
     "almacen_id":  almacen_id,
-    "moneda_id":   moneda_id, 
-    "vendedor_id": vendedor_id, 
+    "moneda_id":   moneda_id,
+    "vendedor_id": vendedor_id,
     "folio_ventas_id": folio_ventas_id,
-    "productos": [{"articulo_id":productoId, "unidades":cantidad}]    
+    "productos": [{"articulo_id":productoId, "unidades":cantidad}]
   });
   let config = getConfigApiDaiko(`createCart/${cliente_id}`, data, 2);
 //console.log({crearNuevoCarrito: data, config});
@@ -584,13 +614,14 @@ async function crearNuevoCarrito(productoId, cantidad) {
 }
 
 async function crearNuevoCarritoConVariosArticulos(Productos) {
- 
-  let data = JSON.stringify({ 
+  const { cliente_id, moneda_id, almacen_id, vendedor_id } = getContext();
+
+  let data = JSON.stringify({
     "almacen_id":  almacen_id,
-    "moneda_id":   moneda_id, 
-    "vendedor_id": vendedor_id, 
+    "moneda_id":   moneda_id,
+    "vendedor_id": vendedor_id,
     "folio_ventas_id": folio_ventas_id,
-    "productos": Productos    
+    "productos": Productos
   });
   let config = getConfigApiDaiko(`createCart/${cliente_id}`, data, 2);
   try {
@@ -621,6 +652,7 @@ async function crearNuevoCarritoConVariosArticulos(Productos) {
 }
 
 async function obtenerCarritosDisponibles() {
+  const { cliente_id } = getContext();
   let data = JSON.stringify({});
   let config = getConfigApiDaiko(`getIdCart/${cliente_id}`, data, 2);
   try {
@@ -720,6 +752,7 @@ async function crearOrden(carritoId) {
       preserveCurrentCart: true
     };
   }
+  const { cliente_id, celular } = getContext();
   let data = JSON.stringify({ tipo_docto: tipoDocto, cliente_id, celular });
   let config = getConfigApiDaiko(`createDocto/${carritoId}`, data, 2);
   try {
@@ -1188,6 +1221,7 @@ async function buscarClientesPorNombre(nombre) {
 }
 
 async function getBalanceDue() {
+  const { cliente_id, celular } = getContext();
   let data = JSON.stringify({ cliente_id, celular });
   let config = getConfigApiDaiko('getBalanceDue', data);
   try {
@@ -1200,6 +1234,7 @@ async function getBalanceDue() {
 }
 
 async function getStockArticle(articulo_id) {
+  const { cliente_id, celular } = getContext();
   let data = JSON.stringify({ cliente_id, celular, articulo_id });
   let config = getConfigApiDaiko('getStockArticle', data);
   try {
@@ -1212,6 +1247,7 @@ async function getStockArticle(articulo_id) {
 }
 
 async function getTrackingPedido(folio) {
+  const { cliente_id, celular } = getContext();
   let data = JSON.stringify({ cliente_id, celular, folio });
   let config = getConfigApiDaiko('getTrackingPedido', data);
   try {
@@ -1240,8 +1276,7 @@ async function buscarClientePorIdLocal(id) {
 }
 
 async function crearProspecto(url_crm_, token_, datos) {
-  url_crm_zeus = url_crm_;
-  api_access_token = token_;
+  Object.assign(getContext(), { url_crm_zeus: url_crm_, api_access_token: token_ });
   const data = JSON.stringify({
     nombre: datos.nombre_prospecto,
     nombre_contacto: datos.nombre_contacto,
@@ -1287,5 +1322,6 @@ module.exports = {
   getBalanceDue,
   getStockArticle,
   getTrackingPedido,
-  crearProspecto
+  crearProspecto,
+  runWithCrmContext
 };
