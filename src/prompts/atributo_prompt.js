@@ -84,6 +84,14 @@ Ejemplo para atributo=medida con nombres ["AZUCAR MORENA 1 KG", "AZUCAR MORENA 2
 - Medidas identificadas: 1 KG, 2 KG, 500 GR
 - Respuesta: "Tamaños disponibles para AZUCAR:\n500 GR\n1 KG\n2 KG"
 
+### Caso C: el resultado trae "valores" (ya confirmados) + "residuales"
+Los valores en "valores" ya están confirmados con certeza — muéstralos tal cual, sin reinterpretarlos ni descartarlos.
+Para cada entrada de "residuales", analiza SOLO las palabras listadas en "tokensDesconocidos" dentro del contexto de su "nombre", y agrega cualquier valor adicional del atributo solicitado que identifiques ahí. No repitas ni reclasifiques palabras que no estén en "tokensDesconocidos".
+
+Ejemplo: valores=["MONERICK"], residuales=[{ nombre: "abaco chico varios diseños bridgeco mdk", tokensDesconocidos: ["bridgeco", "mdk"] }]
+- Analizar "bridgeco" y "mdk" en el contexto de "abaco chico varios diseños bridgeco mdk" → "bridgeco" es marca, "mdk" no lo es
+- Respuesta: "Marcas disponibles para ABACO:\nMONERICK\nBRIDGECO"
+
 ### Si no hay información disponible:
 No encontramos información de [atributo] para [producto]. Puedo mostrarte los productos disponibles si lo deseas.
 

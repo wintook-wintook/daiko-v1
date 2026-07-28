@@ -217,6 +217,46 @@ function ejecutarPaso8_Normalizacion(token) {
 
 
 // ============================================================
+// PASO 8.5 – TOKENIZACIÓN DE DESCRIPCIÓN DE PRODUCTO (SIN BD)
+// Usado para separar marca/color/medida/etc. dentro de una descripción
+// de producto en texto libre (ver consultarAtributoProducto en crm.js)
+// ============================================================
+
+const STOPWORDS_DESCRIPCION = ['de', 'del', 'la', 'el', 'los', 'las', 'y', 'con', 'para', 'en', 'sin'];
+
+/**
+ * Separa una descripción de producto en tokens alfabéticos (candidatos a
+ * marca/color/medida/etc.) y tokens de medida numérica ya resueltos por
+ * regex (ej. "500 ML"), reutilizando normalizarUnidades/quitarAcentos/
+ * normalizarSingular. NO consulta BD (igual que el resto del PASO 8).
+ *
+ * @param {string} nombreProducto - Descripción cruda del producto (NOMBRE)
+ * @returns {{tokensAlfabeticos: string[], tokensMedidaNumerica: string[]}}
+ */
+function tokenizarDescripcion(nombreProducto) {
+  if (!nombreProducto || typeof nombreProducto !== 'string') {
+    return { tokensAlfabeticos: [], tokensMedidaNumerica: [] };
+  }
+
+  const conUnidades = normalizarUnidades(nombreProducto);
+
+  // Extraer medidas ya resueltas (ej. "500 ML", "1.5 KG") antes de partir por espacios,
+  // para no fragmentar "500 ML" en dos tokens sueltos.
+  const medidaRegex = /\d+(?:\.\d+)?\s+[A-ZÁÉÍÓÚ]+/g;
+  const tokensMedidaNumerica = conUnidades.match(medidaRegex) || [];
+  const sinMedidas = conUnidades.replace(medidaRegex, ' ');
+
+  const tokensAlfabeticos = sinMedidas
+    .split(/[^a-zA-ZÀ-ÿ]+/)
+    .map(palabra => palabra.trim())
+    .filter(Boolean)
+    .map(palabra => normalizarSingular(quitarAcentos(palabra.toLowerCase())))
+    .filter(token => token && !STOPWORDS_DESCRIPCION.includes(token));
+
+  return { tokensAlfabeticos, tokensMedidaNumerica };
+}
+
+// ============================================================
 // PASO 9 – CANONIZACIÓN (CONSULTA A BD)
 // Según documento normativo v2.2, punto 9
 // ============================================================
@@ -368,6 +408,62 @@ async function ejecutarPaso9_Canonizacion(tokenNormalizado, accountId) {
 }
 
 
+/**
+ * Clasifica un batch de tokens ya normalizados contra el catálogo de
+ * campos semánticos (wintook.sinonimo_semantico, vía la FK
+ * sinonimo_semantico_id en la fila raíz de wintook.palabras_sinonimos),
+ * en UNA sola consulta (no N queries por token/producto).
+ *
+ * @param {string[]} tokensNormalizados - Tokens ya normalizados (PASO 8 / tokenizarDescripcion)
+ * @param {number} accountId - ID de la cuenta
+ * @returns {Promise<{clasificaciones: Map<string, {token_canonico: string, campo_semantico: string|null}>, tokens_no_encontrados: string[]}>}
+ */
+async function clasificarTokensBatch(tokensNormalizados, accountId) {
+  const tokensUnicos = [...new Set((tokensNormalizados || []).filter(Boolean))];
+
+  if (tokensUnicos.length === 0) {
+    return { clasificaciones: new Map(), tokens_no_encontrados: [] };
+  }
+
+  try {
+    const query = `
+      SELECT LOWER(TRIM(alias.palabra)) AS token_matched,
+             principal.palabra AS token_canonico,
+             catalogo.nombre AS campo_semantico
+      FROM wintook.palabras_sinonimos alias
+      JOIN wintook.palabras_sinonimos principal
+        ON principal.palabra_id = alias.palabra_sinonimo_id
+       AND principal.account_id = alias.account_id
+      LEFT JOIN wintook.sinonimo_semantico catalogo
+        ON catalogo.id = principal.sinonimo_semantico_id
+      WHERE LOWER(TRIM(alias.palabra)) = ANY($1)
+        AND alias.account_id = $2
+    `;
+
+    const resultado = await executeQueryWithTimeout(query, [tokensUnicos, accountId]);
+
+    if (!resultado.success) {
+      console.warn(`   ⚠️ clasificarTokensBatch: query falló (${resultado.error || 'desconocido'}), fail-open`);
+      return { clasificaciones: new Map(), tokens_no_encontrados: tokensUnicos };
+    }
+
+    const clasificaciones = new Map();
+    for (const fila of resultado.rows) {
+      clasificaciones.set(fila.token_matched, {
+        token_canonico: fila.token_canonico,
+        campo_semantico: fila.campo_semantico ? String(fila.campo_semantico).toLowerCase() : null
+      });
+    }
+
+    const tokens_no_encontrados = tokensUnicos.filter(t => !clasificaciones.has(t));
+
+    return { clasificaciones, tokens_no_encontrados };
+  } catch (error) {
+    console.error(`❌ Error en clasificarTokensBatch: ${error.message}`);
+    return { clasificaciones: new Map(), tokens_no_encontrados: tokensUnicos };
+  }
+}
+
 // ============================================================
 // FUNCIÓN PRINCIPAL: resolverCanonico
 // Ejecuta PASO 8 + PASO 9 en secuencia
@@ -505,7 +601,9 @@ module.exports = {
   // Funciones de pasos individuales (para testing)
   ejecutarPaso8_Normalizacion,
   ejecutarPaso9_Canonizacion,
-  
+  clasificarTokensBatch,
+  tokenizarDescripcion,
+
   // Funciones auxiliares (para testing)
   normalizarUnidades,
   normalizarSingular,
