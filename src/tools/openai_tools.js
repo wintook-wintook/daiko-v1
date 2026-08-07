@@ -2,7 +2,7 @@
 // ACTUALIZADO: V24.0 - PASO 8 (Normalización) + PASO 9 (Canonización) separados
 // Según documento normativo MBC01 v2.2
 
-const { obtenerCategorias, buscarProductos, obtenerDetalleProducto, agregarAlCarrito, agregarVariosArticulosAlCarrito, crearNuevoCarrito, crearNuevoCarritoConVariosArticulos, obtenerCarritosDisponibles, verCarrito, crearOrden, cancelarCarrito, generarPdf, copiarArticulosEntreCarritos, copiarArticulosDeUnCarritoExisenteAUnoNuevo, actualizarObservaciones, consultarAtributoProducto, buscarClientesPorNombre, buscarClientePorIdLocal } = require('../utils/crm');
+const { obtenerCategorias, buscarProductos, obtenerDetalleProducto, agregarAlCarrito, agregarVariosArticulosAlCarrito, crearNuevoCarrito, crearNuevoCarritoConVariosArticulos, obtenerCarritosDisponibles, verCarrito, crearOrden, cancelarCarrito, generarPdf, copiarArticulosEntreCarritos, copiarArticulosDeUnCarritoExisenteAUnoNuevo, actualizarObservaciones, consultarAtributoProducto, buscarClientesPorNombre, buscarClientePorIdLocal, getBalanceDue, getStockArticle } = require('../utils/crm');
 const { ejecutarBusquedaExterna } = require('../utils/busqueda_externa_service');
 const { buscarNumeroParteExterno } = require('../utils/fuentes_externas_service');
 const { resolverCanonico, resolverMultiplesCanonico } = require('../utils/canonicalizacion_service');
@@ -709,6 +709,39 @@ REGLAS (9.4):
             }
           },
           required: ["carrito_id", "observaciones", "modo"],
+          additionalProperties: false
+        },
+        strict: true
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "consultar_saldo",
+        description: "Consulta el saldo pendiente de pago del cliente actual. Usar cuando el usuario pregunta por su saldo, cuánto debe, su estado de cuenta o adeudo. Ejemplos: '¿cuánto debo?', '¿cuál es mi saldo?', '¿tengo algo pendiente de pago?'",
+        parameters: {
+          type: "object",
+          properties: {},
+          required: [],
+          additionalProperties: false
+        },
+        strict: true
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "consultar_existencia",
+        description: "Consulta la existencia/disponibilidad en inventario de un producto ya identificado por su ID. Usar cuando el usuario pregunta cuánta existencia, disponibilidad o stock hay de un artículo. Ejemplos: '¿cuánta existencia hay del producto 1234?', '¿tienes disponibilidad del artículo 55?'",
+        parameters: {
+          type: "object",
+          properties: {
+            articulo_id: {
+              type: "integer",
+              description: "ID del artículo a consultar"
+            }
+          },
+          required: ["articulo_id"],
           additionalProperties: false
         },
         strict: true
@@ -1530,6 +1563,12 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
       case "consultar_atributo_producto": {
         return await consultarAtributoProducto(args.query, args.atributo, accountId);
       }
+
+      case "consultar_saldo":
+        return await getBalanceDue();
+
+      case "consultar_existencia":
+        return await getStockArticle(args.articulo_id);
 
       case "buscar_clientes": {
         const resultadoClientes = await buscarClientesPorNombre(args.query);
