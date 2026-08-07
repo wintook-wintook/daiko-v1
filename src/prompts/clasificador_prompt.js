@@ -27,6 +27,8 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 | PAGINACION | Ver más resultados de búsqueda anterior | "hay más", "ver más", "siguiente", "otros", "más opciones" |
 | NECESIDAD | Expresa problema/condición SIN producto concreto, O pide recomendación/asesoría para hacer algo | "tengo sed", "me duele la cabeza", "tengo hambre", "hace calor", "quiero hacer un pastel", "qué necesito para pintar mi cuarto", "qué me recomiendas para limpiar azulejos" |
 | CONSULTA_ATRIBUTO | Cliente pregunta por marcas, tamaños, modelos o presentaciones de un producto | "qué marcas de pintura", "qué tamaños de azúcar", "qué modelos de monitor", "qué presentaciones de aceite" |
+| CONSULTA_SALDO | Cliente pregunta por su saldo, adeudo o estado de cuenta | "¿cuánto debo?", "¿cuál es mi saldo?", "mi estado de cuenta", "¿tengo pendientes de pago?" |
+| CONSULTA_EXISTENCIA | Cliente pregunta por existencia/disponibilidad/stock de un producto (por ID o ya mostrado en la conversación) | "¿tienes existencia del producto 1234?", "¿cuánto hay disponible del artículo 55?", "¿hay stock del segundo?" |
 | CONVERSACION | Preguntas generales, charla, dudas sobre el bot | "cómo funciona", "qué puedes hacer", "ayuda", "eres un robot" |
 | REINICIAR | Reiniciar o borrar la conversación | "reiniciar", "reiniciate", "reinicia", "borrar conversación", "empezar de nuevo", "reset" |
 | DESCONOCIDO | No se puede clasificar claramente | mensajes ambiguos, fuera de contexto, o sin sentido |
@@ -161,6 +163,16 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 - Solo clasificar como PAGINACION si hay una búsqueda activa previa
 - "hay más", "ver más", "siguiente", "otros" → PAGINACION
 
+### Para CONSULTA_SALDO:
+- Preguntas sobre saldo, adeudo, deuda o estado de cuenta del cliente (no de un producto) → CONSULTA_SALDO
+- No requiere parámetros
+
+### Para CONSULTA_EXISTENCIA:
+- Preguntas sobre existencia, disponibilidad, stock o inventario de un producto específico → CONSULTA_EXISTENCIA
+- Si el mensaje incluye un ID numérico de producto → parametros.articulo_id = ese número
+- Si hace referencia a un producto de la lista de productos mostrados recientemente ("el primero", "el segundo", "el último") → parametros.referencia y parametros.referencia_idx (igual que en CARRITO_MODIFICAR)
+- NO confundir con CONSULTA_ATRIBUTO (esa es para marcas/tamaños/modelos, no para existencia/stock)
+
 ## FORMATO DE RESPUESTA
 
 Responde ÚNICAMENTE con un objeto JSON válido:
@@ -217,6 +229,16 @@ Respuesta: {"accion":"CONSULTA_ATRIBUTO","sub_accion":"medida","confianza":0.97,
 
 Mensaje: "qué modelos de monitor manejan"
 Respuesta: {"accion":"CONSULTA_ATRIBUTO","sub_accion":"tipo","confianza":0.95,"parametros":{"atributo":"tipo","texto_busqueda":"monitor"},"razon":"Cliente consulta modelos/tipos disponibles de un producto"}
+
+Mensaje: "cuánto debo?"
+Respuesta: {"accion":"CONSULTA_SALDO","sub_accion":null,"confianza":0.97,"parametros":{},"razon":"Cliente pregunta por su saldo/adeudo"}
+
+Mensaje: "tienes existencia del producto 1234?"
+Respuesta: {"accion":"CONSULTA_EXISTENCIA","sub_accion":null,"confianza":0.96,"parametros":{"articulo_id":1234},"razon":"Cliente pregunta por existencia de un ID de producto explícito"}
+
+Mensaje: "hay stock del segundo?"
+(con productos mostrados)
+Respuesta: {"accion":"CONSULTA_EXISTENCIA","sub_accion":null,"confianza":0.9,"parametros":{"referencia":"segundo","referencia_idx":1},"razon":"Cliente pregunta por existencia de un producto ya mostrado, referido por posición"}
 
 Mensaje: "quiero =DREP"
 Respuesta: {"accion":"BUSQUEDA_PRODUCTO","sub_accion":"buscar_por_clave","confianza":0.99,"parametros":{"texto_busqueda":"DREP"},"razon":"Mensaje contiene clave de producto con prefijo ="}
@@ -300,6 +322,8 @@ function validarRespuestaClasificador(respuesta) {
     'PAGINACION',
     'NECESIDAD',
     'CONSULTA_ATRIBUTO',
+    'CONSULTA_SALDO',
+    'CONSULTA_EXISTENCIA',
     'CONVERSACION',
     'REINICIAR',
     'DESCONOCIDO'
@@ -337,6 +361,8 @@ const ACCIONES_VALIDAS = [
   'PAGINACION',
   'NECESIDAD',
   'CONSULTA_ATRIBUTO',
+  'CONSULTA_SALDO',
+  'CONSULTA_EXISTENCIA',
   'BUSQUEDA_CLIENTE',
   'CONVERSACION',
   'REINICIAR',

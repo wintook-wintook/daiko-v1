@@ -21,6 +21,12 @@ const { buildOrdenPrompt, ORDEN_TOOLS } = require('../prompts/orden_prompt');
 const { buildNecesidadPrompt, NECESIDAD_TOOLS } = require('../prompts/necesidad_prompt');
 const { buildAtributoPrompt, CONSULTAR_ATRIBUTO_TOOLS } = require('../prompts/atributo_prompt');
 const { buildVendedorPrompt, VENDEDOR_TOOLS } = require('../prompts/vendedor_prompt');
+const {
+  buildConsultaSaldoPrompt,
+  CONSULTA_SALDO_TOOLS,
+  buildConsultaExistenciaPrompt,
+  CONSULTA_EXISTENCIA_TOOLS
+} = require('../prompts/consulta_directa_prompt');
 
 /**
  * Configuración de cada acción
@@ -108,6 +114,20 @@ const ACCION_CONFIG = {
     tools: VENDEDOR_TOOLS,
     requiereTools: true,
     descripcion: 'Buscar y seleccionar cliente en modo vendedor'
+  },
+
+  'CONSULTA_SALDO': {
+    buildPrompt: buildConsultaSaldoPrompt,
+    tools: CONSULTA_SALDO_TOOLS,
+    requiereTools: true,
+    descripcion: 'Consultar saldo pendiente del cliente'
+  },
+
+  'CONSULTA_EXISTENCIA': {
+    buildPrompt: buildConsultaExistenciaPrompt,
+    tools: CONSULTA_EXISTENCIA_TOOLS,
+    requiereTools: true,
+    descripcion: 'Consultar existencia de un producto'
   },
 
   'CONVERSACION': {
