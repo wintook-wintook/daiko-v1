@@ -23,12 +23,21 @@ function defaultCrmContext() {
     vendedor_id: 0,
     celular: '',
     api_access_token: '', // process.env.CRMZEUS_APIACCESSTOKEN
-    url_crm_zeus: ''       // process.env.CRMZEUS_URL
+    url_crm_zeus: '',      // process.env.CRMZEUS_URL
+    filtro_existencia: false
   };
 }
 
 function getContext() {
   return crmContext.getStore() || defaultCrmContext();
+}
+
+// Inyecta el estado del filtro "solo con existencia" (guardado en Redis por
+// conversación) al contexto por-request, para que buscarProductos lo lea sin
+// tener que threadearlo por cada call-site (tool buscar_productos,
+// buscar_por_etiquetas, paginación, búsqueda masiva de imagen_service.js).
+function setFiltroExistenciaContext(activo) {
+  getContext().filtro_existencia = !!activo;
 }
 
 function runWithCrmContext(fn) {
@@ -313,7 +322,7 @@ async function obtenerCategorias() {
 }
 
 async function buscarProductos(query, categoria = null, etiquetas = null, precioMax = null, current_page=1, per_page=100, filtros = null, clave = null) {
-  const { cliente_id, moneda_id } = getContext();
+  const { cliente_id, moneda_id, almacen_id, filtro_existencia } = getContext();
   let data = { cliente_id: cliente_id, moneda_id: moneda_id, per_page };
 
   if (clave) { data.clave = clave; }
@@ -363,6 +372,15 @@ async function buscarProductos(query, categoria = null, etiquetas = null, precio
         compatibilidad: data.compatibilidad
       }
     });
+  }
+
+  // ✅ Filtro "solo con existencia" (activado por conversación vía comando/clasificador)
+  // Requiere almacen_id para que CRMZeus filtre stock del almacén correcto
+  // (a diferencia de getStockArticle, que suma existencia de todos los almacenes del cliente).
+  if (filtro_existencia === true) {
+    data.existencia = true; // TODO: confirmar nombre exacto del parámetro con equipo CRMZeus
+    data.almacen_id = almacen_id; // TODO: confirmar casing/nombre esperado (cart usa ALMACEN_ID)
+    console.log('  → Filtro existencia aplicado: solo productos con stock en almacén', almacen_id);
   }
 
   data.filtros = filtros;
@@ -1401,6 +1419,7 @@ module.exports = {
   buscarcliente2,
   obtenerCategorias,
   buscarProductos,
+  setFiltroExistenciaContext,
   obtenerDetalleProducto,
   agregarAlCarrito,
   agregarVariosArticulosAlCarrito,

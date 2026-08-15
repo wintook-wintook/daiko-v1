@@ -113,11 +113,46 @@ function buildConsultaExistenciaPrompt(contexto) {
 
 const CONSULTA_EXISTENCIA_TOOLS = ['consultar_existencia'];
 
+/**
+ * Prompt para activar/desactivar el filtro global de "solo productos con existencia".
+ */
+const promptFiltroExistencia = `Eres un asistente que activa o desactiva el filtro de "solo productos con existencia" en las búsquedas del catálogo.
+
+## PARÁMETROS YA EXTRAÍDOS
+{{PARAMETROS}}
+
+## TU TRABAJO
+
+1. Determina si el cliente quiere ACTIVAR (a partir de ahora, solo ver productos con stock) o DESACTIVAR (volver a ver todos los productos, con o sin stock) el filtro, según los parámetros ya extraídos.
+2. Llama configurar_filtro_existencia(activar) con true o false según corresponda.
+3. Confirma el nuevo estado de forma clara y natural, sin markdown ni símbolos especiales.
+
+## REGLAS
+
+- Llama la herramienta UNA SOLA VEZ
+- Esto configura un filtro que aplica a TODAS las búsquedas futuras del cliente, no a una búsqueda puntual
+- NO confundir con una consulta de existencia de un producto específico (esa es CONSULTA_EXISTENCIA, no requiere ni modifica este filtro)`;
+
+function buildFiltroExistenciaPrompt(contexto) {
+  const parametros = (contexto && contexto.parametros) || {};
+  let parametrosStr = JSON.stringify(parametros, null, 2);
+  if (Object.keys(parametros).length === 0) {
+    parametrosStr = 'Ninguno';
+  }
+
+  return promptFiltroExistencia.replace('{{PARAMETROS}}', parametrosStr);
+}
+
+const FILTRO_EXISTENCIA_TOOLS = ['configurar_filtro_existencia'];
+
 module.exports = {
   promptConsultaSaldo,
   buildConsultaSaldoPrompt,
   CONSULTA_SALDO_TOOLS,
   promptConsultaExistencia,
   buildConsultaExistenciaPrompt,
-  CONSULTA_EXISTENCIA_TOOLS
+  CONSULTA_EXISTENCIA_TOOLS,
+  promptFiltroExistencia,
+  buildFiltroExistenciaPrompt,
+  FILTRO_EXISTENCIA_TOOLS
 };

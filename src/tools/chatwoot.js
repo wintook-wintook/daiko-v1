@@ -12,7 +12,7 @@ const conversations = new Map(); // userId -> conversation history
 
 const { openaiConfig, systemPrompt } = require('../config/openai_prompt');
 const { functionDefinitions, executeFunctionCall, TOOL_BUSCAR_NUMERO_PARTE_EXTERNO } = require('../tools/openai_tools');
-const {buscarcliente, buscarcliente2, crearProspecto, actualizarObservaciones, runWithCrmContext} = require('../utils/crm');
+const {buscarcliente, buscarcliente2, crearProspecto, actualizarObservaciones, runWithCrmContext, setFiltroExistenciaContext} = require('../utils/crm');
 const { getApiData } = require('../utils/functions');
 let urlWA = process.env.CHATWOOT_URL; // 'https://app.chatzeus.com/';
 
@@ -368,6 +368,11 @@ async function procesarMensajeWebhook(webhookData) {
     const userId = `chatwoot_${conversationId}`;
     const userContext = new UserContext(userId);
 
+    // ✅ Filtro "solo con existencia": inyectar al contexto de CRM (AsyncLocalStorage)
+    // para que buscarProductos lo aplique en cualquier búsqueda de este request,
+    // sin tener que threadearlo por cada call-site.
+    setFiltroExistenciaContext(await userContext.getFiltroExistencia());
+
     // ============================================================
     // COMANDOS DE SISTEMA (prioridad absoluta - antes de cualquier API)
     // ============================================================
@@ -403,6 +408,12 @@ async function procesarMensajeWebhook(webhookData) {
         userContext.setModoRefacciones(false)
       ]);
       respuestaComandoSistema = 'Modo desactivado.';
+    } else if (msgNormEarly === '=ver_productos_con_existencia') {
+      await userContext.setFiltroExistencia(true);
+      respuestaComandoSistema = 'Listo, a partir de ahora solo te mostraré productos con existencia disponible.';
+    } else if (msgNormEarly === '=ver_productos_todos') {
+      await userContext.setFiltroExistencia(false);
+      respuestaComandoSistema = 'Listo, ahora te mostraré todos los productos, tengan o no existencia.';
     } else if (msgNormEarly === '/ver_comandos') {
       respuestaComandoSistema =
         'Flujos:\n' +
@@ -416,8 +427,10 @@ async function procesarMensajeWebhook(webhookData) {
         '   ?saldo — Consulta el saldo pendiente del cliente.\n' +
         '   ?existencia <id> — Consulta la existencia de un artículo por su ID.\n' +
         '   ?estatuspedido <folio> — Consulta el estado de un pedido por folio.\n\n' +
-        'Búsqueda directa:\n' +
-        '   =<clave> — Busca un artículo por clave exacta. Ej: =ABC123';
+        'Otros comandos:\n' +
+        '   =<clave> — Busca un artículo por clave exacta. Ej: =ABC123\n' +
+        '   =ver_productos_con_existencia — Muestra solo productos con existencia disponible.\n' +
+        '   =ver_productos_todos — Vuelve a mostrar todos los productos (con o sin existencia).';
     }
 
     if (respuestaComandoSistema !== null) {

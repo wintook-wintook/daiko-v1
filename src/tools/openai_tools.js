@@ -47,6 +47,25 @@ const functionDefinitions = [
         strict: true
       }
     },
+    {
+      type: "function",
+      function: {
+        name: "configurar_filtro_existencia",
+        description: "Activa o desactiva el filtro que limita las búsquedas de productos a solo aquellos con existencia/stock disponible en el almacén del cliente. Usar cuando el cliente pide ver solo productos disponibles/con stock (activar=true), o pide ver todos los productos de nuevo incluyendo agotados (activar=false). Ejemplos: 'solo muéstrame los que tengan existencia', 'ya no me muestres agotados', 'muéstrame todos aunque no tengan stock', 'quítame ese filtro'.",
+        parameters: {
+          type: "object",
+          properties: {
+            activar: {
+              type: "boolean",
+              description: "true para mostrar solo productos con existencia, false para mostrar todos los productos"
+            }
+          },
+          required: ["activar"],
+          additionalProperties: false
+        },
+        strict: true
+      }
+    },
     // ============================================================
     // V24.0 - resolver_canonico ACTUALIZADO
     // Ejecuta PASO 8 (Normalización) + PASO 9 (Canonización)
@@ -940,6 +959,19 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
           message: `Claro, a partir de este momento inicia una conversación nueva`,
           preserveCurrentCart: false
         };
+
+      case "configurar_filtro_existencia": {
+        const activar = !!args.activar;
+        await userContext.setFiltroExistencia(activar);
+        return {
+          success: true,
+          data: [],
+          message: activar
+            ? 'Listo, a partir de ahora solo te mostraré productos con existencia disponible.'
+            : 'Listo, ahora te mostraré todos los productos, tengan o no existencia.',
+          preserveCurrentCart: true
+        };
+      }
 
       // ============================================================
       // V24.0 - resolver_canonico ACTUALIZADO

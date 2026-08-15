@@ -29,6 +29,7 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 | CONSULTA_ATRIBUTO | Cliente pregunta por marcas, tamaños, modelos o presentaciones de un producto | "qué marcas de pintura", "qué tamaños de azúcar", "qué modelos de monitor", "qué presentaciones de aceite" |
 | CONSULTA_SALDO | Cliente pregunta por su saldo, adeudo o estado de cuenta | "¿cuánto debo?", "¿cuál es mi saldo?", "mi estado de cuenta", "¿tengo pendientes de pago?" |
 | CONSULTA_EXISTENCIA | Cliente pregunta por existencia/disponibilidad/stock de un producto (por ID o ya mostrado en la conversación) | "¿tienes existencia del producto 1234?", "¿cuánto hay disponible del artículo 55?", "¿hay stock del segundo?" |
+| FILTRO_EXISTENCIA | Cliente pide ver SOLO productos con existencia/stock de aquí en adelante, o pide quitar ese filtro y ver todos de nuevo | "solo muéstrame los que tengan existencia", "ya no me muestres agotados", "quítame ese filtro", "muéstrame todos aunque no tengan stock" |
 | CONVERSACION | Preguntas generales, charla, dudas sobre el bot | "cómo funciona", "qué puedes hacer", "ayuda", "eres un robot" |
 | REINICIAR | Reiniciar o borrar la conversación | "reiniciar", "reiniciate", "reinicia", "borrar conversación", "empezar de nuevo", "reset" |
 | DESCONOCIDO | No se puede clasificar claramente | mensajes ambiguos, fuera de contexto, o sin sentido |
@@ -173,6 +174,12 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 - Si hace referencia a un producto de la lista de productos mostrados recientemente ("el primero", "el segundo", "el último") → parametros.referencia y parametros.referencia_idx (igual que en CARRITO_MODIFICAR)
 - NO confundir con CONSULTA_ATRIBUTO (esa es para marcas/tamaños/modelos, no para existencia/stock)
 
+### Para FILTRO_EXISTENCIA:
+- Cliente pide ver SOLO productos con existencia/stock/disponibles de aquí en adelante → sub_accion: "activar", parametros.activar = true
+- Cliente pide quitar ese filtro / ver todos los productos de nuevo (con o sin stock) → sub_accion: "desactivar", parametros.activar = false
+- Esto configura un filtro que aplica a TODAS las búsquedas futuras, no es una búsqueda puntual
+- NO confundir con CONSULTA_EXISTENCIA (esa pregunta por la existencia de UN producto específico, no configura ningún filtro)
+
 ## FORMATO DE RESPUESTA
 
 Responde ÚNICAMENTE con un objeto JSON válido:
@@ -242,6 +249,12 @@ Respuesta: {"accion":"CONSULTA_EXISTENCIA","sub_accion":null,"confianza":0.9,"pa
 
 Mensaje: "quiero =DREP"
 Respuesta: {"accion":"BUSQUEDA_PRODUCTO","sub_accion":"buscar_por_clave","confianza":0.99,"parametros":{"texto_busqueda":"DREP"},"razon":"Mensaje contiene clave de producto con prefijo ="}
+
+Mensaje: "solo enséñame los que tengan existencia"
+Respuesta: {"accion":"FILTRO_EXISTENCIA","sub_accion":"activar","confianza":0.95,"parametros":{"activar":true},"razon":"Cliente pide activar el filtro de solo productos con existencia"}
+
+Mensaje: "ya muéstrame todos aunque no tengan stock"
+Respuesta: {"accion":"FILTRO_EXISTENCIA","sub_accion":"desactivar","confianza":0.93,"parametros":{"activar":false},"razon":"Cliente pide desactivar el filtro de solo productos con existencia"}
 
 Mensaje: "agrega =ABC123 al carrito"
 Respuesta: {"accion":"BUSQUEDA_PRODUCTO","sub_accion":"buscar_por_clave","confianza":0.99,"parametros":{"texto_busqueda":"ABC123"},"razon":"Mensaje contiene clave de producto con prefijo =, primero buscar luego agregar"}
@@ -324,6 +337,7 @@ function validarRespuestaClasificador(respuesta) {
     'CONSULTA_ATRIBUTO',
     'CONSULTA_SALDO',
     'CONSULTA_EXISTENCIA',
+    'FILTRO_EXISTENCIA',
     'CONVERSACION',
     'REINICIAR',
     'DESCONOCIDO'
@@ -363,6 +377,7 @@ const ACCIONES_VALIDAS = [
   'CONSULTA_ATRIBUTO',
   'CONSULTA_SALDO',
   'CONSULTA_EXISTENCIA',
+  'FILTRO_EXISTENCIA',
   'BUSQUEDA_CLIENTE',
   'CONVERSACION',
   'REINICIAR',

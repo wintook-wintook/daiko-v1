@@ -25,7 +25,9 @@ const {
   buildConsultaSaldoPrompt,
   CONSULTA_SALDO_TOOLS,
   buildConsultaExistenciaPrompt,
-  CONSULTA_EXISTENCIA_TOOLS
+  CONSULTA_EXISTENCIA_TOOLS,
+  buildFiltroExistenciaPrompt,
+  FILTRO_EXISTENCIA_TOOLS
 } = require('../prompts/consulta_directa_prompt');
 
 /**
@@ -128,6 +130,13 @@ const ACCION_CONFIG = {
     tools: CONSULTA_EXISTENCIA_TOOLS,
     requiereTools: true,
     descripcion: 'Consultar existencia de un producto'
+  },
+
+  'FILTRO_EXISTENCIA': {
+    buildPrompt: buildFiltroExistenciaPrompt,
+    tools: FILTRO_EXISTENCIA_TOOLS,
+    requiereTools: true,
+    descripcion: 'Activar/desactivar filtro de solo productos con existencia'
   },
 
   'CONVERSACION': {

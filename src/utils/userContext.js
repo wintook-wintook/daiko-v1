@@ -489,6 +489,7 @@ console.log({obj: "UserContext", contextStr});
     pipeline.hset(this.key, 'modo_vendedor', 'false');
     pipeline.hset(this.key, 'cliente_vendedor', '');
     pipeline.hset(this.key, 'modo_refacciones', 'false');
+    pipeline.hset(this.key, 'filtro_existencia', 'false');
 
     // Establecer valores básicos
     pipeline.hset(this.key, 'nombre_usuario', '');
@@ -732,6 +733,20 @@ console.log({obj: "UserContext", contextStr});
 
   async getModoRefacciones() {
     const v = await redis.hget(this.key, 'modo_refacciones');
+    return v === 'true';
+  }
+
+  // ============================================================
+  // FILTRO "SOLO CON EXISTENCIA"
+  // ============================================================
+
+  async setFiltroExistencia(activo) {
+    await redis.hset(this.key, 'filtro_existencia', activo ? 'true' : 'false');
+    await redis.expire(this.key, this.ttl);
+  }
+
+  async getFiltroExistencia() {
+    const v = await redis.hget(this.key, 'filtro_existencia');
     return v === 'true';
   }
 }
