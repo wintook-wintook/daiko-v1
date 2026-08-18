@@ -1267,6 +1267,9 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
 
           console.log(`✅ Filtros normalizados:`, JSON.stringify(filtrosNormalizados, null, 2));
 
+          // Para mensajes de "sin resultados" más precisos cuando el filtro está activo
+          const filtroExistenciaActivo = await userContext.getFiltroExistencia();
+
           // ✅ Pasar filtros a buscarProductos
           const resultado = await buscarProductos(
             queryFinal,
@@ -1302,7 +1305,9 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
                 success: true,
                 data: [],
                 sinResultados: true,
-                message: `No encontré productos para "${args.query || args.clave}" con información completa.`,
+                message: filtroExistenciaActivo
+                  ? `No encontré productos con existencia para "${args.query || args.clave}".`
+                  : `No encontré productos para "${args.query || args.clave}" con información completa.`,
                 preserveCurrentCart: true
               };
             }
@@ -1360,7 +1365,9 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
               success: true,
               data: [],
               sinResultados: true,
-              message: `No encontré productos para "${args.query || args.clave}" en el catálogo.`,
+              message: filtroExistenciaActivo
+                ? `No encontré productos con existencia para "${args.query || args.clave}" en el catálogo.`
+                : `No encontré productos para "${args.query || args.clave}" en el catálogo.`,
               preserveCurrentCart: true
             };
           }

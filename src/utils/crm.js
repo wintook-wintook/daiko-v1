@@ -438,7 +438,9 @@ async function buscarProductos(query, categoria = null, etiquetas = null, precio
       return {
         success: false,
         data: [],
-        message: "No se encontraron productos con IDs válidos para esta búsqueda",
+        message: filtro_existencia === true
+          ? "No se encontraron productos con existencia para esta búsqueda"
+          : "No se encontraron productos con IDs válidos para esta búsqueda",
         preserveCurrentCart: true
       };
     }
