@@ -60,7 +60,6 @@ async function getApiData(config) {
   }
 }
 const { generarPDFCotizacion } = require('./pdf-make');
-const { tokenizarDescripcion, clasificarTokensBatch } = require('./canonicalizacion_service');
 
 let evalError = (data, title = '') => {
   // Error nativo de JS (timeout, red, etc.)
@@ -463,71 +462,6 @@ async function buscarProductos(query, categoria = null, etiquetas = null, precio
   }
 }
 
-// Mapeo entre el "atributo" de la tool (marca|medida|tipo) y el "nombre"
-// de wintook.sinonimo_semantico (marca, color, material, medida, modelo,
-// uso, compatibilidad, caracteristica).
-const ATRIBUTO_A_CAMPO_SEMANTICO = { marca: 'marca', medida: 'medida', tipo: 'modelo' };
-
-/**
- * Clasifica de forma determinística, contra el catálogo de campos
- * semánticos, qué palabras dentro de las descripciones de producto
- * corresponden al atributo solicitado (ej. cuál palabra es la MARCA
- * dentro de "abaco grande de colores monerick mdk"). Palabras que no
- * estén catalogadas quedan como residuales, por producto, para que GPT
- * las analice puntualmente en vez de adivinar sobre la descripción completa.
- *
- * @param {string[]} nombres - Descripciones crudas de producto (NOMBRE)
- * @param {string} sustantivoQuery - Sustantivo buscado (siempre el primer token de la descripción)
- * @param {string} atributo - "marca" | "medida" | "tipo"
- * @param {number} accountId - ID de la cuenta
- * @returns {Promise<{valores: string[], productosConResiduales: {nombre: string, tokensDesconocidos: string[]}[]}>}
- */
-async function clasificarDescripcionesProducto(nombres, sustantivoQuery, atributo, accountId) {
-  const campoSemanticoEsperado = ATRIBUTO_A_CAMPO_SEMANTICO[atributo];
-  const sustantivoNormalizado = tokenizarDescripcion(sustantivoQuery).tokensAlfabeticos[0] || '';
-
-  const porProducto = (nombres || []).map(nombre => {
-    const { tokensAlfabeticos, tokensMedidaNumerica } = tokenizarDescripcion(nombre);
-    const tokensCandidatos = tokensAlfabeticos.filter(t => t !== sustantivoNormalizado);
-    return { nombre, tokensCandidatos, tokensMedidaNumerica };
-  });
-
-  const todosTokens = [...new Set(porProducto.flatMap(p => p.tokensCandidatos))];
-  const { clasificaciones } = await clasificarTokensBatch(todosTokens, accountId);
-
-  const valoresSet = new Set();
-  const productosConResiduales = [];
-
-  for (const { nombre, tokensCandidatos, tokensMedidaNumerica } of porProducto) {
-    // Medidas numéricas (ej. "500 ML") ya son 100% determinísticas por regex, sin BD
-    if (campoSemanticoEsperado === 'medida') {
-      tokensMedidaNumerica.forEach(m => valoresSet.add(m.toUpperCase()));
-    }
-
-    const tokensDesconocidos = [];
-    for (const token of tokensCandidatos) {
-      const clasificacion = clasificaciones.get(token);
-
-      if (!clasificacion || !clasificacion.campo_semantico) {
-        tokensDesconocidos.push(token);
-      } else if (clasificacion.campo_semantico === campoSemanticoEsperado) {
-        valoresSet.add((clasificacion.token_canonico || token).toUpperCase());
-      }
-      // Coincide con OTRO campo semántico conocido (ej. color cuando se pidió marca):
-      // se descarta, ya se sabe que no es lo buscado, no es residual.
-    }
-
-    if (tokensDesconocidos.length > 0) {
-      productosConResiduales.push({ nombre, tokensDesconocidos });
-    }
-  }
-
-  return {
-    valores: [...valoresSet].sort(),
-    productosConResiduales
-  };
-}
-
 async function consultarAtributoProducto(query, atributo, accountId) {
   const campoMap = { marca: 'MARCA', medida: 'MEDIDA', tipo: 'TIPO' };
   const campo = campoMap[atributo] || 'MARCA';
@@ -564,45 +498,12 @@ async function consultarAtributoProducto(query, atributo, accountId) {
     };
   }
 
-  // Campo dedicado vacío: intentar clasificación determinística vía catálogo
-  // de campos semánticos (wintook.sinonimo_semantico) antes de recurrir a GPT
+  // Fallback: el campo no existe en la API — devolver nombres para que GPT extraiga
   const nombres = resultado.data
     .map(p => p.NOMBRE || '')
     .filter(n => n.trim() !== '');
 
-  const { valores: valoresDetectados, productosConResiduales } = await clasificarDescripcionesProducto(
-    nombres, query, atributo, accountId
-  );
-
-  if (valoresDetectados.length > 0 && productosConResiduales.length === 0) {
-    console.log(`✅ ${valoresDetectados.length} valor(es) únicos de ${atributo} para "${query}" (gazetteer):`, valoresDetectados);
-    return {
-      success: true,
-      atributo,
-      producto: query.toUpperCase(),
-      valores: valoresDetectados,
-      total: valoresDetectados.length,
-      source: 'gazetteer',
-      message: `Se encontraron ${valoresDetectados.length} ${atributo}(s) para ${query.toUpperCase()}`
-    };
-  }
-
-  if (valoresDetectados.length > 0) {
-    console.log(`✅ ${valoresDetectados.length} valor(es) confirmados de ${atributo} para "${query}" (gazetteer) + ${productosConResiduales.length} producto(s) con palabras sin catalogar`);
-    return {
-      success: true,
-      atributo,
-      producto: query.toUpperCase(),
-      valores: valoresDetectados,
-      residuales: productosConResiduales,
-      source: 'gazetteer_parcial',
-      message: `Ya se confirmaron ${valoresDetectados.length} ${atributo}(s): ${valoresDetectados.join(', ')}. Además analiza SOLO las palabras listadas en "tokensDesconocidos" de cada entrada de "residuales", en el contexto de su "nombre", para identificar ${atributo}(s) adicionales.`
-    };
-  }
-
-  // Fallback total: nada catalogado en el gazetteer (BD vacía, timeout, o cuenta sin
-  // catálogo poblado) — mismo comportamiento que antes, cero regresión (fail-open)
-  console.log(`⚠️ Campo "${campo}" vacío y sin catalogar en gazetteer. Fallback a extracción desde NOMBRE (${nombres.length} productos)`);
+  console.log(`⚠️ Campo "${campo}" vacío. Fallback a extracción desde NOMBRE (${nombres.length} productos)`);
 
   return {
     success: true,
