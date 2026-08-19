@@ -121,17 +121,22 @@ const promptFiltroExistencia = `Eres un asistente que activa o desactiva el filt
 ## PARÁMETROS YA EXTRAÍDOS
 {{PARAMETROS}}
 
+## ÚLTIMA BÚSQUEDA ACTIVA DEL CLIENTE
+{{ULTIMA_BUSQUEDA}}
+
 ## TU TRABAJO
 
 1. Determina si el cliente quiere ACTIVAR (a partir de ahora, solo ver productos con stock) o DESACTIVAR (volver a ver todos los productos, con o sin stock) el filtro, según los parámetros ya extraídos.
 2. Llama configurar_filtro_existencia(activar) con true o false según corresponda.
-3. Confirma el nuevo estado de forma clara y natural, sin markdown ni símbolos especiales.
+3. Si hay una "ÚLTIMA BÚSQUEDA ACTIVA" (query distinto de ninguno), vuelve a llamar buscar_productos con ese mismo query y esos mismos filtros para traer resultados frescos ya con el filtro aplicado. Presenta esos productos verificados.
+4. Si no hay búsqueda previa, solo confirma el nuevo estado del filtro de forma clara y natural, sin markdown ni símbolos especiales.
 
 ## REGLAS
 
-- Llama la herramienta UNA SOLA VEZ
+- Llama configurar_filtro_existencia UNA SOLA VEZ
 - Esto configura un filtro que aplica a TODAS las búsquedas futuras del cliente, no a una búsqueda puntual
-- NO confundir con una consulta de existencia de un producto específico (esa es CONSULTA_EXISTENCIA, no requiere ni modifica este filtro)`;
+- NO confundir con una consulta de existencia de un producto específico (esa es CONSULTA_EXISTENCIA, no requiere ni modifica este filtro)
+- PROHIBIDO reutilizar, recordar o inventar productos mostrados anteriormente en la conversación como si ya tuvieran existencia confirmada. La existencia solo se puede verificar volviendo a llamar buscar_productos después de activar el filtro — nunca a partir de la memoria de la conversación`;
 
 function buildFiltroExistenciaPrompt(contexto) {
   const parametros = (contexto && contexto.parametros) || {};
@@ -140,10 +145,17 @@ function buildFiltroExistenciaPrompt(contexto) {
     parametrosStr = 'Ninguno';
   }
 
-  return promptFiltroExistencia.replace('{{PARAMETROS}}', parametrosStr);
+  const ultimaBusqueda = contexto && contexto.ultimaBusqueda;
+  const ultimaBusquedaStr = ultimaBusqueda && ultimaBusqueda.query
+    ? JSON.stringify({ query: ultimaBusqueda.query, filtros: ultimaBusqueda.filtros || {} }, null, 2)
+    : 'Ninguna';
+
+  return promptFiltroExistencia
+    .replace('{{PARAMETROS}}', parametrosStr)
+    .replace('{{ULTIMA_BUSQUEDA}}', ultimaBusquedaStr);
 }
 
-const FILTRO_EXISTENCIA_TOOLS = ['configurar_filtro_existencia'];
+const FILTRO_EXISTENCIA_TOOLS = ['configurar_filtro_existencia', 'buscar_productos'];
 
 module.exports = {
   promptConsultaSaldo,
