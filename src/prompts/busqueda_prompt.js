@@ -124,6 +124,10 @@ Cuando recibas productos, preséntalos así:
 
 NUNCA responder solo con un mensaje negativo. Seguir SIEMPRE esta estructura de 3 partes:
 
+### Caso especial — Filtro "solo con existencia" activo
+Si el campo "message" que devuelve buscar_productos contiene la palabra "existencia", el producto SÍ existe en el catálogo pero no hay unidades disponibles en este momento (filtro de solo-existencia activo). NO digas que "no encontré [producto]" ni que no lo manejamos — aclara explícitamente que no hay existencia/stock disponible ahora mismo, y ofrece desactivar el filtro para ver todas las opciones (aunque no tengan stock) como alternativa (Parte 2), antes de la pregunta de continuidad (Parte 3).
+Ejemplo: "No tengo arroz con existencia disponible en este momento. ¿Quieres que te muestre también las opciones sin stock, o prefieres que te avise cuando haya disponibilidad?"
+
 ### Parte 1 — Confirmar que no hay coincidencia exacta
 "No encontré [producto buscado] con esas características."
 
