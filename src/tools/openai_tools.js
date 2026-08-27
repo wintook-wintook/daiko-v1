@@ -1416,7 +1416,10 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
           }
           
           await userContext.setBusquedaActiva({
-            query: args.query,
+            // ✅ Guardar el query YA CANONIZADO: la paginación ("ver más") vuelve a buscar
+            // con este valor, y con el crudo la página 2 buscaba distinto que la 1
+            // (ej. "tijeras" → 0 resultados vs "tijera" → 143)
+            query: queryFinal,
             filtros: filtrosNormalizados,
             total_resultados: totalProductos,
             mostrados: endIndex,
