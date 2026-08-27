@@ -107,8 +107,10 @@ class UserContext {
 
   // V25.0: Guardar últimos resultados de búsqueda
   async setUltimosResultados(productos) {
-    // Guardar solo los primeros 10 productos para resolver referencias
-    const productosParaGuardar = (productos || []).slice(0, 10).map(function(p) {
+    // Guardar hasta 100 productos: los índices 0-5 son los visibles (referencias
+    // posicionales) y el resto permite resolver por nombre y validar ID/precio
+    // de cualquier producto que el LLM cite desde el análisis semántico
+    const productosParaGuardar = (productos || []).slice(0, 100).map(function(p) {
       return {
         ARTICULO_ID: p.ARTICULO_ID,
         NOMBRE: p.NOMBRE,

@@ -17,6 +17,7 @@ const { getApiData } = require('../utils/functions');
 let urlWA = process.env.CHATWOOT_URL; // 'https://app.chatzeus.com/';
 
 const UserContext = require('../utils/userContext');
+const { corregirProductosEnRespuesta } = require('../utils/validar_productos_respuesta');
 
 // ============================================================
 // V25.0 - FASE 3: Servicios de Clasificación y Router
@@ -985,6 +986,7 @@ async function procesarMensajeWebhook(webhookData) {
     let continueLoop = true;
     let isGetPDF = false;
     let pdfData = null;
+    let huboBusquedaProductos = false;  // La respuesta lista resultados de búsqueda (no carrito)
 
     while (continueLoop && iteration < MAX_ITERATIONS) {
       iteration++;
@@ -1048,6 +1050,12 @@ async function procesarMensajeWebhook(webhookData) {
               pdfData = functionResult.data;
             }
 
+            // La respuesta final listará resultados de búsqueda: habilita descartar
+            // IDs que no existan en el catálogo (ver validar_productos_respuesta.js)
+            if (name === 'buscar_productos' && functionResult && functionResult.success) {
+              huboBusquedaProductos = true;
+            }
+
             // ✅ AGREGAR RESULTADO AL HISTORIAL
             conversationHistory.push({
               role: "tool",
@@ -1093,6 +1101,13 @@ async function procesarMensajeWebhook(webhookData) {
         console.log(`✅ No hay más tool calls. Generando respuesta final.`);
         
         let finalResponse = assistantMessage.content || "";
+
+        // ✅ Validar productos citados contra el catálogo real de la búsqueda.
+        // El LLM decide qué mostrar; nombre y precio salen de la búsqueda, no de él.
+        const catalogoBusqueda = await userContext.getUltimosResultados();
+        finalResponse = corregirProductosEnRespuesta(finalResponse, catalogoBusqueda, {
+          descartarDesconocidos: huboBusquedaProductos
+        }).texto;
 
         // Agregar info del carrito activo al final de la respuesta (si no está ya incluida)
         // No agregar si es respuesta de reinicio

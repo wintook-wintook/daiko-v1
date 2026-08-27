@@ -1396,7 +1396,7 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
           // ✅ V22.0: Preparar descripciones para análisis semántico (solo si total > 6)
           let descripcionesParaAnalisis = null;
           if (totalProductos > 6) {
-            descripcionesParaAnalisis = productosRecuperados.map(p => `ID: ${p.ARTICULO_ID} - ${p.NOMBRE}`);
+            descripcionesParaAnalisis = productosRecuperados.map(p => `ID: ${p.ARTICULO_ID} - ${p.NOMBRE} | Precio: $${p.PRECIO}`);
             console.log(`🔍 Enviando ${descripcionesParaAnalisis.length} descripciones al LLM para análisis semántico`);
           }
           
