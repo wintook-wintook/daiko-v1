@@ -751,6 +751,27 @@ console.log({obj: "UserContext", contextStr});
     const v = await redis.hget(this.key, 'filtro_existencia');
     return v === 'true';
   }
+
+  // ============================================================
+  // PAUSAR/ACTIVAR AGENTE (control manual vía comandos =pausar_agente/=activar_agente)
+  // ============================================================
+  // Clave propia y sin TTL: a diferencia del resto del contexto (30 min de
+  // inactividad), el pausado debe persistir hasta que un agente lo reactive
+  // explícitamente, sin depender de que el usuario vuelva a escribir.
+
+  async setPausado(activo) {
+    const key = `user:${this.userId}:pausado`;
+    if (activo) {
+      await redis.set(key, 'true');
+    } else {
+      await redis.del(key);
+    }
+  }
+
+  async getPausado() {
+    const v = await redis.get(`user:${this.userId}:pausado`);
+    return v === 'true';
+  }
 }
 
 module.exports = UserContext;
