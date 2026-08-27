@@ -351,10 +351,65 @@ async function procesarMensajeWebhook(webhookData) {
     const excelAdjunto = attachments.find(esExcelAdjunto) || null;
     const audioAdjunto = attachments.find(esAudioAdjunto) || null;
 
+    // ============================================================
+    // COMANDOS DE CONTROL DE AGENTE (mensajes salientes - no aparecen en /ver_comandos)
+    // ============================================================
+    // Un agente humano los escribe como respuesta normal (outgoing) en Chatwoot
+    // para pausar/reanudar el procesamiento automático de Daiko en esta conversación.
+    if (messageType === 'outgoing') {
+      const msgNormOutgoing = messageContent ? messageContent.trim().toLowerCase() : '';
+      const userIdOutgoing = `chatwoot_${conversationId}`;
+      const userContextOutgoing = new UserContext(userIdOutgoing);
+
+      if (msgNormOutgoing === '=pausar_agente') {
+        await userContextOutgoing.setPausado(true);
+        console.log('⏸️ Comando de control:', msgNormOutgoing, userIdOutgoing);
+        return {
+          success: true,
+          data: {
+            conversationId, response: 'Agente pausado para este usuario.', fileName: '',
+            userId: userIdOutgoing, senderName, originalMessage: messageContent, private: true
+          },
+          message: 'Comando de control de agente procesado'
+        };
+      }
+      if (msgNormOutgoing === '=activar_agente') {
+        await userContextOutgoing.setPausado(false);
+        console.log('▶️ Comando de control:', msgNormOutgoing, userIdOutgoing);
+        return {
+          success: true,
+          data: {
+            conversationId, response: 'Agente reactivado para este usuario.', fileName: '',
+            userId: userIdOutgoing, senderName, originalMessage: messageContent, private: true
+          },
+          message: 'Comando de control de agente procesado'
+        };
+      }
+
+      return {
+        success: false,
+        message: "Mensaje no procesable - solo se procesan mensajes entrantes con contenido"
+      };
+    }
+
     if (messageType !== 'incoming' || (!messageContent && !imagenAdjunta && !excelAdjunto && !audioAdjunto)) {
       return {
         success: false,
         message: "Mensaje no procesable - solo se procesan mensajes entrantes con contenido"
+      };
+    }
+
+    // Preparar contexto del usuario (independiente de APIs externas)
+    const userId = `chatwoot_${conversationId}`;
+    const userContext = new UserContext(userId);
+
+    // Si un agente pausó a Daiko para este usuario (=pausar_agente), no procesar
+    // ni contestar mensajes entrantes hasta que se envíe =activar_agente.
+    if (await userContext.getPausado()) {
+      console.log(`⏸️ Agente pausado para ${userId} - mensaje entrante ignorado`);
+      return {
+        success: false,
+        message: "Agente pausado para este usuario - mensaje entrante ignorado"
       };
     }
 
@@ -364,10 +419,6 @@ async function procesarMensajeWebhook(webhookData) {
     const _t0 = Date.now();
     let _tStep = Date.now();
     console.log(`⏱️ [0] Inicio procesamiento`);
-
-    // Preparar contexto del usuario (independiente de APIs externas)
-    const userId = `chatwoot_${conversationId}`;
-    const userContext = new UserContext(userId);
 
     // ✅ Filtro "solo con existencia": inyectar al contexto de CRM (AsyncLocalStorage)
     // para que buscarProductos lo aplique en cualquier búsqueda de este request,
@@ -1415,10 +1466,14 @@ console.log({Ln: 360, obj: "sendMessage"});
 };
 */
 
-const sendMessage = async (token, account_id, conversation_id, messageData, fileName = '') => {
-   
+const sendMessage = async (token, account_id, conversation_id, messageData, fileName = '', isPrivate = false) => {
+
   const frmData = new FormData();
-  
+
+  if (isPrivate) {
+    frmData.append('private', 'true');
+  }
+
   if (fileName !== '') {
     
     // Convertir base64 a buffer
@@ -1474,10 +1529,10 @@ const sendMessage = async (token, account_id, conversation_id, messageData, file
   async function enviarMensajeWebhook(webhookData) {
     try {
       // Extraer información del webhook de Chatwoot
-      let data = await sendMessage(webhookData.token, 
-        webhookData.account_id, 
-        webhookData.conversation_id, 
-        webhookData.data.response, webhookData.data.fileName);
+      let data = await sendMessage(webhookData.token,
+        webhookData.account_id,
+        webhookData.conversation_id,
+        webhookData.data.response, webhookData.data.fileName, webhookData.data.private || false);
       
       
       /*
