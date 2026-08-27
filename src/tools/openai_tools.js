@@ -7,6 +7,7 @@ const { ejecutarBusquedaExterna } = require('../utils/busqueda_externa_service')
 const { buscarNumeroParteExterno } = require('../utils/fuentes_externas_service');
 const { resolverCanonico, resolverMultiplesCanonico } = require('../utils/canonicalizacion_service');
 const UserContext = require('../utils/userContext');
+const { ordenarPorRelevancia } = require('../utils/relevancia');
 
 const functionDefinitions = [
     {
@@ -1373,13 +1374,24 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
           }
           
           console.log(`✅ Productos normalizados finales: ${productosNormalizadosBusqueda.length}`);
-          
+
+          // ✅ Jerarquía por relevancia: el CRM devuelve en orden alfabético y su WHERE
+          // incluye coincidencias por etiqueta, así que al buscar "libreta" salían primero
+          // BLOCK y CUADERNO. Se reordena para que lo que más coincide con el sustantivo y
+          // los filtros quede arriba. Afecta a los 6 visibles, a la lista semántica y a
+          // lo que se guarda en Redis, todo de una.
+          const productosOrdenados = ordenarPorRelevancia(
+            productosNormalizadosBusqueda,
+            queryFinal || categoriaFinal,
+            filtrosNormalizados
+          );
+
           // ✅ V22.0: Paginación de 6 productos
           const PRODUCTOS_POR_PAGINA = 6;
           const currentPage = args.current_page || 1;
-          
+
           // Recuperar hasta 100 productos para análisis
-          const productosRecuperados = productosNormalizadosBusqueda.slice(0, 100);
+          const productosRecuperados = productosOrdenados.slice(0, 100);
           
           // Calcular índices para la ventana de 6 productos
           const startIndex = (currentPage - 1) * PRODUCTOS_POR_PAGINA;
@@ -1392,6 +1404,9 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
           const totalProductos = resultado.meta?.count || productosNormalizadosBusqueda.length;
           
           console.log(`📋 V22.0 - Página ${currentPage}: Mostrando productos ${startIndex + 1}-${Math.min(endIndex, totalProductos)} de ${totalProductos} totales`);
+
+          // Top de la jerarquía, para poder calibrar los pesos desde el log
+          console.log(`🏅 Jerarquía por relevancia (top ${visibles.length}):`, visibles.map(p => p.NOMBRE));
           
           // ✅ V22.0: Preparar descripciones para análisis semántico (solo si total > 6)
           let descripcionesParaAnalisis = null;
@@ -1409,8 +1424,9 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
           });
 
           // Guardar TODOS los productos para resolución por nombre ("torres", "licor de melon")
-          // Los índices 0-5 siguen siendo los visibles para referencias posicionales ("el primero")
-          await userContext.setUltimosResultados(productosNormalizadosBusqueda);
+          // Los índices 0-5 siguen siendo los visibles para referencias posicionales ("el primero"),
+          // por eso se guarda la lista YA ORDENADA por relevancia (mismo orden que ve el cliente)
+          await userContext.setUltimosResultados(productosOrdenados);
           await userContext.setUltimaAccion('busqueda_productos');
 
         return {
