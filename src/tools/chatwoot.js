@@ -682,7 +682,7 @@ async function procesarMensajeWebhook(webhookData) {
         }
 
         console.log('📋 Items extraídos de Excel:', items.length);
-        const { encontrados, noEncontrados } = await buscarItemsLista(items);
+        const { encontrados, noEncontrados } = await buscarItemsLista(items, openai, webhookData.account_id);
 
         const pideCarrito = mensajePideCarrito(messageContent);
         let resultadoCarrito = null;
@@ -744,7 +744,7 @@ async function procesarMensajeWebhook(webhookData) {
         }
 
         console.log('📋 Items extraídos de imagen:', items.length);
-        const { encontrados, noEncontrados } = await buscarItemsLista(items);
+        const { encontrados, noEncontrados } = await buscarItemsLista(items, openai, webhookData.account_id);
 
         const pideCarrito = mensajePideCarrito(messageContent);
         let resultadoCarrito = null;

@@ -2,6 +2,8 @@
 // Procesamiento de imágenes y archivos Excel con listas de compras
 
 const { buscarProductos, agregarVariosArticulosAlCarrito, crearNuevoCarritoConVariosArticulos } = require('./crm');
+const { resolverCanonico } = require('./canonicalizacion_service');
+const { ordenarPorRelevancia } = require('./relevancia');
 const XLSX = require('xlsx');
 const https = require('https');
 const http = require('http');
@@ -53,34 +55,182 @@ async function extraerListaDeImagen(imageUrl, openai) {
   }
 }
 
+const PROMPT_EXTRACCION = `Eres un extractor de términos de búsqueda para un catálogo de papelería y abarrotes.
+
+Recibes un JSON array de descripciones de productos escritas en lenguaje natural
+(vienen de una lista de compras). Para CADA una devuelve:
+- sustantivo: el PRODUCTO base. UNA sola palabra, en SINGULAR, sin marca, sin medida,
+  sin color y sin adjetivos. Es lo que el producto ES, no cómo es.
+- filtros: { marca, tipo, medida, caracteristicas } — arrays de strings en MAYÚSCULAS,
+  vacíos si no aplica.
+
+Reglas:
+- Ignora cantidades y numeración ("2 cuadernos" → sustantivo "cuaderno").
+- El texto entre paréntesis suele ser una aclaración del cliente: ignóralo salvo que
+  contenga una característica real del producto.
+- Si no logras identificar un producto, usa sustantivo: null.
+- Responde ÚNICAMENTE con un JSON array válido, sin markdown, del MISMO tamaño y en el
+  MISMO orden que la entrada.
+
+Ejemplo de entrada:
+["Pegamento en barra","Tijeras punta roma","2 Cuadernos de raya cosido color azul","Hojas blancas"]
+
+Ejemplo de salida:
+[{"sustantivo":"pegamento","filtros":{"marca":[],"tipo":["BARRA"],"medida":[],"caracteristicas":[]}},
+{"sustantivo":"tijera","filtros":{"marca":[],"tipo":["PUNTA ROMA"],"medida":[],"caracteristicas":[]}},
+{"sustantivo":"cuaderno","filtros":{"marca":[],"tipo":["COSIDO"],"medida":[],"caracteristicas":["RAYA","AZUL"]}},
+{"sustantivo":"hoja","filtros":{"marca":[],"tipo":[],"medida":[],"caracteristicas":["BLANCA"]}}]`;
+
+function filtrosVaciosNuevos() {
+  return { marca: [], medida: [], caracteristicas: [], tipo: [], compatibilidad: [] };
+}
+
+function normalizarFiltrosExtraidos(filtros) {
+  const base = filtrosVaciosNuevos();
+  if (!filtros || typeof filtros !== 'object') return base;
+  ['marca', 'medida', 'caracteristicas', 'tipo', 'compatibilidad'].forEach(function (campo) {
+    const valores = filtros[campo];
+    if (Array.isArray(valores)) {
+      base[campo] = valores
+        .filter(function (v) { return typeof v === 'string' && v.trim(); })
+        .map(function (v) { return v.trim().toUpperCase(); });
+    }
+  });
+  return base;
+}
+
+/**
+ * Extrae sustantivo + filtros de una lista de descripciones en UNA sola llamada.
+ *
+ * Por qué existe: el CRM compara `lower(A.NOMBRE) SIMILAR TO 'texto%'`, así que mandar
+ * la descripción completa ("Pegamento en barra") no encuentra nada -- el catálogo dice
+ * "PEGAMENTO BARRA 21 GR PRITT". El flujo de texto normal ya parte la frase en
+ * sustantivo + filtros vía GPT; aquí se hace lo mismo para imagen y Excel.
+ *
+ * Fail-open: si la extracción falla, se devuelve null por ítem y el llamador usa la
+ * descripción cruda (comportamiento anterior).
+ *
+ * @param {Array<string>} descripciones
+ * @param {object} openai - Instancia de OpenAI ya inicializada
+ * @returns {Promise<Array<{sustantivo: string|null, filtros: object}|null>>}
+ */
+async function extraerTerminosBusqueda(descripciones, openai) {
+  const vacio = descripciones.map(function () { return null; });
+  if (!openai || descripciones.length === 0) return vacio;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: PROMPT_EXTRACCION },
+        { role: 'user', content: JSON.stringify(descripciones) }
+      ],
+      max_tokens: 2000,
+      temperature: 0
+    });
+
+    const raw = response.choices[0].message.content
+      .trim()
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/```\s*$/i, '')
+      .trim();
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) throw new Error('Respuesta no es un array');
+    if (parsed.length !== descripciones.length) {
+      throw new Error(`Tamaño no coincide: esperaba ${descripciones.length}, llegaron ${parsed.length}`);
+    }
+
+    return parsed.map(function (e) {
+      const sustantivo = (e && typeof e.sustantivo === 'string' && e.sustantivo.trim())
+        ? e.sustantivo.trim()
+        : null;
+      return { sustantivo: sustantivo, filtros: normalizarFiltrosExtraidos(e && e.filtros) };
+    });
+  } catch (error) {
+    console.error('❌ Extracción de términos falló (fail-open, se usará la descripción cruda):', error.message);
+    return vacio;
+  }
+}
+
+/**
+ * Canoniza el sustantivo ya extraído (plural→singular y sinónimos de BD).
+ * Sólo tiene sentido sobre un token suelto: `normalizarSingular` trata el string
+ * completo como una palabra, así que aplicarlo a una frase la deja peor
+ * ("Hojas blancas" → "hojas blanca").
+ */
+async function canonizarSustantivo(sustantivo, accountId) {
+  if (!sustantivo) return sustantivo;
+  try {
+    const canon = await Promise.race([
+      resolverCanonico(sustantivo, accountId),
+      new Promise(function (_, reject) {
+        setTimeout(function () { reject(new Error('Timeout canonizacion')); }, 2000);
+      })
+    ]);
+    if (canon && canon.token_final && canon.token_final !== sustantivo) {
+      console.log(`🔄 Canonización: "${sustantivo}" → "${canon.token_final}"`);
+      return canon.token_final;
+    }
+  } catch (error) {
+    console.warn(`⚠️ Canonización falló (fail-open): ${error.message}`);
+  }
+  return sustantivo;
+}
+
 /**
  * Busca cada ítem de la lista en el catálogo.
+ * Usada por el flujo de imagen y el de Excel.
+ *
  * @param {Array} items - [{ clave, descripcion, cantidad }]
+ * @param {object} openai - Instancia de OpenAI (opcional; sin ella se omite la extracción)
+ * @param {number} accountId - Para la canonización por cuenta
  * @returns {Promise<{ encontrados, noEncontrados }>}
  */
-async function buscarItemsLista(items) {
+async function buscarItemsLista(items, openai, accountId) {
   const encontrados = [];
   const noEncontrados = [];
-  const filtrosVacios = { marca: [], medida: [], caracteristicas: [], tipo: [], compatibilidad: [] };
 
-  for (const item of items) {
+  // Extracción en lote: una sola llamada para toda la lista, no una por ítem
+  const descripciones = items.map(function (i) { return i.descripcion || ''; });
+  const terminos = await extraerTerminosBusqueda(descripciones, openai);
+
+  for (let idx = 0; idx < items.length; idx++) {
+    const item = items[idx];
     try {
       let resultado;
+      let sustantivoUsado = null;
+      let filtrosUsados = filtrosVaciosNuevos();
+
       if (item.clave) {
         console.log('🔑 Buscando por clave:', item.clave);
-        resultado = await buscarProductos(null, null, null, null, 1, 10, filtrosVacios, item.clave);
-        if ((!resultado || !resultado.success || !resultado.data || resultado.data.length === 0) && item.descripcion) {
-          console.log('🔍 Clave no encontrada, intentando por descripción:', item.descripcion);
-          resultado = await buscarProductos(item.descripcion, null, null, null, 1, 10, filtrosVacios);
+        resultado = await buscarProductos(null, null, null, null, 1, 10, filtrosVaciosNuevos(), item.clave);
+      }
+
+      const claveSinResultado = !resultado || !resultado.success || !resultado.data || resultado.data.length === 0;
+
+      if (claveSinResultado && item.descripcion) {
+        if (item.clave) console.log('🔍 Clave no encontrada, intentando por descripción');
+
+        const extraido = terminos[idx];
+        if (extraido && extraido.sustantivo) {
+          sustantivoUsado = await canonizarSustantivo(extraido.sustantivo, accountId);
+          filtrosUsados = extraido.filtros;
+        } else {
+          // Fail-open: sin extracción se conserva el comportamiento anterior
+          sustantivoUsado = item.descripcion;
         }
-      } else {
-        console.log('🔍 Buscando por descripción:', item.descripcion);
-        resultado = await buscarProductos(item.descripcion, null, null, null, 1, 10, filtrosVacios);
+
+        console.log(`🔍 Buscando: "${item.descripcion}" → query="${sustantivoUsado}" filtros=${JSON.stringify(filtrosUsados)}`);
+        resultado = await buscarProductos(sustantivoUsado, null, null, null, 1, 100, filtrosUsados);
       }
 
       if (resultado && resultado.success && resultado.data && resultado.data.length > 0) {
-        encontrados.push({ itemOriginal: item, producto: resultado.data[0] });
-        console.log('✅ Encontrado:', item.descripcion || item.clave, '→', resultado.data[0].NOMBRE);
+        // Elegir por relevancia, no el primero alfabético
+        const ordenados = ordenarPorRelevancia(resultado.data, sustantivoUsado, filtrosUsados);
+        const mejor = ordenados[0];
+        encontrados.push({ itemOriginal: item, producto: mejor });
+        console.log('✅ Encontrado:', item.descripcion || item.clave, '→', mejor.NOMBRE);
       } else {
         noEncontrados.push(item);
         console.log('❌ No encontrado:', item.descripcion || item.clave);
@@ -300,6 +450,7 @@ async function extraerListaDeExcel(fileUrl) {
 module.exports = {
   extraerListaDeImagen,
   extraerListaDeExcel,
+  extraerTerminosBusqueda,
   buscarItemsLista,
   agregarEncontradosAlCarrito,
   formatearRespuestaImagen,
