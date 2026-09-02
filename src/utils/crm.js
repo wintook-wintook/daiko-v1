@@ -1051,6 +1051,18 @@ async function buscarCliente(CLIENTE_ID){
   }
 }
 
+async function getPdfFormatoDaiko(carrito_id) {
+  let data = JSON.stringify({ carrito_id });
+  let config = getConfigApiDaiko('getPDF', data);
+  try {
+    const response = await getApiData(config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error('Error getPdfFormatoDaiko:', error.message);
+    return evalError(error, 'Error al generar el PDF con el formato de la cuenta: ');
+  }
+}
+
 async function generarPdf(carrito_id) {
   if(!carrito_id){
     return {
@@ -1064,6 +1076,29 @@ async function generarPdf(carrito_id) {
       preserveCurrentCart: true
     };
   }
+
+  // Intentar primero con el formato de cotización configurado en CRMZeus para esta cuenta.
+  // Si la cuenta no tiene ningún formato marcado para Daiko (NO_FORMATO_DAIKO), se cae
+  // al generador local (pdfkit) más abajo, sin reportar error al cliente.
+  const formatoResult = await getPdfFormatoDaiko(carrito_id);
+  if (formatoResult.data && formatoResult.data.content) {
+    return {
+      success: true,
+      data: { content: formatoResult.data.content, name: formatoResult.data.name },
+      message: `El PDF ha sido creado`,
+      preserveCurrentCart: true
+    };
+  }
+  const sinFormatoConfigurado = formatoResult.data && formatoResult.data.code === 'NO_FORMATO_DAIKO';
+  if (!sinFormatoConfigurado) {
+    return {
+      success: false,
+      data: { items: [], total: 0, cantidad: 0 },
+      message: (formatoResult.data && formatoResult.data.message) || formatoResult.message || 'Error al generar el PDF',
+      preserveCurrentCart: true
+    };
+  }
+
   let {data} = await verCarrito(carrito_id);
   let title = 'Error al generar el PDF, el folio del carrito no existe. ';
   evalError(data, title);
