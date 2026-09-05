@@ -215,7 +215,7 @@ app.post("/webhook/chatwoot", async (req, res) => {
     }
     //DEV0001 Integracion Whatsapp - 24 oct -Ini
     console.log("Channel:", webhookData.conversation.channel);
-    const hooks = await getHooksCrm(req.query.token, req.body.account.id);
+    const hooks = await getHooksCrm(req.query.token, req.body.account.id, req.body.instance_url);
     const inboxId = webhookData.conversation?.inbox_id;
     console.log("inbox_id:", inboxId);
     console.log("hooks", hooks);
