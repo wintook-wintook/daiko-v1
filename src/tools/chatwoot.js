@@ -4,6 +4,7 @@
 const OpenAI = require('openai');
 require('dotenv').config();
 
+const axios = require('axios');
 const FormData  = require('form-data');
 
 const carts = new Map(); // userId -> cart items
@@ -15,6 +16,13 @@ const { functionDefinitions, executeFunctionCall, TOOL_BUSCAR_NUMERO_PARTE_EXTER
 const {buscarcliente, buscarcliente2, crearProspecto, actualizarObservaciones, runWithCrmContext, setFiltroExistenciaContext} = require('../utils/crm');
 const { getApiData } = require('../utils/functions');
 let urlWA = process.env.CHATWOOT_URL; // 'https://app.chatzeus.com/';
+
+// Chatwoot puede enviar `instance_url` dentro del payload del webhook (URL de la
+// instancia que originó el mensaje). Si viene, se usa esa; si no, se cae a urlWA.
+function resolverUrlBase(instanceUrl) {
+  if (!instanceUrl) return urlWA;
+  return instanceUrl.endsWith('/') ? instanceUrl : `${instanceUrl}/`;
+}
 
 const UserContext = require('../utils/userContext');
 const { corregirProductosEnRespuesta } = require('../utils/validar_productos_respuesta');
@@ -84,11 +92,11 @@ let fuenteWeb ="Fuente: WEB";
 // ============================================================
 // TYPING INDICATOR - Muestra "escribiendo..." en Chatwoot
 // ============================================================
-async function toggleTyping(token, account_id, conversation_id, status = 'on') {
+async function toggleTyping(token, account_id, conversation_id, status = 'on', instanceUrl) {
   try {
     await getApiData({
       method: 'post',
-      url: `${urlWA}api/v1/accounts/${account_id}/conversations/${conversation_id}/toggle_typing_status`,
+      url: `${resolverUrlBase(instanceUrl)}api/v1/accounts/${account_id}/conversations/${conversation_id}/toggle_typing_status`,
       headers: { api_access_token: token },
       data: { typing_status: status },
       timeout: 3000
@@ -414,7 +422,7 @@ async function procesarMensajeWebhook(webhookData) {
     }
 
     // Activar indicador "escribiendo..." inmediatamente
-    toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'on');
+    toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'on', webhookData.instance_url);
 
     const _t0 = Date.now();
     let _tStep = Date.now();
@@ -500,8 +508,8 @@ async function procesarMensajeWebhook(webhookData) {
     // ============================================================
     _tStep = Date.now();
     const [OPENAI_APIKEY, hooks] = await Promise.all([
-      getOPENAI_APIKEY(webhookData.token, webhookData.account_id),
-      webhookData._hooks || getHooksCrm(webhookData.token, webhookData.account_id),
+      getOPENAI_APIKEY(webhookData.token, webhookData.account_id, webhookData.instance_url),
+      webhookData._hooks || getHooksCrm(webhookData.token, webhookData.account_id, webhookData.instance_url),
       userContext.keepAlive()
     ]);
     console.log(`⏱️ [1] FASE 1 (getOPENAI_APIKEY + getHooksCrm + keepAlive): ${Date.now() - _tStep}ms`);
@@ -592,7 +600,7 @@ async function procesarMensajeWebhook(webhookData) {
     if (wizardState && wizardState.tipo === 'imagen_carrito') {
       let respuestaWizard = await procesarWizardImagenCarrito(wizardState, messageContent, userContext);
       respuestaWizard = await appendCarritoFooter(respuestaWizard, userContext);
-      toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off');
+      toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off', webhookData.instance_url);
       return {
         success: true,
         data: { conversationId, response: respuestaWizard, fileName: '', userId, senderName, originalMessage: messageContent },
@@ -603,7 +611,7 @@ async function procesarMensajeWebhook(webhookData) {
     if (wizardState && wizardState.tipo === 'imagen_notas') {
       let respuestaWizard = await procesarWizardImagenNotas(wizardState, messageContent, userContext);
       respuestaWizard = await appendCarritoFooter(respuestaWizard, userContext);
-      toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off');
+      toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off', webhookData.instance_url);
       return {
         success: true,
         data: { conversationId, response: respuestaWizard, fileName: '', userId, senderName, originalMessage: messageContent },
@@ -613,7 +621,7 @@ async function procesarMensajeWebhook(webhookData) {
 
     if (wizardState && wizardState.tipo === 'prospecto') {
       const respuestaWizard = await procesarWizardProspecto(wizardState, messageContent, userContext, url_crm_zeus, api_access_token);
-      toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off');
+      toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off', webhookData.instance_url);
       return {
         success: true,
         data: { conversationId, response: respuestaWizard, fileName: '', userId, senderName, originalMessage: messageContent },
@@ -624,7 +632,7 @@ async function procesarMensajeWebhook(webhookData) {
     if (msgNormEarly === '/+prospecto') {
       const comandoActivo = await userContext.getComandoActivo();
       if (comandoActivo) {
-        toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off');
+        toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off', webhookData.instance_url);
         return {
           success: true,
           data: { conversationId, response: comandoActivo.mensaje, fileName: '', userId, senderName, originalMessage: messageContent },
@@ -632,7 +640,7 @@ async function procesarMensajeWebhook(webhookData) {
         };
       }
       await userContext.setWizardState({ tipo: 'prospecto', paso: 1, datos: {} });
-      toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off');
+      toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off', webhookData.instance_url);
       return {
         success: true,
         data: { conversationId, response: '¿Cuál es el nombre de la organización?', fileName: '', userId, senderName, originalMessage: messageContent },
@@ -642,7 +650,7 @@ async function procesarMensajeWebhook(webhookData) {
 
     // FASE 3: getMessages (necesita contextStr de FASE 2)
     _tStep = Date.now();
-    const conversationHistory = await getMessages(webhookData.token, webhookData.account_id, webhookData.conversation_id, contextStr);
+    const conversationHistory = await getMessages(webhookData.token, webhookData.account_id, webhookData.conversation_id, contextStr, webhookData.instance_url);
     console.log(`⏱️ [3] FASE 3 (getMessages): ${Date.now() - _tStep}ms`);
 
     // Si el mensaje es un audio transcrito, agregarlo al historial
@@ -945,6 +953,61 @@ async function procesarMensajeWebhook(webhookData) {
     console.log(`⏱️ [4] Clasificador: ${Date.now() - _tStep}ms`);
 
     // ============================================================
+    // @buscar_predefinidas (Chatwoot) - después del clasificador
+    // Solo se consulta cuando el clasificador NO reconoció una intención
+    // operativa concreta (saludo, búsqueda, carrito, etc.). Antes se
+    // llamaba para todo mensaje, y el matching por embeddings de Chatwoot
+    // devolvía respuestas predefinidas (horario/dirección/teléfono, etc.)
+    // incluso para "hola" o "qué vendes?", pisando el flujo normal de
+    // Daiko. Restringido a CONVERSACION/DESCONOCIDO para que solo dispare
+    // en preguntas genéricas tipo FAQ. Un solo intento por mensaje, sin
+    // retry ni loop (el endpoint no tiene rate-limit del lado de Chatwoot).
+    // ============================================================
+    const accionAdmitePredefinidas = clasificacion &&
+      (clasificacion.accion === 'CONVERSACION' || clasificacion.accion === 'DESCONOCIDO');
+
+    if (accionAdmitePredefinidas && messageContent && messageContent.trim()) {
+      try {
+        const resultadoPredefinidas = await buscarPredefinidas(
+          webhookData.token,
+          webhookData.account_id,
+          messageContent,
+          // limit:1 — la cuenta suele tener pocas respuestas predefinidas y el
+          // default de Chatwoot (similarity_threshold 0.20, max_results 3) es tan
+          // laxo que casi cualquier pregunta recupera varias a la vez; el paso de
+          // composición del lado de Chatwoot las mezcla en una sola respuesta
+          // aunque sean de temas distintos (ver DirectiveRunner#run_canned_response).
+          // Forzamos solo la mejor coincidencia para que la respuesta compuesta
+          // corresponda a una sola respuesta predefinida.
+          { limit: 1 },
+          webhookData.instance_url
+        );
+
+        if (resultadoPredefinidas.resolved) {
+          const respuestaPredefinida = resultadoPredefinidas.reply;
+          conversationHistory.push({ role: 'assistant', content: respuestaPredefinida });
+          return {
+            success: true,
+            data: { conversationId, response: respuestaPredefinida, fileName: '', userId, senderName, originalMessage: messageContent },
+            message: 'Mensaje procesado correctamente'
+          };
+        }
+
+        if (resultadoPredefinidas.reason === 'no_directive') {
+          // No debería pasar en producción salvo que query llegue vacío tras trim.
+          console.warn('⚠️ @buscar_predefinidas devolvió no_directive con query no vacío, revisar integración:', messageContent);
+        } else if (resultadoPredefinidas.reason === 'embedding_failed') {
+          // Fallo del lado de Chatwoot (OpenAI de la cuenta) - cae al flujo normal, sin reintentar.
+          console.warn('⚠️ @buscar_predefinidas: embedding_failed (fallo de OpenAI de la cuenta en Chatwoot), cae a flujo normal de Daiko');
+        }
+        // no_match / llm_empty: no hubo respuesta predefinida aplicable - cae a flujo normal sin log especial
+      } catch (errorPredefinidas) {
+        // Error de red/HTTP contra Chatwoot: no reintentar, solo loguear y caer al flujo normal de Daiko.
+        console.error('❌ Error llamando a @buscar_predefinidas en Chatwoot, cae a flujo normal de Daiko:', errorPredefinidas.message);
+      }
+    }
+
+    // ============================================================
     // EJECUCIÓN DIRECTA PARA REINICIAR (sin GPT - ahorra tokens)
     // ============================================================
     if (clasificacion && clasificacion.accion === 'REINICIAR') {
@@ -1245,8 +1308,8 @@ async function procesarMensajeWebhook(webhookData) {
 
   } catch (error) {
     console.error('❌ Error procesando webhook:', error);
-    toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off');
-    sendMessage(webhookData.token, webhookData.account_id, webhookData.conversation_id, error.message);
+    toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off', webhookData.instance_url);
+    sendMessage(webhookData.token, webhookData.account_id, webhookData.conversation_id, error.message, '', false, webhookData.instance_url);
     return {
       success: false,
       error: "Disculpa, tuve un problema técnico procesando tu mensaje.",
@@ -1307,7 +1370,7 @@ Iteración 3:
 
 */
 
-const getHooksCrm = async (token, account_id) => {
+const getHooksCrm = async (token, account_id, instanceUrl) => {
     const cacheKey = `hooks_crm_${account_id}`;
     const cached = getCached(cacheKey);
     if (cached) {
@@ -1315,7 +1378,8 @@ const getHooksCrm = async (token, account_id) => {
       return cached;
     }
 
-    let url = `${urlWA}api/v1/accounts/${account_id}/integrations/apps/daiko`;
+    let url = `${resolverUrlBase(instanceUrl)}api/v1/accounts/${account_id}/integrations/apps/daiko`;
+    console.log('getHooksCrm url:', url);
     let config = {
       method: "get",
       url,
@@ -1326,7 +1390,7 @@ const getHooksCrm = async (token, account_id) => {
     return data.hooks;
 }
 
-const getOPENAI_APIKEY = async (token, account_id) => {
+const getOPENAI_APIKEY = async (token, account_id, instanceUrl) => {
   const cacheKey = `openai_key_${account_id}`;
   const cached = getCached(cacheKey);
   if (cached) {
@@ -1334,7 +1398,7 @@ const getOPENAI_APIKEY = async (token, account_id) => {
     return cached;
   }
 
-  let url = `${urlWA}api/v1/accounts/${account_id}/integrations/apps/openai`;
+  let url = `${resolverUrlBase(instanceUrl)}api/v1/accounts/${account_id}/integrations/apps/openai`;
   let config = {
     method: "get",
     url,
@@ -1345,8 +1409,8 @@ const getOPENAI_APIKEY = async (token, account_id) => {
   return data.hooks;
 }
 
-const getMessages = async (token, account_id, conversation_id, contextStr) => {
-  let url = `${urlWA}api/v1/accounts/${account_id}/conversations/${conversation_id}/messages`;
+const getMessages = async (token, account_id, conversation_id, contextStr, instanceUrl) => {
+  let url = `${resolverUrlBase(instanceUrl)}api/v1/accounts/${account_id}/conversations/${conversation_id}/messages`;
   console.log(url);
   let headers = {};
   headers = {
@@ -1398,6 +1462,61 @@ const getMessages = async (token, account_id, conversation_id, contextStr) => {
   console.log({ msg1: messages[0] || '', ["msg" + messages.length]: messages[messages.length - 1] || '' });
   return messages;
 }
+
+// ============================================================
+// KNOWLEDGE BASE DIRECTIVE - POST /accounts/:id/knowledge_base/directive
+// Cliente para el endpoint nuevo de Chatwoot (rama feat/kbase_directive_api,
+// sin desplegar todavía) que expone la búsqueda + redacción de
+// @buscar_predefinidas fuera de una conversación real.
+// Único directive soportado en esta versión: "@buscar_predefinidas" sin
+// argumento de grupo. No usa getApiData a propósito: un 401 acá indica un
+// problema de config del token (no algo transitorio), así que no conviene
+// reintentarlo automáticamente.
+// ============================================================
+const REASONES_NO_RESOLUCION = new Set(['no_directive', 'embedding_failed', 'no_match', 'llm_empty']);
+
+const buscarPredefinidas = async (token, account_id, queryTexto, opciones = {}, instanceUrl) => {
+  const { contact_name, limit, threshold, compose = true } = opciones;
+
+  const body = { directive: '@buscar_predefinidas', query: queryTexto, compose };
+  if (contact_name !== undefined) body.contact_name = contact_name;
+  if (limit !== undefined) body.limit = limit;
+  if (threshold !== undefined) body.threshold = threshold;
+
+  const url = `${resolverUrlBase(instanceUrl)}api/v1/accounts/${account_id}/knowledge_base/directive`;
+  let response;
+  try {
+    response = await axios({
+      method: 'post',
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        api_access_token: token,
+      },
+      data: body,
+      timeout: 30000,
+    });
+  } catch (error) {
+    const status = error.response?.status;
+    const detalle = error.response?.data?.message || error.response?.data || error.message;
+    throw new Error(`buscarPredefinidas: fallo HTTP ${status ?? ''} contra ${url} — ${JSON.stringify(detalle)}`);
+  }
+
+  const data = response.data;
+
+  if (!data.resolved) {
+    if (!REASONES_NO_RESOLUCION.has(data.reason)) {
+      console.warn('⚠️ buscarPredefinidas: reason no reconocido, revisar contrato:', data.reason);
+    } else if (data.reason === 'no_directive' || data.reason === 'embedding_failed') {
+      // Señal de mala config (directiva/cuenta) más que de "no hay respuesta" normal.
+      console.warn(`⚠️ buscarPredefinidas [${data.reason}] cuenta=${account_id}`);
+    } else {
+      console.log(`ℹ️ buscarPredefinidas [${data.reason}] cuenta=${account_id}`);
+    }
+  }
+
+  return data;
+};
 
 /*
 const sendMessage = async (token, account_id, conversation_id, messageData) => {
@@ -1466,7 +1585,7 @@ console.log({Ln: 360, obj: "sendMessage"});
 };
 */
 
-const sendMessage = async (token, account_id, conversation_id, messageData, fileName = '', isPrivate = false) => {
+const sendMessage = async (token, account_id, conversation_id, messageData, fileName = '', isPrivate = false, instanceUrl) => {
 
   const frmData = new FormData();
 
@@ -1504,7 +1623,7 @@ const sendMessage = async (token, account_id, conversation_id, messageData, file
   // Configuración de la petición
   const config = {
     method: "post",
-    url: `${urlWA}api/v1/accounts/${account_id}/conversations/${conversation_id}/messages`,
+    url: `${resolverUrlBase(instanceUrl)}api/v1/accounts/${account_id}/conversations/${conversation_id}/messages`,
     headers: {
       'api_access_token': token,
       ...frmData.getHeaders() // Esto incluye el content-type correcto con boundary
@@ -1532,7 +1651,8 @@ const sendMessage = async (token, account_id, conversation_id, messageData, file
       let data = await sendMessage(webhookData.token,
         webhookData.account_id,
         webhookData.conversation_id,
-        webhookData.data.response, webhookData.data.fileName, webhookData.data.private || false);
+        webhookData.data.response, webhookData.data.fileName, webhookData.data.private || false,
+        webhookData.instance_url);
       
       
       /*
@@ -1563,5 +1683,6 @@ const sendMessage = async (token, account_id, conversation_id, messageData, file
     extraerDatosWebhook,
     procesarMensajeWebhook,
     enviarMensajeWebhook,
-    getHooksCrm  // DEV0001 Integracion Whatsapp - 24 oct 
+    getHooksCrm,  // DEV0001 Integracion Whatsapp - 24 oct
+    buscarPredefinidas
   };
