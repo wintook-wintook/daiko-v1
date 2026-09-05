@@ -195,7 +195,7 @@ app.post("/webhook/chatwoot", async (req, res) => {
     //console.log({token: req.query.token, account_id: req.body.account.id, conversation_id: req.body.conversation.id});
     const webhookData = req.body;
     webhookData.token = req.query.token;
-    webhookData.instance_url = req.query.instance_url;
+    webhookData.instance_url = req.query.chatwoot_url;
     const ahora = Date.now();
     const creadoEn = webhookData.created_at ? new Date(webhookData.created_at).getTime() : null;
     console.log(`[webhook] recibido${creadoEn ? ` | delay desde creación: ${ahora - creadoEn}ms` : ''}`);
