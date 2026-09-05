@@ -194,6 +194,8 @@ app.post("/webhook/chatwoot", async (req, res) => {
   try {
     //console.log({token: req.query.token, account_id: req.body.account.id, conversation_id: req.body.conversation.id});
     const webhookData = req.body;
+    webhookData.token = req.query.token;
+    webhookData.instance_url = req.query.instance_url;
     const ahora = Date.now();
     const creadoEn = webhookData.created_at ? new Date(webhookData.created_at).getTime() : null;
     console.log(`[webhook] recibido${creadoEn ? ` | delay desde creación: ${ahora - creadoEn}ms` : ''}`);
@@ -215,7 +217,7 @@ app.post("/webhook/chatwoot", async (req, res) => {
     }
     //DEV0001 Integracion Whatsapp - 24 oct -Ini
     console.log("Channel:", webhookData.conversation.channel);
-    const hooks = await getHooksCrm(req.query.token, req.body.account.id, req.body.instance_url);
+    const hooks = await getHooksCrm(req.query.token, req.body.account.id, webhookData.instance_url);
     const inboxId = webhookData.conversation?.inbox_id;
     console.log("inbox_id:", inboxId);
     console.log("hooks", hooks);
@@ -259,6 +261,7 @@ app.post("/webhook/chatwoot", async (req, res) => {
       token: req.query.token,
       account_id: req.body.account.id,
       conversation_id: req.body.conversation.id,
+      instance_url: webhookData.instance_url,
     });
     // console.log({result});
     if (!result.success) {
