@@ -1460,17 +1460,20 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
       }
 
       case "agregar_al_carrito": {
-        const carritoId = args.carrito_id || await userContext.getCarrito();
-        
-        if (!carritoId) {
-          return {
-            success: false,
-            message: "No tienes un carrito asignado. Primero crea uno.",
-            preserveCurrentCart: true
-          };
+        // El carrito_id que llega en args puede ser un valor inventado por el LLM
+        // (ej. "nuevo") cuando el esquema lo exige pero no hay carrito real todavía.
+        // La fuente de verdad es el carrito guardado en Redis, no lo que mande el LLM.
+        const carritoReal = await userContext.getCarrito();
+
+        if (!carritoReal) {
+          const nuevoCarrito = await crearNuevoCarrito(args.producto_id, args.cantidad);
+          if (nuevoCarrito.success && nuevoCarrito.carritoId) {
+            await userContext.setCarrito(nuevoCarrito.carritoId, nuevoCarrito.folio);
+          }
+          return nuevoCarrito;
         }
-        
-        return await agregarAlCarrito(args.producto_id, args.cantidad, carritoId);
+
+        return await agregarAlCarrito(args.producto_id, args.cantidad, carritoReal);
       }
       
       case "agregar_varios_articulos_al_carrito":
@@ -1570,6 +1573,20 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
         return generarPdf(args.carrito_id);
       
       case "crear_orden": {
+        // No confiar en args.carrito_id a ciegas: si el LLM no tiene carrito real
+        // (ej. confirmó un pedido sin haber agregado nada al carrito), puede mandar
+        // el ID de un producto en su lugar. Validar contra el carrito activo en Redis.
+        const carritoActivo = await userContext.getCarrito();
+
+        if (!carritoActivo || String(carritoActivo) !== String(args.carrito_id)) {
+          return {
+            success: false,
+            error: true,
+            message: "No tienes un carrito activo para confirmar. Agrega productos a un carrito antes de finalizar el pedido.",
+            preserveCurrentCart: true
+          };
+        }
+
         const orden = await crearOrden(args.carrito_id);
         if (orden.success) {
           await userContext.setCarrito('', '');
