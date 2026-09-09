@@ -146,6 +146,20 @@ const ACCION_CONFIG = {
     descripcion: 'Conversación general'
   },
 
+  'INFO_NEGOCIO': {
+    buildPrompt: buildSaludoPrompt,  // Respuesta de reserva si @buscar_predefinidas no resuelve
+    tools: [],
+    requiereTools: false,
+    descripcion: 'Información administrativa del negocio (horarios, sucursales, pagos, envíos, etc.)'
+  },
+
+  'SOLICITAR_ASESOR': {
+    buildPrompt: buildSaludoPrompt,  // Respuesta de reserva si @buscar_predefinidas no resuelve
+    tools: [],
+    requiereTools: false,
+    descripcion: 'Solicitud de atención humana (asesor de ventas o queja)'
+  },
+
   'REINICIAR': {
     buildPrompt: buildSaludoPrompt,
     tools: ['reiniciar'],

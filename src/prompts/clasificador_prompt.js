@@ -31,6 +31,8 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 | CONSULTA_EXISTENCIA | Cliente pregunta por existencia/disponibilidad/stock de un producto (por ID o ya mostrado en la conversación) | "¿tienes existencia del producto 1234?", "¿cuánto hay disponible del artículo 55?", "¿hay stock del segundo?" |
 | FILTRO_EXISTENCIA | Cliente pide ver SOLO productos con existencia/stock de aquí en adelante, o pide quitar ese filtro y ver todos de nuevo | "solo muéstrame los que tengan existencia", "ya no me muestres agotados", "quítame ese filtro", "muéstrame todos aunque no tengan stock" |
 | CONVERSACION | Preguntas generales, charla, dudas sobre el bot | "cómo funciona", "qué puedes hacer", "ayuda", "eres un robot" |
+| INFO_NEGOCIO | Pregunta por información administrativa/institucional del negocio (horarios, sucursales, pagos, envíos, políticas), SIN mencionar un producto concreto | "cuál es su horario", "dónde están ubicados", "qué formas de pago aceptan", "hacen envíos a domicilio", "cuál es su correo", "hacen factura", "manejan ventas por mayoreo", "hacen impresiones/copias" |
+| SOLICITAR_ASESOR | Pide hablar con una persona/asesor de ventas humano, o reporta una queja/problema de servicio | "quiero hablar con un asesor", "necesito que me atienda alguien", "tengo una queja", "tuve un problema con mi pedido anterior" |
 | REINICIAR | Reiniciar o borrar la conversación | "reiniciar", "reiniciate", "reinicia", "borrar conversación", "empezar de nuevo", "reset" |
 | DESCONOCIDO | No se puede clasificar claramente | mensajes ambiguos, fuera de contexto, o sin sentido |
 
@@ -174,6 +176,17 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 - Si hace referencia a un producto de la lista de productos mostrados recientemente ("el primero", "el segundo", "el último") → parametros.referencia y parametros.referencia_idx (igual que en CARRITO_MODIFICAR)
 - NO confundir con CONSULTA_ATRIBUTO (esa es para marcas/tamaños/modelos, no para existencia/stock)
 
+### Para distinguir INFO_NEGOCIO vs BUSQUEDA_PRODUCTO/CONSULTA_EXISTENCIA/ORDEN (REGLA CRITICA):
+- Si el mensaje menciona un producto/artículo concreto → NUNCA es INFO_NEGOCIO, aunque suene a "cotización", "precio" o "existencia" genéricos
+  Ejemplos: "cuánto cuesta el tornillo de 1 pulgada" → BUSQUEDA_PRODUCTO (menciona producto), "tienen existencia de la impresora HP" → CONSULTA_EXISTENCIA (menciona producto)
+- INFO_NEGOCIO es SOLO cuando pide política de cotización/mayoreo/stock/pago/envío SIN nombrar ningún producto
+  Ejemplos: "manejan ventas por mayoreo?" → INFO_NEGOCIO (sin producto), "cuál es el costo de envío?" → INFO_NEGOCIO (pregunta de política, no de un producto)
+
+### Para distinguir SOLICITAR_ASESOR vs NECESIDAD (REGLA CRITICA):
+- SOLICITAR_ASESOR es pedir hablar con una PERSONA humana (vendedor/soporte) o reportar una queja/problema de servicio
+- NECESIDAD (sub_accion Tipo B, "asesoría") es pedir RECOMENDACIÓN DE PRODUCTOS al bot mismo, no una persona
+- Ejemplos: "quiero hablar con un asesor" → SOLICITAR_ASESOR, "qué me recomiendas para limpiar azulejos" → NECESIDAD (el bot recomienda productos, no deriva a un humano)
+
 ### Para FILTRO_EXISTENCIA:
 - Cliente pide ver SOLO productos con existencia/stock/disponibles de aquí en adelante → sub_accion: "activar", parametros.activar = true
 - Cliente pide quitar ese filtro / ver todos los productos de nuevo (con o sin stock) → sub_accion: "desactivar", parametros.activar = false
@@ -259,6 +272,18 @@ Respuesta: {"accion":"FILTRO_EXISTENCIA","sub_accion":"desactivar","confianza":0
 Mensaje: "agrega =ABC123 al carrito"
 Respuesta: {"accion":"BUSQUEDA_PRODUCTO","sub_accion":"buscar_por_clave","confianza":0.99,"parametros":{"texto_busqueda":"ABC123"},"razon":"Mensaje contiene clave de producto con prefijo =, primero buscar luego agregar"}
 
+Mensaje: "cuál es su horario de atención"
+Respuesta: {"accion":"INFO_NEGOCIO","sub_accion":null,"confianza":0.97,"parametros":{},"razon":"Pregunta información administrativa del negocio, sin mencionar producto"}
+
+Mensaje: "manejan ventas por mayoreo?"
+Respuesta: {"accion":"INFO_NEGOCIO","sub_accion":null,"confianza":0.9,"parametros":{},"razon":"Pregunta por política de mayoreo sin nombrar un producto específico"}
+
+Mensaje: "cuánto cuesta el tornillo de 1 pulgada"
+Respuesta: {"accion":"BUSQUEDA_PRODUCTO","sub_accion":"buscar_nuevo","confianza":0.95,"parametros":{"texto_busqueda":"tornillo de 1 pulgada"},"razon":"Menciona un producto concreto, no es una pregunta de política general aunque hable de precio"}
+
+Mensaje: "quiero hablar con un asesor"
+Respuesta: {"accion":"SOLICITAR_ASESOR","sub_accion":null,"confianza":0.97,"parametros":{},"razon":"Pide ser atendido por una persona humana, no por el bot"}
+
 ## CONTEXTO ACTUAL DEL USUARIO
 
 - Tiene carrito activo: {{TIENE_CARRITO}}
@@ -338,6 +363,8 @@ function validarRespuestaClasificador(respuesta) {
     'CONSULTA_SALDO',
     'CONSULTA_EXISTENCIA',
     'FILTRO_EXISTENCIA',
+    'INFO_NEGOCIO',
+    'SOLICITAR_ASESOR',
     'CONVERSACION',
     'REINICIAR',
     'DESCONOCIDO'
@@ -379,6 +406,8 @@ const ACCIONES_VALIDAS = [
   'CONSULTA_EXISTENCIA',
   'FILTRO_EXISTENCIA',
   'BUSQUEDA_CLIENTE',
+  'INFO_NEGOCIO',
+  'SOLICITAR_ASESOR',
   'CONVERSACION',
   'REINICIAR',
   'DESCONOCIDO'
