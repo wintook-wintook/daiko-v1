@@ -1566,6 +1566,18 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
             preserveCurrentCart: false
           };
         }
+
+        if (resultCancelar.success) {
+          // El carrito fue eliminado de verdad en el CRM: liberar también el
+          // contexto local. Si no, el siguiente "agregar al carrito" reintenta
+          // contra un carrito que ya no existe y el CRM responde un 404 crudo
+          // en vez de un mensaje entendible.
+          const carritoActualC = await userContext.getCarrito();
+          if (carritoActualC && String(carritoActualC) === String(args.carrito_id)) {
+            await userContext.setCarrito('', '');
+          }
+        }
+
         return resultCancelar;
       }
 
