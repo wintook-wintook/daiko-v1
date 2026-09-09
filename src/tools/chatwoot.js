@@ -1302,10 +1302,11 @@ async function procesarMensajeWebhook(webhookData) {
     // ============================================================
     if (iteration >= MAX_ITERATIONS) {
       console.error(`⚠️ Límite de ${MAX_ITERATIONS} iteraciones alcanzado`);
+      const errorMsg = "Se alcanzó el límite de procesamiento de tu solicitud. Por favor, intenta reformular tu pregunta.";
       return {
-        success: false,
-        error: "Se alcanzó el límite de procesamiento. Por favor, intenta reformular tu pregunta.",
-        details: `Límite de ${MAX_ITERATIONS} iteraciones alcanzado`
+        success: true,
+        data: { conversationId, response: errorMsg, fileName: '', userId, senderName, originalMessage: messageContent },
+        message: `Límite de ${MAX_ITERATIONS} iteraciones alcanzado`
       };
     }
 
