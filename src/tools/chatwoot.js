@@ -954,17 +954,20 @@ async function procesarMensajeWebhook(webhookData) {
 
     // ============================================================
     // @buscar_predefinidas (Chatwoot) - después del clasificador
-    // Solo se consulta cuando el clasificador NO reconoció una intención
-    // operativa concreta (saludo, búsqueda, carrito, etc.). Antes se
-    // llamaba para todo mensaje, y el matching por embeddings de Chatwoot
-    // devolvía respuestas predefinidas (horario/dirección/teléfono, etc.)
-    // incluso para "hola" o "qué vendes?", pisando el flujo normal de
-    // Daiko. Restringido a CONVERSACION/DESCONOCIDO para que solo dispare
-    // en preguntas genéricas tipo FAQ. Un solo intento por mensaje, sin
+    // Whitelist explícita: solo dispara cuando el clasificador identifica
+    // activamente INFO_NEGOCIO o SOLICITAR_ASESOR. Antes se disparaba con
+    // CONVERSACION/DESCONOCIDO, y DESCONOCIDO es justo la acción que usa el
+    // fallback con todas las tools (incluye buscar_productos) — un mensaje
+    // de compra real que el clasificador no lograba tipificar quedaba
+    // secuestrado por un match semántico de Chatwoot (threshold laxo) antes
+    // de llegar al fallback que sí podía buscar en catálogo. Nunca debe
+    // dispararse para acciones operativas (BUSQUEDA_PRODUCTO, CARRITO_*,
+    // ORDEN, CONSULTA_EXISTENCIA, etc.) para que predefinidas no compita con
+    // el flujo real de ventas del bot. Un solo intento por mensaje, sin
     // retry ni loop (el endpoint no tiene rate-limit del lado de Chatwoot).
     // ============================================================
     const accionAdmitePredefinidas = clasificacion &&
-      (clasificacion.accion === 'CONVERSACION' || clasificacion.accion === 'DESCONOCIDO');
+      (clasificacion.accion === 'INFO_NEGOCIO' || clasificacion.accion === 'SOLICITAR_ASESOR');
 
     if (accionAdmitePredefinidas && messageContent && messageContent.trim()) {
       try {
