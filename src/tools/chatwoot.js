@@ -983,7 +983,17 @@ async function procesarMensajeWebhook(webhookData) {
           // aunque sean de temas distintos (ver DirectiveRunner#run_canned_response).
           // Forzamos solo la mejor coincidencia para que la respuesta compuesta
           // corresponda a una sola respuesta predefinida.
-          { limit: 1 },
+          //
+          // threshold:0.75 — el 0.20 por defecto es tan laxo que un saludo
+          // genérico ("SALUDOS DE CORTESIA") hizo match con similarity 0.33
+          // para la pregunta "trabajas los domingos?" (nada que ver). El
+          // compose del lado de Chatwoot (gpt-4o-mini) igual "contestó" la
+          // pregunta con un dato inventado ("no trabajamos los domingos")
+          // que no estaba en el canned response. Con un umbral alto, un
+          // match tan débil cae a no_match y usa el mensaje fijo de
+          // "no cuento con esa información" en vez de dejar que Chatwoot
+          // invente sobre un canned response que no aplica.
+          { limit: 1, threshold: 0.75 },
           webhookData.instance_url
         );
 
