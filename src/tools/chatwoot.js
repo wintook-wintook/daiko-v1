@@ -984,16 +984,22 @@ async function procesarMensajeWebhook(webhookData) {
           // Forzamos solo la mejor coincidencia para que la respuesta compuesta
           // corresponda a una sola respuesta predefinida.
           //
-          // threshold:0.75 — el 0.20 por defecto es tan laxo que un saludo
-          // genérico ("SALUDOS DE CORTESIA") hizo match con similarity 0.33
-          // para la pregunta "trabajas los domingos?" (nada que ver). El
-          // compose del lado de Chatwoot (gpt-4o-mini) igual "contestó" la
-          // pregunta con un dato inventado ("no trabajamos los domingos")
-          // que no estaba en el canned response. Con un umbral alto, un
-          // match tan débil cae a no_match y usa el mensaje fijo de
-          // "no cuento con esa información" en vez de dejar que Chatwoot
-          // invente sobre un canned response que no aplica.
-          { limit: 1, threshold: 0.75 },
+          // threshold — el 0.20 por defecto de Chatwoot es tan laxo que un
+          // saludo genérico ("SALUDOS DE CORTESIA") hizo match con
+          // similarity 0.33 para la pregunta "trabajas los domingos?" (nada
+          // que ver), y el compose del lado de Chatwoot (gpt-4o-mini) igual
+          // "contestó" con un dato inventado que no estaba en el canned
+          // response. 0.75 corrigió eso pero resultó demasiado alto: bloqueó
+          // también un match legítimo ("HORARIO DE OFICINA" para "cuál es tu
+          // horario"). Chatwoot filtra los items server-side según este
+          // threshold antes de devolverlos, así que no vemos el similarity
+          // real de un match bueno mientras el threshold sea más alto que
+          // él. TEMPORAL: bajado a 0.25 (apenas arriba del default) solo
+          // para que el próximo log de "📋 Resultado @buscar_predefinidas"
+          // muestre el similarity real de "HORARIO DE OFICINA" y se pueda
+          // fijar un valor definitivo entre ese número y el 0.33 del falso
+          // positivo.
+          { limit: 1, threshold: 0.25 },
           webhookData.instance_url
         );
 
