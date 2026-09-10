@@ -984,34 +984,35 @@ async function procesarMensajeWebhook(webhookData) {
           // Forzamos solo la mejor coincidencia para que la respuesta compuesta
           // corresponda a una sola respuesta predefinida.
           //
-          // threshold/compose — para "trabajas los domingos?" y "cuál es tu
-          // horario?", Chatwoot devolvió como MEJOR match el mismo canned
-          // response genérico "SALUDOS DE CORTESIA" (similarity 0.33 y 0.43)
-          // en vez de "HORARIO DE OFICINA" — subir threshold no lo arregla
-          // porque ambos casos rondan el mismo rango de similarity. Con
-          // compose:false confirmamos que "resolved:true" NO garantiza un
-          // reply usable: llegó reply:null (Chatwoot no arma texto sin
-          // compose) y nuestro código lo mandó tal cual al usuario como el
-          // string "null" — bug aparte, ya cubierto abajo con el chequeo de
-          // reply truthy.
-          // DIAGNÓSTICO ACTUAL: limit subido a 5 (de vuelta compose:false)
-          // para ver la lista completa de candidatos que Chatwoot encuentra
-          // para "cuál es tu horario" y confirmar si "HORARIO DE OFICINA"
-          // aparece en algún lugar del ranking (mal indexado/rankeado) o si
-          // de plano no está siendo recuperado nunca (problema de
-          // indexado/embeddings de esa respuesta específica del lado de
-          // Chatwoot, fuera del alcance de este código).
-          { limit: 5, threshold: 0.25, compose: false },
+          // threshold/compose — con compose:true, Chatwoot (gpt-4o-mini)
+          // redacta libremente y a veces inventa datos que no están en el
+          // canned response encontrado (ej. horarios/días inventados). Con
+          // compose:false, el campo reply siempre viene null - Chatwoot no
+          // arma texto sin compose. La solución: compose permanentemente
+          // desactivado, y la respuesta se arma aquí mismo con el content
+          // LITERAL del mejor match (texto escrito por el negocio, nunca
+          // generado) - cero riesgo de invención, a costa de no poder
+          // personalizar la redacción.
+          // threshold:0.4 calibrado con datos reales de esta cuenta: el
+          // mejor match genuino ("HORARIO DE OFICINA" para "cuál es tu
+          // horario") dio similarity 0.4427; el falso positivo que causó el
+          // bug original ("SALUDOS DE CORTESIA" para "trabajas los
+          // domingos") dio 0.33; coincidencias claramente irrelevantes
+          // dieron 0.26-0.29. 0.4 separa el falso positivo conocido de la
+          // única coincidencia real que hemos medido - si en el futuro se
+          // detectan más falsos positivos o negativos, recalibrar con el
+          // log de abajo.
+          { limit: 3, threshold: 0.4, compose: false },
           webhookData.instance_url
         );
 
         console.log('📋 Resultado @buscar_predefinidas:', JSON.stringify(resultadoPredefinidas));
 
-        // resolved:true no garantiza un reply usable (ej. compose:false
-        // devuelve reply:null aunque haya encontrado un item) - sin este
-        // chequeo se le manda al usuario el string "null" tal cual.
-        if (resultadoPredefinidas.resolved && resultadoPredefinidas.reply) {
-          const respuestaPredefinida = resultadoPredefinidas.reply;
+        // No se usa resultadoPredefinidas.reply (viene null con
+        // compose:false) ni se vuelve a activar compose: se arma la
+        // respuesta directo del content del mejor match, verbatim.
+        if (resultadoPredefinidas.resolved && resultadoPredefinidas.items && resultadoPredefinidas.items[0] && resultadoPredefinidas.items[0].content) {
+          const respuestaPredefinida = resultadoPredefinidas.items[0].content;
           conversationHistory.push({ role: 'assistant', content: respuestaPredefinida });
           return {
             success: true,
