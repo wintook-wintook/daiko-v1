@@ -984,22 +984,24 @@ async function procesarMensajeWebhook(webhookData) {
           // Forzamos solo la mejor coincidencia para que la respuesta compuesta
           // corresponda a una sola respuesta predefinida.
           //
-          // threshold — el 0.20 por defecto de Chatwoot es tan laxo que un
-          // saludo genérico ("SALUDOS DE CORTESIA") hizo match con
-          // similarity 0.33 para la pregunta "trabajas los domingos?" (nada
-          // que ver), y el compose del lado de Chatwoot (gpt-4o-mini) igual
-          // "contestó" con un dato inventado que no estaba en el canned
-          // response. 0.75 corrigió eso pero resultó demasiado alto: bloqueó
-          // también un match legítimo ("HORARIO DE OFICINA" para "cuál es tu
-          // horario"). Chatwoot filtra los items server-side según este
-          // threshold antes de devolverlos, así que no vemos el similarity
-          // real de un match bueno mientras el threshold sea más alto que
-          // él. TEMPORAL: bajado a 0.25 (apenas arriba del default) solo
-          // para que el próximo log de "📋 Resultado @buscar_predefinidas"
-          // muestre el similarity real de "HORARIO DE OFICINA" y se pueda
-          // fijar un valor definitivo entre ese número y el 0.33 del falso
-          // positivo.
-          { limit: 1, threshold: 0.25 },
+          // threshold/compose — el problema resultó ser más de fondo que el
+          // umbral: para "trabajas los domingos?" y también para "cuál es
+          // tu horario?", Chatwoot devolvió como MEJOR match el mismo
+          // canned response genérico "SALUDOS DE CORTESIA" (similarity 0.33
+          // y 0.43 respectivamente) en vez de "HORARIO DE OFICINA" — la
+          // búsqueda semántica del lado de Chatwoot no está encontrando la
+          // respuesta correcta ni con un threshold bajo, así que subir el
+          // threshold no lo arregla (0.43 es casi el mismo rango que 0.33).
+          // Y en ambos casos, compose (gpt-4o-mini) inventó datos concretos
+          // ("no trabajamos los domingos", "lunes a viernes de 9 a 18h")
+          // que no estaban en el canned response encontrado — compose
+          // seguirá inventando pase lo que pase con el matching, así que se
+          // desactiva. DIAGNÓSTICO: compose:false para ver si con eso
+          // Chatwoot devuelve el contenido literal del canned response (sin
+          // reescritura) y confirmar la forma real de la respuesta antes de
+          // decidir si hace falta armar el mensaje final nosotros mismos a
+          // partir de items[0].content en vez de confiar en data.reply.
+          { limit: 1, threshold: 0.25, compose: false },
           webhookData.instance_url
         );
 
