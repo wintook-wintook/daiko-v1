@@ -1026,10 +1026,16 @@ async function procesarMensajeWebhook(webhookData) {
         });
 
         // No se usa resultadoPredefinidas.reply (viene null con
-        // compose:false) ni se vuelve a activar compose: se arma la
-        // respuesta directo del content del mejor match, verbatim.
+        // compose:false) ni se vuelve a activar compose: el texto literal
+        // del content del mejor match es la ÚNICA fuente de datos, y se le
+        // pide a un LLM propio (prompt acotado, ver
+        // redactarRespuestaPredefinida) que solo le dé tono conversacional,
+        // sin agregar ningún dato que no esté ya en ese texto.
         if (resultadoPredefinidas.resolved && itemsUtiles[0] && itemsUtiles[0].content) {
-          const respuestaPredefinida = itemsUtiles[0].content;
+          const contenidoLiteral = limpiarContenidoPredefinida(itemsUtiles[0]);
+          const respuestaPredefinida = await redactarRespuestaPredefinida(
+            openai, contenidoLiteral, messageContent, await userContext.getNombre()
+          );
           conversationHistory.push({ role: 'assistant', content: respuestaPredefinida });
           return {
             success: true,
@@ -1602,6 +1608,59 @@ const buscarPredefinidas = async (token, account_id, queryTexto, opciones = {}, 
 
   return data;
 };
+
+// El content de cada respuesta predefinida viene como "TÍTULO: cuerpo real"
+// (el título/short_code duplicado al inicio del texto). Se recorta solo si
+// coincide exacto con el title o short_code del item - operación mecánica
+// de texto, no reescritura, así que no hay riesgo de alterar el contenido
+// real escrito por el negocio.
+function limpiarContenidoPredefinida(item) {
+  const contenido = (item && item.content) || '';
+  const etiquetas = [item && item.title, item && item.metadata && item.metadata.short_code].filter(Boolean);
+  for (const etiqueta of etiquetas) {
+    const prefijo = `${etiqueta}:`;
+    if (contenido.toUpperCase().startsWith(prefijo.toUpperCase())) {
+      return contenido.slice(prefijo.length).trim();
+    }
+  }
+  return contenido;
+}
+
+// Le da tono conversacional al texto literal de una respuesta predefinida,
+// SIN agregar ningún dato que no esté ya en ese texto. Se usa un LLM propio
+// (no el compose de Chatwoot, que ya demostró inventar datos) con un prompt
+// que trata el content como única fuente de verdad permitida. Si la llamada
+// falla o devuelve algo vacío, se regresa el texto literal tal cual - nunca
+// se bloquea la respuesta por esto, y nunca se pierde la garantía de "no
+// inventar" del texto fuente.
+async function redactarRespuestaPredefinida(openaiClient, contenidoLiteral, preguntaUsuario, nombreCliente) {
+  try {
+    const respuesta = await openaiClient.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `Eres un asistente de ventas cálido y natural. Tu única tarea es redactar de forma conversacional el TEXTO FUENTE para responder la pregunta del cliente.
+
+REGLA ABSOLUTA: no agregues, cambies ni infieras ningún dato (horarios, precios, fechas, nombres, direcciones, links, cifras) que no esté escrito literalmente en el TEXTO FUENTE. Si el TEXTO FUENTE no cubre algo que el cliente preguntó, simplemente no lo menciones - nunca completes con una suposición "razonable". Puedes reordenar la información, resumir la redacción o agregar cortesía breve (saludo, "con gusto", etc.), pero cada dato concreto de tu respuesta debe poder encontrarse tal cual en el TEXTO FUENTE.
+
+Máximo 3 oraciones. Sin markdown ni símbolos especiales.`
+        },
+        {
+          role: 'user',
+          content: `Pregunta del cliente: "${preguntaUsuario}"${nombreCliente ? `\nNombre del cliente: ${nombreCliente}` : ''}\n\nTEXTO FUENTE (única fuente de datos permitida):\n${contenidoLiteral}`
+        }
+      ],
+      temperature: 0.3,
+      max_tokens: 300
+    });
+    const texto = respuesta.choices[0] && respuesta.choices[0].message && respuesta.choices[0].message.content && respuesta.choices[0].message.content.trim();
+    return texto || contenidoLiteral;
+  } catch (error) {
+    console.error('❌ Error redactando respuesta predefinida, se usa el texto literal:', error.message);
+    return contenidoLiteral;
+  }
+}
 
 /*
 const sendMessage = async (token, account_id, conversation_id, messageData) => {
