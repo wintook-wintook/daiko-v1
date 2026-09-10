@@ -147,14 +147,23 @@ const ACCION_CONFIG = {
   },
 
   'INFO_NEGOCIO': {
-    buildPrompt: buildSaludoPrompt,  // Respuesta de reserva si @buscar_predefinidas no resuelve
+    // Nota: chatwoot.js nunca llega a usar este prompt para esta acción.
+    // Si @buscar_predefinidas no resuelve, chatwoot.js responde directo con
+    // un mensaje fijo ("no cuento con esa información...") sin pasar por
+    // GPT, para evitar que invente datos del negocio. Se deja este config
+    // solo por consistencia de la tabla de acciones.
+    buildPrompt: buildSaludoPrompt,
     tools: [],
     requiereTools: false,
     descripcion: 'Información administrativa del negocio (horarios, sucursales, pagos, envíos, etc.)'
   },
 
   'SOLICITAR_ASESOR': {
-    buildPrompt: buildSaludoPrompt,  // Respuesta de reserva si @buscar_predefinidas no resuelve
+    // Nota: chatwoot.js nunca llega a usar este prompt para esta acción.
+    // Si @buscar_predefinidas no resuelve, chatwoot.js responde directo con
+    // un mensaje fijo de traslado a asesor, sin pasar por GPT. Se deja este
+    // config solo por consistencia de la tabla de acciones.
+    buildPrompt: buildSaludoPrompt,
     tools: [],
     requiereTools: false,
     descripcion: 'Solicitud de atención humana (asesor de ventas o queja)'

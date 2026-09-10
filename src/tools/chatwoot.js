@@ -1011,6 +1011,43 @@ async function procesarMensajeWebhook(webhookData) {
     }
 
     // ============================================================
+    // EJECUCIÓN DIRECTA PARA INFO_NEGOCIO / SOLICITAR_ASESOR sin match
+    // en @buscar_predefinidas (sin GPT)
+    // Antes esto caía al tool-calling loop con buildSaludoPrompt, que es un
+    // prompt de "asistente amigable" con una sola regla de texto pidiendo no
+    // inventar: GPT-4o no la respeta de forma confiable y termina
+    // inventando horarios/políticas/datos del negocio (ver caso real:
+    // "trabajas los domingos" → "sí, trabajamos los domingos", inventado).
+    // Si el clasificador ya determinó que es INFO_NEGOCIO/SOLICITAR_ASESOR y
+    // no hay respuesta predefinida para ello, la única respuesta válida es
+    // avisar que no se cuenta con esa información y ofrecer un asesor
+    // humano - nunca generar texto libre con el modelo.
+    // ============================================================
+    if (accionAdmitePredefinidas) {
+      console.log(`⚡ Ejecutando ${clasificacion.accion} directamente (sin GPT, sin match en @buscar_predefinidas)`);
+
+      const mensajeSinInfo = clasificacion.accion === 'SOLICITAR_ASESOR'
+        ? 'Claro, en un momento te comunico con un asesor para que te atienda directamente.'
+        : 'No cuento con esa información en este momento, pero puedo comunicarte con un asesor para que te ayude directamente.';
+
+      conversationHistory.push({ role: 'assistant', content: mensajeSinInfo });
+
+      return {
+        success: true,
+        data: {
+          conversationId,
+          response: mensajeSinInfo,
+          fileName: '',
+          userId,
+          senderName,
+          originalMessage: messageContent,
+          clasificacion: { accion: clasificacion.accion, sub_accion: clasificacion.sub_accion, usarFallback: false }
+        },
+        message: 'Mensaje procesado correctamente'
+      };
+    }
+
+    // ============================================================
     // EJECUCIÓN DIRECTA PARA REINICIAR (sin GPT - ahorra tokens)
     // ============================================================
     if (clasificacion && clasificacion.accion === 'REINICIAR') {
