@@ -1008,11 +1008,25 @@ async function procesarMensajeWebhook(webhookData) {
 
         console.log('📋 Resultado @buscar_predefinidas:', JSON.stringify(resultadoPredefinidas));
 
+        // Filtrar respuestas de puro saludo ("SALUDOS DE CORTESIA"): si el
+        // clasificador ya determinó que este mensaje es INFO_NEGOCIO o
+        // SOLICITAR_ASESOR (no un saludo — eso se resuelve aparte, sin
+        // tocar @buscar_predefinidas), un canned response de saludo NUNCA
+        // puede ser la respuesta correcta aquí, sin importar su similarity.
+        // Necesario porque, para esta cuenta, "SALUDOS DE CORTESIA" empata
+        // en similarity (diferencia <0.01) contra "HORARIO DE OFICINA" para
+        // preguntas de horario - cuál gana el top-1 es ruido de embeddings,
+        // no señal real.
+        const itemsUtiles = (resultadoPredefinidas.items || []).filter(item => {
+          const titulo = ((item.title || '') + ' ' + (item.metadata?.short_code || '')).toUpperCase();
+          return !titulo.includes('SALUDO');
+        });
+
         // No se usa resultadoPredefinidas.reply (viene null con
         // compose:false) ni se vuelve a activar compose: se arma la
         // respuesta directo del content del mejor match, verbatim.
-        if (resultadoPredefinidas.resolved && resultadoPredefinidas.items && resultadoPredefinidas.items[0] && resultadoPredefinidas.items[0].content) {
-          const respuestaPredefinida = resultadoPredefinidas.items[0].content;
+        if (resultadoPredefinidas.resolved && itemsUtiles[0] && itemsUtiles[0].content) {
+          const respuestaPredefinida = itemsUtiles[0].content;
           conversationHistory.push({ role: 'assistant', content: respuestaPredefinida });
           return {
             success: true,
