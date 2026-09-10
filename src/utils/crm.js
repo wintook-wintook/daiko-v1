@@ -65,6 +65,14 @@ const { tokenizarDescripcion, clasificarTokensBatch } = require('./canonicalizac
 let evalError = (data, title = '') => {
   // Error nativo de JS (timeout, red, etc.)
   if (data instanceof Error) {
+    // Timeout de axios (ECONNABORTED con mensaje "timeout of Nms exceeded"):
+    // identificarlo explícitamente en vez de dejar pasar el mensaje técnico
+    // de axios, para que quede claro (en el log y en la respuesta) que el
+    // CRM no contestó a tiempo, no que hubo un error genérico.
+    if (data.code === 'ECONNABORTED' || /timeout/i.test(data.message || '')) {
+      const msg = 'La consulta al CRM tardó demasiado en responder (tiempo de espera agotado).';
+      return { success: false, message: title ? title + msg : msg, timeout: true, preserveCurrentCart: true };
+    }
     const apiData = data.response && data.response.data ? data.response.data : null;
     const apiMsg = Array.isArray(apiData)
       ? (apiData[0] && (apiData[0].opc || apiData[0].message))
