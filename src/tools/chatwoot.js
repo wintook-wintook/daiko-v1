@@ -984,30 +984,33 @@ async function procesarMensajeWebhook(webhookData) {
           // Forzamos solo la mejor coincidencia para que la respuesta compuesta
           // corresponda a una sola respuesta predefinida.
           //
-          // threshold/compose — el problema resultó ser más de fondo que el
-          // umbral: para "trabajas los domingos?" y también para "cuál es
-          // tu horario?", Chatwoot devolvió como MEJOR match el mismo
-          // canned response genérico "SALUDOS DE CORTESIA" (similarity 0.33
-          // y 0.43 respectivamente) en vez de "HORARIO DE OFICINA" — la
-          // búsqueda semántica del lado de Chatwoot no está encontrando la
-          // respuesta correcta ni con un threshold bajo, así que subir el
-          // threshold no lo arregla (0.43 es casi el mismo rango que 0.33).
-          // Y en ambos casos, compose (gpt-4o-mini) inventó datos concretos
-          // ("no trabajamos los domingos", "lunes a viernes de 9 a 18h")
-          // que no estaban en el canned response encontrado — compose
-          // seguirá inventando pase lo que pase con el matching, así que se
-          // desactiva. DIAGNÓSTICO: compose:false para ver si con eso
-          // Chatwoot devuelve el contenido literal del canned response (sin
-          // reescritura) y confirmar la forma real de la respuesta antes de
-          // decidir si hace falta armar el mensaje final nosotros mismos a
-          // partir de items[0].content en vez de confiar en data.reply.
-          { limit: 1, threshold: 0.25, compose: false },
+          // threshold/compose — para "trabajas los domingos?" y "cuál es tu
+          // horario?", Chatwoot devolvió como MEJOR match el mismo canned
+          // response genérico "SALUDOS DE CORTESIA" (similarity 0.33 y 0.43)
+          // en vez de "HORARIO DE OFICINA" — subir threshold no lo arregla
+          // porque ambos casos rondan el mismo rango de similarity. Con
+          // compose:false confirmamos que "resolved:true" NO garantiza un
+          // reply usable: llegó reply:null (Chatwoot no arma texto sin
+          // compose) y nuestro código lo mandó tal cual al usuario como el
+          // string "null" — bug aparte, ya cubierto abajo con el chequeo de
+          // reply truthy.
+          // DIAGNÓSTICO ACTUAL: limit subido a 5 (de vuelta compose:false)
+          // para ver la lista completa de candidatos que Chatwoot encuentra
+          // para "cuál es tu horario" y confirmar si "HORARIO DE OFICINA"
+          // aparece en algún lugar del ranking (mal indexado/rankeado) o si
+          // de plano no está siendo recuperado nunca (problema de
+          // indexado/embeddings de esa respuesta específica del lado de
+          // Chatwoot, fuera del alcance de este código).
+          { limit: 5, threshold: 0.25, compose: false },
           webhookData.instance_url
         );
 
         console.log('📋 Resultado @buscar_predefinidas:', JSON.stringify(resultadoPredefinidas));
 
-        if (resultadoPredefinidas.resolved) {
+        // resolved:true no garantiza un reply usable (ej. compose:false
+        // devuelve reply:null aunque haya encontrado un item) - sin este
+        // chequeo se le manda al usuario el string "null" tal cual.
+        if (resultadoPredefinidas.resolved && resultadoPredefinidas.reply) {
           const respuestaPredefinida = resultadoPredefinidas.reply;
           conversationHistory.push({ role: 'assistant', content: respuestaPredefinida });
           return {
