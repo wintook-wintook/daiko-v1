@@ -987,6 +987,8 @@ async function procesarMensajeWebhook(webhookData) {
           webhookData.instance_url
         );
 
+        console.log('📋 Resultado @buscar_predefinidas:', JSON.stringify(resultadoPredefinidas));
+
         if (resultadoPredefinidas.resolved) {
           const respuestaPredefinida = resultadoPredefinidas.reply;
           conversationHistory.push({ role: 'assistant', content: respuestaPredefinida });
