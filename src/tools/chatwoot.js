@@ -955,19 +955,22 @@ async function procesarMensajeWebhook(webhookData) {
     // ============================================================
     // @buscar_predefinidas (Chatwoot) - después del clasificador
     // Whitelist explícita: solo dispara cuando el clasificador identifica
-    // activamente INFO_NEGOCIO o SOLICITAR_ASESOR. Antes se disparaba con
-    // CONVERSACION/DESCONOCIDO, y DESCONOCIDO es justo la acción que usa el
-    // fallback con todas las tools (incluye buscar_productos) — un mensaje
-    // de compra real que el clasificador no lograba tipificar quedaba
-    // secuestrado por un match semántico de Chatwoot (threshold laxo) antes
-    // de llegar al fallback que sí podía buscar en catálogo. Nunca debe
-    // dispararse para acciones operativas (BUSQUEDA_PRODUCTO, CARRITO_*,
-    // ORDEN, CONSULTA_EXISTENCIA, etc.) para que predefinidas no compita con
-    // el flujo real de ventas del bot. Un solo intento por mensaje, sin
-    // retry ni loop (el endpoint no tiene rate-limit del lado de Chatwoot).
+    // INFO_NEGOCIO, SOLICITAR_ASESOR o CONVERSACION. Las tres comparten
+    // tools:[] en el router (ver ACCION_CONFIG) — no tienen acceso a
+    // buscar_productos ni a ninguna tool operativa, así que no compiten con
+    // el flujo real de ventas. Deliberadamente EXCLUYE DESCONOCIDO: esa es
+    // justo la acción que usa el fallback con todas las tools (incluye
+    // buscar_productos) — un mensaje de compra real que el clasificador no
+    // lograba tipificar quedaba secuestrado por un match semántico de
+    // Chatwoot (threshold laxo) antes de llegar al fallback que sí podía
+    // buscar en catálogo. Nunca debe dispararse para acciones operativas
+    // (BUSQUEDA_PRODUCTO, CARRITO_*, ORDEN, CONSULTA_EXISTENCIA, etc.) para
+    // que predefinidas no compita con el flujo real de ventas del bot. Un
+    // solo intento por mensaje, sin retry ni loop (el endpoint no tiene
+    // rate-limit del lado de Chatwoot).
     // ============================================================
     const accionAdmitePredefinidas = clasificacion &&
-      (clasificacion.accion === 'INFO_NEGOCIO' || clasificacion.accion === 'SOLICITAR_ASESOR');
+      (clasificacion.accion === 'INFO_NEGOCIO' || clasificacion.accion === 'SOLICITAR_ASESOR' || clasificacion.accion === 'CONVERSACION');
 
     if (accionAdmitePredefinidas && messageContent && messageContent.trim()) {
       console.log(`🔎 Consultando @buscar_predefinidas (${clasificacion.accion}): "${messageContent}"`);
