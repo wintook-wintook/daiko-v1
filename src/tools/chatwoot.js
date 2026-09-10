@@ -970,6 +970,7 @@ async function procesarMensajeWebhook(webhookData) {
       (clasificacion.accion === 'INFO_NEGOCIO' || clasificacion.accion === 'SOLICITAR_ASESOR');
 
     if (accionAdmitePredefinidas && messageContent && messageContent.trim()) {
+      console.log(`🔎 Consultando @buscar_predefinidas (${clasificacion.accion}): "${messageContent}"`);
       try {
         const resultadoPredefinidas = await buscarPredefinidas(
           webhookData.token,
@@ -1002,8 +1003,10 @@ async function procesarMensajeWebhook(webhookData) {
         } else if (resultadoPredefinidas.reason === 'embedding_failed') {
           // Fallo del lado de Chatwoot (OpenAI de la cuenta) - cae al flujo normal, sin reintentar.
           console.warn('⚠️ @buscar_predefinidas: embedding_failed (fallo de OpenAI de la cuenta en Chatwoot), cae a flujo normal de Daiko');
+        } else {
+          // no_match / llm_empty: no hubo respuesta predefinida aplicable
+          console.log(`ℹ️ @buscar_predefinidas sin coincidencia (reason: ${resultadoPredefinidas.reason}), cae a mensaje fijo de "no cuento con esa información"`);
         }
-        // no_match / llm_empty: no hubo respuesta predefinida aplicable - cae a flujo normal sin log especial
       } catch (errorPredefinidas) {
         // Error de red/HTTP contra Chatwoot: no reintentar, solo loguear y caer al flujo normal de Daiko.
         console.error('❌ Error llamando a @buscar_predefinidas en Chatwoot, cae a flujo normal de Daiko:', errorPredefinidas.message);

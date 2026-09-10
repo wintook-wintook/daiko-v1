@@ -220,7 +220,7 @@ app.post("/webhook/chatwoot", async (req, res) => {
     const hooks = await getHooksCrm(req.query.token, req.body.account.id, webhookData.instance_url);
     const inboxId = webhookData.conversation?.inbox_id;
     console.log("inbox_id:", inboxId);
-    console.log("hooks", hooks);
+    // console.log("hooks", hooks); // Desactivado: mucho ruido (dump completo con api_access_token por cada webhook), reactivar solo para depurar getHooksCrm
     const hooksInboxIds = hooks
       .filter((hook) => hook.status === true && hook.inbox && hook.inbox.id)
       .map((hook) => hook.inbox.id);
