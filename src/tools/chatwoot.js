@@ -1279,6 +1279,26 @@ async function procesarMensajeWebhook(webhookData) {
               };
             }
 
+            // Timeout del CRM o falta de autorización para crear_orden: el texto debe
+            // salir TAL CUAL, sin dar otra vuelta al loop de GPT (podría parafrasearlo).
+            // Se conserva el aviso de "Carrito activo" al final, igual que en una
+            // respuesta final normal, ya que el carrito sigue vigente (preserveCurrentCart).
+            if (functionResult.timeout === true || functionResult.requiereAutorizacion === true) {
+              let errorMsg = functionResult.message;
+              console.error(`  ❌ Tool ${name} devolvió error:`, errorMsg);
+              const carritoActivo = await userContext.getCarrito();
+              if (carritoActivo && !errorMsg.includes('Carrito activo:')) {
+                const folioActivo = await userContext.getFolio();
+                errorMsg += '\n\nCarrito activo: ' + carritoActivo + (folioActivo ? ' | Folio: ' + folioActivo : '');
+              }
+              conversationHistory.push({ role: 'assistant', content: errorMsg });
+              return {
+                success: true,
+                data: { conversationId, response: errorMsg, fileName: '', userId, senderName, originalMessage: messageContent },
+                message: 'Mensaje procesado correctamente'
+              };
+            }
+
             console.log(`  ✅ Tool ${name} ejecutada exitosamente`);
 
           } catch (error) {

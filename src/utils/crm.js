@@ -70,8 +70,8 @@ let evalError = (data, title = '') => {
     // de axios, para que quede claro (en el log y en la respuesta) que el
     // CRM no contestó a tiempo, no que hubo un error genérico.
     if (data.code === 'ECONNABORTED' || /timeout/i.test(data.message || '')) {
-      const msg = 'La consulta al CRM tardó demasiado en responder (tiempo de espera agotado).';
-      return { success: false, message: title ? title + msg : msg, timeout: true, preserveCurrentCart: true };
+      const msg = 'El agente vendedor IA  está fuera de servicio. Intenté más tarde';
+      return { success: false, message: msg, timeout: true, preserveCurrentCart: true };
     }
     const apiData = data.response && data.response.data ? data.response.data : null;
     const apiMsg = Array.isArray(apiData)
@@ -887,6 +887,15 @@ async function crearOrden(carritoId) {
     let orden = response.data;
     console.log('crearOrden response:', JSON.stringify(orden));
     if(response.data.error){
+      if (/no tiene permiso/i.test(response.data.message || '')) {
+        return {
+          success: false,
+          data: orden,
+          message: 'Para confirmar tu pedido, te contactará un agente. ¿Quieres la cotización de tu carrito?#autorizacion1',
+          requiereAutorizacion: true,
+          preserveCurrentCart: true
+        };
+      }
       return {
         success: false,
         data: orden,
@@ -902,7 +911,15 @@ async function crearOrden(carritoId) {
     }
   } catch (error) {
     console.error('Error crearOrden:', error.message);
-    return evalError(error, 'Error al crear el pedido: ');
+    const result = evalError(error, 'Error al crear el pedido: ');
+    if (result && !result.timeout && /no tiene permiso/i.test(result.message || '')) {
+      return {
+        ...result,
+        message: 'Para confirmar tu pedido, te contactará un agente. ¿Quieres la cotización de tu carrito?#autorizacion1',
+        requiereAutorizacion: true
+      };
+    }
+    return result;
   }
 }
 
