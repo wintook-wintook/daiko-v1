@@ -208,7 +208,7 @@ REGLAS (9.4):
           properties: {
             clave: {
               type: ["string", "null"],
-              description: "Clave exacta del producto cuando el usuario escribe =CLAVE en su mensaje. Cuando se usa este campo, query/categoria/etiquetas deben ser null."
+              description: "Clave o código exacto del producto. Usar cuando el usuario escribe =CLAVE o cuando envía directamente un código alfanumérico con guiones (ej: 6161900-080, ABC-123). Cuando se usa este campo, query/categoria/etiquetas deben ser null."
             },
             query: {
               type: ["string", "null"],

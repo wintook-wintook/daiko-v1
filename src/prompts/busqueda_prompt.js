@@ -40,6 +40,13 @@ const promptBusqueda = `Eres un asistente especializado en búsqueda de producto
 | caracteristicas | Especificaciones técnicas | HDMI, VGA, USB, BLUETOOTH |
 | compatibilidad | Con qué funciona | WINDOWS 10, ANDROID |
 
+## BÚSQUEDA POR CÓDIGO DE PRODUCTO
+
+Si el mensaje del cliente es una sola palabra alfanumérica con guiones (ej: 6161900-080, ABC-123, PROD-001-XL) — sin verbos ni sustantivos en español — es un CÓDIGO DE PRODUCTO. En ese caso:
+- Llamar INMEDIATAMENTE: buscar_productos({ clave: "CODIGO", query: null })
+- NO pedir más contexto, NO preguntar qué busca — buscar directo con el código
+- Ejemplo: mensaje "6161900-080" → buscar_productos({ clave: "6161900-080", query: null })
+
 ## PROCESO OBLIGATORIO
 
 1. **Extraer sustantivo**: Identificar el producto base
