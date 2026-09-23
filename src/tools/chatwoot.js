@@ -1191,6 +1191,7 @@ async function procesarMensajeWebhook(webhookData) {
     let isGetPDF = false;
     let pdfData = null;
     let huboBusquedaProductos = false;  // La respuesta lista resultados de búsqueda (no carrito)
+    let catalogoAcumulado = [];         // Productos de TODAS las búsquedas del turno (para validación)
 
     while (continueLoop && iteration < MAX_ITERATIONS) {
       iteration++;
@@ -1258,6 +1259,12 @@ async function procesarMensajeWebhook(webhookData) {
             // IDs que no existan en el catálogo (ver validar_productos_respuesta.js)
             if (name === 'buscar_productos' && functionResult && functionResult.success) {
               huboBusquedaProductos = true;
+              // Acumular productos de esta búsqueda para validación al final del turno.
+              // Sin esto, cuando hay 2+ búsquedas en el mismo turno, solo la última
+              // queda en Redis y los productos de las anteriores se marcan como "inventados".
+              if (Array.isArray(functionResult.data)) {
+                catalogoAcumulado = catalogoAcumulado.concat(functionResult.data);
+              }
             }
 
             // ✅ AGREGAR RESULTADO AL HISTORIAL
@@ -1328,7 +1335,10 @@ async function procesarMensajeWebhook(webhookData) {
 
         // ✅ Validar productos citados contra el catálogo real de la búsqueda.
         // El LLM decide qué mostrar; nombre y precio salen de la búsqueda, no de él.
-        const catalogoBusqueda = await userContext.getUltimosResultados();
+        // Usar catálogo acumulado del turno si hubo múltiples búsquedas; si no, el de Redis
+        const catalogoBusqueda = catalogoAcumulado.length > 0
+          ? catalogoAcumulado
+          : await userContext.getUltimosResultados();
         finalResponse = corregirProductosEnRespuesta(finalResponse, catalogoBusqueda, {
           descartarDesconocidos: huboBusquedaProductos
         }).texto;
