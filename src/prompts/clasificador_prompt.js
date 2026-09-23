@@ -91,6 +91,7 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 - REGLA CRITICA: Si el usuario menciona un producto por NOMBRE (sustantivo concreto) y ese nombre NO coincide con ninguno de los PRODUCTOS_MOSTRADOS → SIEMPRE es BUSQUEDA_PRODUCTO, aunque el mensaje tambien contenga "del primero/segundo/etc"
   Ejemplo: Productos mostrados son escobas, usuario dice "agregame frijol del primero" → BUSQUEDA_PRODUCTO (frijol NO es escoba)
   Ejemplo: Productos mostrados son escobas, usuario dice "agregame la primera" → CARRITO_MODIFICAR (no menciona otro producto)
+- REGLA CRITICA para "cotizar" con lista de productos SIN contexto: Si el usuario pide "cotizar/presupuestar/dame precio de" una lista de productos que NO están en {{PRODUCTOS_MOSTRADOS}}, clasificar como CARRITO_CREAR (el carrito_prompt se encargará de buscar y mostrar opciones antes de agregar). NO clasificar como ORDEN (ORDEN es solo para generar el PDF/documento de una cotización ya armada).
 
 ### Para "en otro carrito" / "en un carrito nuevo" con productos (PRIORIDAD SOBRE REGLA DE CARRITO):
 - Si el mensaje contiene "en otro carrito", "en un carrito nuevo", "en un nuevo carrito", "a otro carrito", "carrito aparte", "carrito separado" Y menciona productos → clasificar SIEMPRE como CARRITO_CREAR (sub_accion: nuevo_carrito_con_productos), aunque {{TIENE_CARRITO}} = SÍ
@@ -271,6 +272,10 @@ Respuesta: {"accion":"FILTRO_EXISTENCIA","sub_accion":"desactivar","confianza":0
 
 Mensaje: "agrega =ABC123 al carrito"
 Respuesta: {"accion":"BUSQUEDA_PRODUCTO","sub_accion":"buscar_por_clave","confianza":0.99,"parametros":{"texto_busqueda":"ABC123"},"razon":"Mensaje contiene clave de producto con prefijo =, primero buscar luego agregar"}
+
+Mensaje: "me puedes cotizar\n100 hebilla bisagra doble\n100 hebilla bisagra sencilla"
+(sin productos en contexto, sin carrito activo)
+Respuesta: {"accion":"CARRITO_CREAR","sub_accion":"agregar","confianza":0.92,"parametros":{},"razon":"El cliente quiere crear una cotización con productos específicos; el prompt de carrito buscará cada producto y mostrará opciones antes de agregar"}
 
 Mensaje: "cuál es su horario de atención"
 Respuesta: {"accion":"INFO_NEGOCIO","sub_accion":null,"confianza":0.97,"parametros":{},"razon":"Pregunta información administrativa del negocio, sin mencionar producto"}
