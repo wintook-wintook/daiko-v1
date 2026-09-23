@@ -314,6 +314,21 @@ function preClasificarPorKeywords(mensaje, contexto) {
     };
   }
 
+  // BUSQUEDA_PRODUCTO por código/clave sin prefijo =
+  // Detecta patrones como "6161900-080", "ABC-123", "PROD-001-XL"
+  // Solo aplica cuando es UNA SOLA PALABRA (sin espacios): multi-palabra va al clasificador completo
+  // Excepción: si la última acción fue CONSULTA_EXISTENCIA, dejar que el LLM maneje el contexto
+  const mensajeOriginal = mensaje.trim();
+  const ultimaAccion = contexto.ultimaAccion || '';
+  const esContextoExistencia = ultimaAccion === 'CONSULTA_EXISTENCIA';
+  if (!esContextoExistencia && !mensajeOriginal.includes(' ') && /^[A-Za-z0-9]+(-[A-Za-z0-9]+)+$/.test(mensajeOriginal) && mensajeOriginal.length >= 3) {
+    return {
+      accion: 'BUSQUEDA_PRODUCTO', sub_accion: 'buscar_por_clave', confianza: 0.97,
+      parametros: { texto_busqueda: mensajeOriginal },
+      razon: 'Pre-clasificador: código de producto (alfanumérico con guiones)', tiempo_ms: 0, es_preclasificacion: true
+    };
+  }
+
   return null;
 }
 
