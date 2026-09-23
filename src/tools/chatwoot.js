@@ -1260,10 +1260,11 @@ async function procesarMensajeWebhook(webhookData) {
             if (name === 'buscar_productos' && functionResult && functionResult.success) {
               huboBusquedaProductos = true;
               // Acumular productos de esta búsqueda para validación al final del turno.
-              // Sin esto, cuando hay 2+ búsquedas en el mismo turno, solo la última
-              // queda en Redis y los productos de las anteriores se marcan como "inventados".
-              if (Array.isArray(functionResult.data)) {
-                catalogoAcumulado = catalogoAcumulado.concat(functionResult.data);
+              // Usar catalogo_para_validacion (todos los productos, no solo los 6 visibles)
+              // para evitar que el LLM elija de las 100 descripciones y luego sea marcado como "inventado".
+              const catalogoFuente = functionResult.catalogo_para_validacion || functionResult.data;
+              if (Array.isArray(catalogoFuente)) {
+                catalogoAcumulado = catalogoAcumulado.concat(catalogoFuente);
               }
             }
 
