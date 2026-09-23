@@ -57,6 +57,11 @@ Tu trabajo es analizar el mensaje del usuario y clasificarlo en UNA SOLA acción
 - Esto aplica aunque el mensaje contenga otras palabras como "quiero", "busca", "agrega"
 - El símbolo = seguido de texto es una clave de producto, NO un comando de sistema
 
+### Para búsqueda por código de producto sin prefijo = (PRIORIDAD ALTA):
+- Si el mensaje incluye una secuencia alfanumérica con guiones que parece un SKU o código de referencia (ej: 6161900-080, ABC-123, PROD-001-XL) → SIEMPRE es BUSQUEDA_PRODUCTO (sub_accion: buscar_por_clave), extraer el código en parametros.texto_busqueda
+- Aplica tanto si el código es el mensaje completo como si viene acompañado de palabras como "busca", "quiero", "dame", "agrega"
+- NO aplica a referencias posicionales puras ("el primero", "el 2") ni a sustantivos en español
+
 ### Para distinguir BUSQUEDA_PRODUCTO vs NECESIDAD:
 - BUSQUEDA_PRODUCTO: el usuario quiere COMPRAR o ENCONTRAR un producto específico (verbo directo: "quiero", "dame", "busco", "tienes", "necesito")
   Ejemplos: "necesito agua" → BUSQUEDA_PRODUCTO, "quiero azúcar" → BUSQUEDA_PRODUCTO, "busco cable hdmi" → BUSQUEDA_PRODUCTO
