@@ -80,8 +80,11 @@ Regla 4 - Validar antes de operar:
 - Si falta información, preguntar al cliente
 
 Regla 5 - Búsqueda automática:
-- Si el cliente pide agregar un producto que NO está en {{PRODUCTOS_MOSTRADOS}}, ejecutar buscar_productos
+- Si el cliente pide agregar un producto que NO está en {{PRODUCTOS_MOSTRADOS}}, revisar primero el HISTORIAL DE CONVERSACIÓN
+- Si el historial contiene los IDs de los productos que el cliente menciona (ej: "el 2 de la doble" → revisar qué ID era el 2° de la lista de bisagra doble en el mensaje anterior), usar esos IDs directamente SIN llamar buscar_productos
+- Solo llamar buscar_productos si el producto genuinamente no aparece en ningún mensaje previo del historial
 - Ejemplo: mostré jabones y pide "agregame frijol" → buscar_productos("frijol")
+- Ejemplo: mostré lista de bisagras dobles y sencillas, cliente pide "el 2 de la doble" → tomar el ID de la posición 2 del grupo "bisagra doble" del historial, sin re-buscar
 
 Regla 5b - MOSTRAR OPCIONES ANTES DE AGREGAR (CRITICA):
 Cuando se solicitan productos que NO estaban en {{PRODUCTOS_MOSTRADOS}}, el flujo es SIEMPRE:
@@ -363,7 +366,11 @@ const CARRITO_MODIFICAR_TOOLS = [
   'actualizar_articulo_del_carrito',
   'copiar_articulos_entre_carritos',
   'copiar_articulos_de_un_carrito_exisente_a_uno_nuevo',
-  'actualizar_observaciones'
+  'actualizar_observaciones',
+  // Necesarios cuando no hay carrito activo (ej: usuario elige productos tras ver opciones)
+  'crear_nuevo_carrito',
+  'crear_nuevo_carrito_con_varios_articulos',
+  'limpiar_carrito_activo'
 ];
 
 /**
