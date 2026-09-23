@@ -1405,6 +1405,7 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
           total_disponibles: totalProductos,
           filtros_aplicados: filtrosNormalizados,
           descripciones_completas: descripcionesParaAnalisis,  // ✅ V22.0: Para análisis del LLM
+          catalogo_para_validacion: productosRecuperados,      // ✅ Todos los productos como objetos para validar respuesta del LLM
           preserveCurrentCart: true
         };
       }
