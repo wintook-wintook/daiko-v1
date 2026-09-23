@@ -1109,58 +1109,25 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
         }
         
         console.log(`➡️ Avanzando a página ${siguientePagina}`);
-        
-        // Ejecutar búsqueda con mismos parámetros + nueva página
-        const resultadoMas = await buscarProductos(
-          busquedaActiva.query,
-          busquedaActiva.query,  // categoria
-          busquedaActiva.query,  // etiquetas
-          null,  // precio_max
-          siguientePagina,
-          100,
-          busquedaActiva.filtros || {
-            marca: [],
-            medida: [],
-            caracteristicas: [],
-            tipo: [],
-            compatibilidad: []
-          }
-        );
-        
-        if (!resultadoMas.success) {
-          return resultadoMas;
-        }
-        
-        // Normalizar productos
-        const productosNormalizados = (resultadoMas.data || [])
-          .map(p => ({
-            ARTICULO_ID: p.ARTICULO_ID,
-            NOMBRE: p.NOMBRE,
-            PRECIO: p.PRECIO
-          }))
-          .filter(p =>
-            p.ARTICULO_ID !== undefined &&
-            p.ARTICULO_ID !== null &&
-            p.NOMBRE &&
-            p.PRECIO !== undefined
-          );
-        
-        if (!productosNormalizados.length) {
+
+        // Usar los productos ya guardados en Redis del primer buscar_productos.
+        // NO hacer un segundo llamado a la API: pasar query como categoria/etiquetas
+        // cambia el orden de resultados y causa duplicados entre páginas.
+        const todosLosProductos = await userContext.getUltimosResultados();
+
+        if (!todosLosProductos || todosLosProductos.length === 0) {
           return {
             success: false,
-            message: "No hay más productos disponibles.",
+            message: "No hay búsqueda activa. Por favor, realiza una nueva búsqueda.",
             preserveCurrentCart: true
           };
         }
-        
-        // Recuperar hasta 100 productos
-        const productosRecuperados = productosNormalizados.slice(0, 100);
-        
-        // ✅ V22.0: Calcular ventana de 6 productos para la página solicitada
+
+        // ✅ Calcular ventana de 6 productos para la página solicitada
         const PRODUCTOS_POR_PAGINA = 6;
         const startIndex = (siguientePagina - 1) * PRODUCTOS_POR_PAGINA;
         const endIndex = startIndex + PRODUCTOS_POR_PAGINA;
-        const productosVentana = productosRecuperados.slice(startIndex, endIndex);
+        const productosVentana = todosLosProductos.slice(startIndex, endIndex);
         
         console.log(`📦 Mostrando productos ${startIndex + 1}-${endIndex} (página ${siguientePagina})`);
         
