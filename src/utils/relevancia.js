@@ -26,6 +26,9 @@ function normalizarTexto(s) {
     .normalize('NFD')
     .replace(ACENTOS, '')
     .replace(/\s+/g, ' ')
+    // Unir dígito + unidad separados por espacio: "38 MM" → "38MM", "1 KG" → "1KG"
+    // Esto permite que el filtro "38 MM" del LLM coincida con "38MM" en el nombre del producto
+    .replace(/(\d)\s+([A-Z])/g, '$1$2')
     .trim();
 }
 
