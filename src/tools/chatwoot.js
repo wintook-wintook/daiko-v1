@@ -24,6 +24,127 @@ function resolverUrlBase(instanceUrl) {
   return instanceUrl.endsWith('/') ? instanceUrl : `${instanceUrl}/`;
 }
 
+// ============================================================
+// CONTROL DE TAMAÑO DEL REQUEST A GPT (límite TPM de la org)
+// ============================================================
+const MAX_TOKENS_ESTIMADOS = 20000;
+const MAX_DESCRIPCIONES_RECORTE = 40;
+
+// Aproximación barata (~4 caracteres por token); suficiente para decidir si recortar
+function estimarTokens(messages) {
+  return Math.ceil(JSON.stringify(messages).length / 4);
+}
+
+// Reduce mensajes 'tool' ya consumidos por GPT hasta quedar bajo el umbral.
+// Paso 1: compacta tools de iteraciones anteriores (todas menos el último bloque de tools).
+// Paso 2: si aún excede, recorta descripciones_completas de los tools restantes.
+function compactarHistorialTools(input) {
+  let tokens = estimarTokens(input);
+  if (tokens <= MAX_TOKENS_ESTIMADOS) return tokens;
+
+  // Último bloque de tools = los tool messages posteriores al último assistant con tool_calls
+  let inicioUltimoBloque = input.length;
+  for (let i = input.length - 1; i >= 0; i--) {
+    if (input[i].role === 'assistant' && input[i].tool_calls) { inicioUltimoBloque = i + 1; break; }
+  }
+
+  const compactar = (msg, soloRecortar) => {
+    let parsed;
+    try { parsed = JSON.parse(msg.content); } catch (e) { return; }
+    if (!parsed || typeof parsed !== 'object') return;
+    if (soloRecortar) {
+      if (Array.isArray(parsed.descripciones_completas) && parsed.descripciones_completas.length > MAX_DESCRIPCIONES_RECORTE) {
+        parsed.descripciones_completas = parsed.descripciones_completas.slice(0, MAX_DESCRIPCIONES_RECORTE);
+        msg.content = JSON.stringify(parsed);
+      }
+      return;
+    }
+    const resumen = { success: parsed.success };
+    if (parsed.message !== undefined) resumen.message = parsed.message;
+    if (parsed.total_disponibles !== undefined) resumen.total_disponibles = parsed.total_disponibles;
+    if (parsed.data !== undefined) resumen.data = parsed.data;
+    msg.content = JSON.stringify(resumen);
+  };
+
+  for (let i = 0; i < inicioUltimoBloque; i++) {
+    if (input[i].role === 'tool') compactar(input[i], false);
+  }
+  tokens = estimarTokens(input);
+  if (tokens > MAX_TOKENS_ESTIMADOS) {
+    for (let i = 0; i < input.length; i++) {
+      if (input[i].role === 'tool') compactar(input[i], true);
+    }
+    tokens = estimarTokens(input);
+  }
+  console.log(`📏 Historial compactado por tamaño: ~${tokens} tokens estimados`);
+  return tokens;
+}
+
+// ============================================================
+// ERRORES DE OPENAI (429 TPM) - mensajes al cliente + nota privada
+// ============================================================
+const MSG_RATE_LIMIT = 'Se perdió conexión con OpenAI, favor de esperar un momento para volver a hacer la consulta.';
+const MSG_RECONEXION = 'Conexión restablecida, puede intentar de nuevo.';
+const MSG_REQUEST_GRANDE = 'Tu consulta es demasiado extensa para procesarla. Por favor, intenta con una búsqueda más específica.';
+const MSG_ERROR_GENERICO = 'Disculpa, tuve un problema técnico procesando tu mensaje.';
+
+// conversation_id -> timer del aviso "Conexión restablecida" (evita avisos duplicados)
+const avisosReconexion = new Map();
+
+function clasificarErrorOpenAI(error) {
+  const msg = (error && error.message) || '';
+  if (error && error.status === 429) {
+    if (/request too large/i.test(msg)) return 'REQUEST_GRANDE';
+    if (/rate limit reached/i.test(msg) || error.code === 'rate_limit_exceeded') return 'RATE_LIMIT';
+  }
+  return 'OTRO';
+}
+
+// Segundos de espera sugeridos por OpenAI (headers o texto del error); fallback 30s
+function segundosReintento(error) {
+  const headers = (error && error.headers) || {};
+  const leer = (k) => (typeof headers.get === 'function' ? headers.get(k) : headers[k]);
+  const ms = parseFloat(leer('retry-after-ms'));
+  if (!isNaN(ms) && ms > 0) return ms / 1000;
+  const seg = parseFloat(leer('retry-after'));
+  if (!isNaN(seg) && seg > 0) return seg;
+  const match = ((error && error.message) || '').match(/try again in ([\d.]+)\s*s/i);
+  if (match) return parseFloat(match[1]);
+  return 30;
+}
+
+async function notificarErrorProcesamiento(webhookData, error) {
+  const { token, account_id, conversation_id, instance_url } = webhookData;
+  const tipo = clasificarErrorOpenAI(error);
+  const mensajeCliente = tipo === 'RATE_LIMIT' ? MSG_RATE_LIMIT
+    : tipo === 'REQUEST_GRANDE' ? MSG_REQUEST_GRANDE
+    : MSG_ERROR_GENERICO;
+
+  const yaAvisado = tipo === 'RATE_LIMIT' && avisosReconexion.has(conversation_id);
+  try {
+    if (!yaAvisado) {
+      await sendMessage(token, account_id, conversation_id, mensajeCliente, '', false, instance_url);
+    }
+    await sendMessage(token, account_id, conversation_id, `Error al procesar mensaje: ${error.message}`, '', true, instance_url);
+  } catch (e) {
+    console.error('❌ No se pudo notificar el error en Chatwoot:', e.message);
+  }
+
+  if (tipo === 'RATE_LIMIT' && !yaAvisado) {
+    const espera = Math.ceil((segundosReintento(error) + 2) * 1000);
+    console.log(`⏳ Rate limit OpenAI: aviso de reconexión en ${espera}ms (conv ${conversation_id})`);
+    const timer = setTimeout(async () => {
+      avisosReconexion.delete(conversation_id);
+      try {
+        await sendMessage(token, account_id, conversation_id, MSG_RECONEXION, '', false, instance_url);
+      } catch (e) {
+        console.error('❌ No se pudo enviar aviso de reconexión:', e.message);
+      }
+    }, espera);
+    avisosReconexion.set(conversation_id, timer);
+  }
+}
+
 const UserContext = require('../utils/userContext');
 const { corregirProductosEnRespuesta } = require('../utils/validar_productos_respuesta');
 
@@ -1203,6 +1324,8 @@ async function procesarMensajeWebhook(webhookData) {
         { role: "system", content: promptAUsar },
         ...conversationHistory
       ];
+      const tokensEstimados = compactarHistorialTools(input);
+      console.log(`📏 [5.${iteration}] Tokens estimados del request: ~${tokensEstimados}`);
 
       // ✅ LLAMAR AL MODELO CON TOOLS EN CADA ITERACIÓN
       // V25.0: Usar tools filtradas si están disponibles
@@ -1269,10 +1392,17 @@ async function procesarMensajeWebhook(webhookData) {
             }
 
             // ✅ AGREGAR RESULTADO AL HISTORIAL
+            // catalogo_para_validacion solo lo usa el código (catalogoAcumulado); mandarlo
+            // a GPT eran hasta 100 productos completos por iteración (error 429 TPM)
+            let resultadoParaGpt = functionResult;
+            if (functionResult && typeof functionResult === 'object' && functionResult.catalogo_para_validacion) {
+              const { catalogo_para_validacion, ...resto } = functionResult;
+              resultadoParaGpt = resto;
+            }
             conversationHistory.push({
               role: "tool",
               tool_call_id: id,
-              content: JSON.stringify(functionResult)
+              content: JSON.stringify(resultadoParaGpt)
             });
 
             // Solo abortar ante errores JS reales (null/undefined/Error), no ante errores de negocio
@@ -1431,7 +1561,8 @@ async function procesarMensajeWebhook(webhookData) {
   } catch (error) {
     console.error('❌ Error procesando webhook:', error);
     toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off', webhookData.instance_url);
-    sendMessage(webhookData.token, webhookData.account_id, webhookData.conversation_id, error.message, '', false, webhookData.instance_url);
+    // El detalle técnico va solo en nota privada; el cliente recibe un mensaje legible
+    notificarErrorProcesamiento(webhookData, error);
     return {
       success: false,
       error: "Disculpa, tuve un problema técnico procesando tu mensaje.",
