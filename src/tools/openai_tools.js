@@ -927,7 +927,64 @@ function formatearCarritoTexto(carritoData) {
   return texto;
 }
 
-async function executeFunctionCall(name, args, userId, accountId = 0) {
+// ============================================================
+// BÚSQUEDA POR CATEGORÍA / ETIQUETAS CON PAGINACIÓN
+// seleccionar_categoria y buscar_por_etiquetas no guardaban búsqueda activa ni
+// resultados en Redis, así que "muéstrame más" (tienes_mas) no encontraba nada.
+// Si GPT pide varias categorías en el mismo turno ("balones y pelotas"), las listas
+// se juntan (sin duplicados) en una sola búsqueda activa.
+// ============================================================
+const PRODUCTOS_POR_PAGINA_CATEGORIA = 6;
+const acumuladoCategoriaPorUsuario = new Map(); // userId -> acumulado del turno actual
+
+async function buscarCategoriaPaginada(args, userId, userContext, turnoId) {
+  const resultado = await buscarProductos(args.query, args.category, args.etiquetas, args.precio_max, args.current_page, args.per_page);
+  if (!resultado || !resultado.success || !Array.isArray(resultado.data)) return resultado;
+
+  let acumulado = acumuladoCategoriaPorUsuario.get(userId);
+  if (!turnoId || !acumulado || acumulado.turnoId !== turnoId) {
+    acumulado = { turnoId, visibles: [], resto: [], ids: new Set(), terminos: [] };
+  }
+
+  // Solo productos que no salieron en otra categoría del mismo turno
+  const nuevos = resultado.data.filter(p => !acumulado.ids.has(String(p.ARTICULO_ID)));
+  nuevos.forEach(p => acumulado.ids.add(String(p.ARTICULO_ID)));
+  const visibles = nuevos.slice(0, PRODUCTOS_POR_PAGINA_CATEGORIA);
+  const normalizar = p => ({ ARTICULO_ID: p.ARTICULO_ID, NOMBRE: p.NOMBRE, PRECIO: p.PRECIO });
+
+  acumulado.visibles.push(...visibles.map(normalizar));
+  acumulado.resto.push(...nuevos.slice(PRODUCTOS_POR_PAGINA_CATEGORIA).map(normalizar));
+  const termino = args.category || (Array.isArray(args.etiquetas) ? args.etiquetas.join(' ') : args.etiquetas) || args.query;
+  if (termino) acumulado.terminos.push(termino);
+  acumuladoCategoriaPorUsuario.set(userId, acumulado);
+
+  // Lo ya mostrado va primero, para que tienes_mas continúe justo después
+  const lista = acumulado.visibles.concat(acumulado.resto);
+  await userContext.setUltimosResultados(lista);
+  await userContext.setBusquedaActiva({
+    query: acumulado.terminos.join(', '),
+    filtros: null,
+    total_resultados: lista.length,
+    mostrados: acumulado.visibles.length,
+    current_page: 1
+  });
+  await userContext.setUltimaAccion('busqueda_productos');
+
+  console.log(`📂 Categoría "${termino}": ${resultado.data.length} productos, ${nuevos.length} nuevos en el turno, ${visibles.length} visibles | lista acumulada: ${lista.length}`);
+
+  return {
+    ...resultado,
+    data: visibles,
+    total_disponibles: nuevos.length,
+    message: nuevos.length === 0
+      ? `Los ${resultado.data.length} productos de "${termino}" son los mismos que ya se listaron en la otra categoría de esta consulta; no repetirlos.`
+      : nuevos.length > visibles.length
+        ? `Mostrando ${visibles.length} de ${nuevos.length} productos. El cliente puede pedir ver más.`
+        : `Encontré ${visibles.length} productos.`
+  };
+}
+
+async function executeFunctionCall(name, args, userId, accountId = 0, turnoId = null) {
     console.log(`🔧 Ejecutando función: ${name}`, args);
     console.log(`📋 Context: userId=${userId}, accountId=${accountId}`);
 
@@ -1066,11 +1123,11 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
       // ✅ ELIMINADOS: que_vendes y que_me_puedes_ofrecer (eran redundantes - usaban obtenerCategorias)
         
       case "seleccionar_categoria": 
-        await userContext.addCategoria(args.category);     
-        return buscarProductos(args.query, args.category, args.etiquetas, args.precio_max, args.current_page, args.per_page);
-        
-      case "buscar_por_etiquetas":      
-        return buscarProductos(args.query, args.category, args.etiquetas, args.precio_max, args.current_page, args.per_page);
+        await userContext.addCategoria(args.category);
+        return buscarCategoriaPaginada(args, userId, userContext, turnoId);
+
+      case "buscar_por_etiquetas":
+        return buscarCategoriaPaginada(args, userId, userContext, turnoId);
         
       case "tienes_mas": {
         console.log('🔄 FUNCIÓN tienes_mas - Mostrando siguiente página');
@@ -1125,7 +1182,11 @@ async function executeFunctionCall(name, args, userId, accountId = 0) {
 
         // ✅ Calcular ventana de 6 productos para la página solicitada
         const PRODUCTOS_POR_PAGINA = 6;
-        const startIndex = (siguientePagina - 1) * PRODUCTOS_POR_PAGINA;
+        // Avanzar desde lo ya mostrado: en búsquedas por varias categorías la
+        // primera "página" puede tener más de 6 productos (6 por categoría)
+        const startIndex = Number.isInteger(busquedaActiva.mostrados)
+          ? busquedaActiva.mostrados
+          : (siguientePagina - 1) * PRODUCTOS_POR_PAGINA;
         const endIndex = startIndex + PRODUCTOS_POR_PAGINA;
         const productosVentana = todosLosProductos.slice(startIndex, endIndex);
         

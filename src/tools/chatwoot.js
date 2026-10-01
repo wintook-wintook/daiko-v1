@@ -1276,6 +1276,7 @@ async function procesarMensajeWebhook(webhookData) {
     let pdfData = null;
     let huboBusquedaProductos = false;  // La respuesta lista resultados de búsqueda (no carrito)
     let catalogoAcumulado = [];         // Productos de TODAS las búsquedas del turno (para validación)
+    const turnoId = `${userId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; // agrupa búsquedas por categoría del mismo turno
 
     while (continueLoop && iteration < MAX_ITERATIONS) {
       iteration++;
@@ -1331,7 +1332,8 @@ async function procesarMensajeWebhook(webhookData) {
               name,
               functionArgs,
               userId,
-              webhookData.account_id
+              webhookData.account_id,
+              turnoId
             );
             console.log(`⏱️ [6.${iteration}] Tool "${name}": ${Date.now() - _tStep}ms`);
             
