@@ -29,6 +29,7 @@ function resolverUrlBase(instanceUrl) {
 // ============================================================
 const MAX_TOKENS_ESTIMADOS = 20000;
 const MAX_DESCRIPCIONES_RECORTE = 40;
+const MAX_CARACTERES_TOOL = 20000; // ~5k tokens por resultado de tool
 
 // Aproximación barata (~4 caracteres por token); suficiente para decidir si recortar
 function estimarTokens(messages) {
@@ -73,6 +74,22 @@ function compactarHistorialTools(input) {
   if (tokens > MAX_TOKENS_ESTIMADOS) {
     for (let i = 0; i < input.length; i++) {
       if (input[i].role === 'tool') compactar(input[i], true);
+    }
+    tokens = estimarTokens(input);
+  }
+  // Paso 3 (último recurso): un solo resultado enorme (ej. base64, listados gigantes)
+  // se reemplaza por su resumen mínimo, incluso si es del último bloque
+  if (tokens > MAX_TOKENS_ESTIMADOS) {
+    for (let i = 0; i < input.length; i++) {
+      const msg = input[i];
+      if (msg.role !== 'tool' || typeof msg.content !== 'string' || msg.content.length <= MAX_CARACTERES_TOOL) continue;
+      let parsed = {};
+      try { parsed = JSON.parse(msg.content) || {}; } catch (e) { /* contenido no JSON */ }
+      msg.content = JSON.stringify({
+        success: parsed.success,
+        message: parsed.message,
+        nota: 'Resultado recortado por tamaño'
+      });
     }
     tokens = estimarTokens(input);
   }
@@ -1400,6 +1417,14 @@ async function procesarMensajeWebhook(webhookData) {
             if (functionResult && typeof functionResult === 'object' && functionResult.catalogo_para_validacion) {
               const { catalogo_para_validacion, ...resto } = functionResult;
               resultadoParaGpt = resto;
+            }
+            // generar_pdf trae el PDF completo en base64 (data.content): ya se guardó en
+            // pdfData para enviarlo como archivo; a GPT solo le sirve saber que se creó
+            if (name === 'generar_pdf' && functionResult && functionResult.data && functionResult.data.content) {
+              resultadoParaGpt = {
+                ...functionResult,
+                data: { name: functionResult.data.name, content: '[PDF generado, se envía como archivo adjunto]' }
+              };
             }
             conversationHistory.push({
               role: "tool",
