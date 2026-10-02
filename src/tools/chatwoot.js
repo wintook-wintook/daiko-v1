@@ -30,6 +30,9 @@ function resolverUrlBase(instanceUrl) {
 const MAX_TOKENS_ESTIMADOS = 20000;
 const MAX_DESCRIPCIONES_RECORTE = 40;
 const MAX_CARACTERES_TOOL = 20000; // ~5k tokens por resultado de tool
+// Paso 3 solo actúa cerca del límite real de gpt-4o (30k TPM): ahí el request
+// fallaría de todos modos, así que recortar no le quita nada a un request que sí pasaba
+const MAX_TOKENS_ULTIMO_RECURSO = 28000;
 
 // Aproximación barata (~4 caracteres por token); suficiente para decidir si recortar
 function estimarTokens(messages) {
@@ -79,17 +82,18 @@ function compactarHistorialTools(input) {
   }
   // Paso 3 (último recurso): un solo resultado enorme (ej. base64, listados gigantes)
   // se reemplaza por su resumen mínimo, incluso si es del último bloque
-  if (tokens > MAX_TOKENS_ESTIMADOS) {
+  if (tokens > MAX_TOKENS_ULTIMO_RECURSO) {
     for (let i = 0; i < input.length; i++) {
       const msg = input[i];
       if (msg.role !== 'tool' || typeof msg.content !== 'string' || msg.content.length <= MAX_CARACTERES_TOOL) continue;
       let parsed = {};
       try { parsed = JSON.parse(msg.content) || {}; } catch (e) { /* contenido no JSON */ }
-      msg.content = JSON.stringify({
-        success: parsed.success,
-        message: parsed.message,
-        nota: 'Resultado recortado por tamaño'
-      });
+      const resumen = { success: parsed.success, message: parsed.message, nota: 'Resultado recortado por tamaño' };
+      // ver_carrito / asignar_carrito: el texto del carrito es lo que GPT usa para responder
+      if (typeof parsed.texto_formateado === 'string' && parsed.texto_formateado.length <= MAX_CARACTERES_TOOL) {
+        resumen.texto_formateado = parsed.texto_formateado;
+      }
+      msg.content = JSON.stringify(resumen);
     }
     tokens = estimarTokens(input);
   }
