@@ -169,6 +169,8 @@ async function notificarErrorProcesamiento(webhookData, error) {
 const UserContext = require('../utils/userContext');
 const { corregirProductosEnRespuesta } = require('../utils/validar_productos_respuesta');
 const {
+  debeTratarseComoBusqueda,
+  detectarAgregadoAmbiguo,
   registrarBusqueda,
   hayProductos,
   iniciarGuia,
@@ -1041,6 +1043,7 @@ async function procesarMensajeWebhook(webhookData) {
     let toolsAUsar = functionDefinitions;
     let clasificacion = null;
     let usarFallback = true;
+    let forzarBusqueda = false;  // El clasificador dijo carrito, pero el cliente sólo nombró productos
 
     // ============================================================
     // MODO_REFACCIONES - prioridad sobre el clasificador V25.0
@@ -1086,6 +1089,13 @@ async function procesarMensajeWebhook(webhookData) {
           parametros: clasificacion.parametros
         });
 
+        if (debeTratarseComoBusqueda(clasificacion, messageContent, mensajePideCarrito(messageContent))) {
+          console.log(`🧭 ${clasificacion.accion} → BUSQUEDA_PRODUCTO: el cliente solo nombró productos, sin pedir agregar`);
+          clasificacion.accion = 'BUSQUEDA_PRODUCTO';
+          clasificacion.sub_accion = 'buscar_nuevo';
+          forzarBusqueda = true;
+        }
+
         // PASO 1.5: Resolver referencias ("el primero", "el segundo")
         if (clasificacion.parametros && contextoClasificador.ultimaBusqueda) {
           const ultimosResultados = await userContext.getUltimosResultados
@@ -1110,7 +1120,9 @@ async function procesarMensajeWebhook(webhookData) {
 
         if (!ruteo.usarFallback && ruteo.prompt) {
           promptAUsar = ruteo.prompt;
-          toolsAUsar = filtrarTools(ruteo.tools, functionDefinitions);
+          // BUSQUEDA_TOOLS incluye las de carrito: al forzar la búsqueda se quitan para
+          // que GPT no agregue directo con los IDs que ve en el historial
+          toolsAUsar = filtrarTools(forzarBusqueda ? ['buscar_productos'] : ruteo.tools, functionDefinitions);
           usarFallback = false;
 
           // Guardar ultima_accion cuando se clasifica como ORDEN (antes de que GPT pida confirmación)
@@ -1400,7 +1412,7 @@ async function procesarMensajeWebhook(webhookData) {
         model: "gpt-4o",  // ✅ MISMO MODELO EN TODAS LAS RONDAS
         messages: input,
         tools: toolsAUsar,  // V25.0: Tools filtradas o todas
-        tool_choice: "auto",
+        tool_choice: forzarBusqueda && iteration === 1 ? "required" : "auto",
         temperature: 0.3
       });
       console.log(`⏱️ [5.${iteration}] GPT-4o (iteración ${iteration}): ${Date.now() - _tStep}ms`);
@@ -1427,6 +1439,39 @@ async function procesarMensajeWebhook(webhookData) {
           
           try {
             const functionArgs = JSON.parse(args);
+
+            // Última barrera antes de escribir en el carrito: si el cliente nombró un
+            // producto y varios coinciden, se le pregunta en vez de dejar que GPT elija.
+            // Un error aquí no debe impedir la operación, por eso no se propaga.
+            if (!modoRefaccionesActivo) {
+              let guiaAgregado = null;
+              try {
+                const busquedasAmbiguas = detectarAgregadoAmbiguo(
+                  name,
+                  functionArgs,
+                  messageContent,
+                  clasificacion,
+                  (await userContext.getUltimosResultados()).concat(catalogoAcumulado)
+                );
+                if (busquedasAmbiguas) {
+                  console.warn(`🧭 ${name} bloqueada: el cliente no eligió entre varios productos`, functionArgs);
+                  guiaAgregado = await iniciarGuia(busquedasAmbiguas, openai);
+                  await guardarResultadoGuia(guiaAgregado, userContext);
+                }
+              } catch (errorGuia) {
+                console.error('❌ Error revisando ambigüedad, sigue la operación:', errorGuia.message);
+                guiaAgregado = null;
+              }
+              if (guiaAgregado) {
+                const respuestaGuia = await appendCarritoFooter(guiaAgregado.texto, userContext);
+                toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off', webhookData.instance_url);
+                return {
+                  success: true,
+                  data: { conversationId, response: respuestaGuia, fileName: '', userId, senderName, originalMessage: messageContent },
+                  message: 'Mensaje procesado correctamente'
+                };
+              }
+            }
 
             // ✅ EJECUTAR TOOL con account_id desde webhookData
             _tStep = Date.now();

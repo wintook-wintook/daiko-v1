@@ -41,6 +41,18 @@ const REGEX_CUALQUIERA = /\b(CUALQUIERA|LA QUE SEA|EL QUE SEA|LO QUE SEA|ME DA I
 const REGEX_AMBOS = /\b(AMBOS|AMBAS|LOS DOS|LAS DOS|LOS TRES|LAS TRES|TODOS|TODAS)\b/;
 const REGEX_ORDINAL = /\b(PRIMER|PRIMERA|PRIMERO|SEGUNDA|SEGUNDO|TERCER|TERCERA|TERCERO|ULTIMA|ULTIMO)\b/;
 
+// El cliente señala un renglón de la lista en vez de nombrar el producto
+const REGEX_POSICION = /\b(EL|LA|LOS|LAS|DEL|AL)\s+(\d+|UNO|DOS|TRES|CUATRO|CINCO|SEIS)\b/;
+const REGEX_DEMOSTRATIVO = /\b(ESE|ESA|ESOS|ESAS|ESTE|ESTA|ESTOS|ESTAS|LO)\b/;
+const REGEX_COTIZACION = /COTIZ|PRESUPUEST/;
+
+const ACCIONES_CARRITO = ['CARRITO_CREAR', 'CARRITO_MODIFICAR'];
+const SUB_ACCIONES_AGREGAR = ['agregar', 'nuevo_carrito_con_productos'];
+const TOOLS_AGREGAR = ['agregar_al_carrito', 'crear_nuevo_carrito', 'agregar_varios_articulos_al_carrito', 'crear_nuevo_carrito_con_varios_articulos'];
+
+// Palabras frecuentes que no identifican un producto aunque aparezcan en su nombre
+const PALABRAS_SIN_PESO = new Set(['CON', 'DEL', 'LAS', 'LOS', 'MAS', 'PARA', 'POR', 'QUE', 'SIN', 'UNA', 'UNO']);
+
 // Palabras que pueden acompañar a una opción sin cambiar su significado. Si queda
 // algo fuera de esta lista ("no quiero ciel, mejor arroz") la respuesta no se toma
 // como literal.
@@ -105,8 +117,11 @@ function filtrarCandidatos(productos, sustantivo, filtros) {
   const hayFiltrosAplicados = terminos.length > 0 && cumplenFiltros.length > 0;
   const base = cumplenFiltros.length > 0 ? cumplenFiltros : productos;
 
+  // Sólo la primera palabra: "AIRE ACONDICIONA SUPER..." está mal escrito en el catálogo
+  // y exigir "ACONDICIONADO" lo dejaría fuera. Las siguientes preguntas ya separan el resto.
+  const primeraPalabra = normalizarBasico(sustantivo).split(' ')[0];
   const conSustantivo = base.filter(function (p) {
-    return contieneSustantivo(normalizarBasico(p.NOMBRE), sustantivo);
+    return contieneSustantivo(normalizarBasico(p.NOMBRE), primeraPalabra);
   });
 
   return {
@@ -141,7 +156,8 @@ function registrarBusqueda(busquedas, busqueda) {
       candidatos: [],
       resueltos: atributosResueltos,
       filtros: busqueda.filtros || null,
-      truncado: false
+      truncado: false,
+      cantidad: busqueda.cantidad || null
     };
     busquedas.push(item);
   } else if (candidatos.length > 0) {
@@ -491,6 +507,16 @@ function textoProducto(numero, producto) {
   return `${numero}) ID: ${producto.ARTICULO_ID} - ${nombreConUnidad(producto)}\n   Precio: $${producto.PRECIO}`;
 }
 
+// La cantidad que el cliente ya dijo no se le vuelve a preguntar
+function preguntaDeCierre(items, totalMostrados) {
+  const todosConCantidad = items.every(function (i) { return i.cantidad; });
+  if (todosConCantidad && totalMostrados === items.length) {
+    return totalMostrados === 1 ? '¿Quieres que lo agregue?' : '¿Quieres que los agregue?';
+  }
+  if (todosConCantidad) return '¿Cuál te agrego?';
+  return totalMostrados === 1 ? '¿Cuántos te agrego?' : '¿Cuál te agrego y cuántos?';
+}
+
 /**
  * Lista final: formato de siempre, para que "el primero" y agregar al carrito sigan
  * funcionando. Los productos no mostrados quedan después, para que "ver más" continúe.
@@ -502,10 +528,16 @@ function armarFinal(estado, maxPorProducto) {
   const conMas = [];
 
   estado.items.forEach(function (item) {
-    item.candidatos.slice(0, maxPorProducto).forEach(function (p) {
+    const visibles = item.candidatos.slice(0, maxPorProducto);
+    visibles.forEach(function (p) {
       mostrados.push(p);
       lineas.push(textoProducto(mostrados.length, p));
     });
+    if (item.cantidad && visibles.length === 1) {
+      lineas[lineas.length - 1] += `\n   Cantidad: ${item.cantidad}`;
+    } else if (item.cantidad) {
+      lineas.push(`Cantidad solicitada de ${item.etiqueta}: ${item.cantidad}`);
+    }
     const restantes = item.candidatos.slice(maxPorProducto);
     resto.push(...restantes);
     if (restantes.length > 0) conMas.push(item.etiqueta);
@@ -516,7 +548,7 @@ function armarFinal(estado, maxPorProducto) {
   if (noEncontrados.length > 0) partes.push(`No encontré ${unirConO(noEncontrados)}.`);
   partes.push(lineas.join('\n\n'));
   if (conMas.length > 0) partes.push(`Hay más opciones disponibles de ${conMas.join(', ')}.`);
-  partes.push(mostrados.length === 1 ? '¿Cuántos te agrego?' : '¿Cuál te agrego y cuántos?');
+  partes.push(preguntaDeCierre(estado.items, mostrados.length));
 
   return {
     texto: partes.join('\n\n'),
@@ -665,6 +697,119 @@ async function procesarRespuesta(estado, mensaje, openai) {
   return armarPaso(estado);
 }
 
+function mensajeSenalaRenglon(textoNormalizado) {
+  return REGEX_ORDINAL.test(textoNormalizado) || REGEX_POSICION.test(textoNormalizado) ||
+    REGEX_DEMOSTRATIVO.test(textoNormalizado) || textoNormalizado.includes('=');
+}
+
+/**
+ * El clasificador toma "quiero un aire y un balón" como carrito cuando esos nombres
+ * coinciden con productos ya mostrados, y GPT termina eligiendo cuál agregar. Si el
+ * cliente sólo nombra productos, sin pedir agregar ni señalar un renglón, es búsqueda.
+ *
+ * Con cantidad ("quiero 2 aires") sigue por carrito para no perderla:
+ * ahí la protege detectarAgregadoAmbiguo.
+ *
+ * @param {object}  clasificacion - Resultado del clasificador
+ * @param {string}  mensaje       - Mensaje del cliente
+ * @param {boolean} pideCarrito   - Resultado de mensajePideCarrito
+ * @returns {boolean}
+ */
+function debeTratarseComoBusqueda(clasificacion, mensaje, pideCarrito) {
+  if (!clasificacion || pideCarrito || !ACCIONES_CARRITO.includes(clasificacion.accion)) return false;
+  if (clasificacion.sub_accion && !SUB_ACCIONES_AGREGAR.includes(clasificacion.sub_accion)) return false;
+
+  const parametros = clasificacion.parametros || {};
+  if (!parametros.texto_busqueda || parametros.referencia || Number.isInteger(parametros.referencia_idx)) return false;
+  if (Number(parametros.cantidad) > 1) return false;
+
+  const texto = normalizarBasico(mensaje);
+  if (REGEX_COTIZACION.test(texto) || mensajeSenalaRenglon(texto)) return false;
+  // Números que no son medida ("quiero 2 aires", "100 hebillas") son una cantidad
+  return !/\d/.test(quitarMedidas(texto));
+}
+
+function productosDeTool(nombreTool, args) {
+  if (!TOOLS_AGREGAR.includes(nombreTool) || !args) return null;
+  if (Array.isArray(args.productos)) {
+    return args.productos.map(function (p) { return { id: String(p.articulo_id), cantidad: p.unidades }; });
+  }
+  return args.producto_id ? [{ id: String(args.producto_id), cantidad: args.cantidad }] : null;
+}
+
+function palabrasDelMensaje(textoNormalizado) {
+  const palabras = quitarMedidas(textoNormalizado).match(/[A-ZÑ]{3,}/g) || [];
+  return [...new Set(palabras
+    .filter(function (p) { return !PALABRAS_SIN_PESO.has(p); })
+    // AIRES → AIRE, BALONES → BALON. También es el texto que ve el cliente en la pregunta
+    .map(function (p) { return p.length > 4 ? p.replace(/([AEIOU])S$/, '$1').replace(/([^AEIOU])ES$/, '$1') : p; }))];
+}
+
+// Inicio de palabra: "AIRE" engancha "AIRES", "BALON" engancha "BALONES"
+function nombreContiene(nombreNormalizado, palabra) {
+  return new RegExp('(?<![A-Z0-9])' + escaparRegex(palabra)).test(nombreNormalizado);
+}
+
+/**
+ * Última barrera antes de escribir en el carrito: si el cliente nombró un producto
+ * ("agrégame un aire") y hay varios que coinciden con lo que dijo, GPT está eligiendo
+ * por él. Se compara lo que dijo el cliente contra los productos reales.
+ *
+ * Si no se puede comprobar (no nombra nada, ID fuera del catálogo) devuelve null y la
+ * operación sigue igual que antes: esto sólo bloquea cuando la ambigüedad es segura.
+ *
+ * @param {string} nombreTool    - Tool que GPT quiere ejecutar
+ * @param {object} args          - Argumentos de la tool
+ * @param {string} mensaje       - Mensaje del cliente
+ * @param {object} clasificacion - Resultado del clasificador (puede ser null)
+ * @param {Array}  catalogo      - Productos reales conocidos en esta conversación
+ * @returns {Array|null} Búsquedas listas para iniciarGuia, o null si no hay ambigüedad
+ */
+function detectarAgregadoAmbiguo(nombreTool, args, mensaje, clasificacion, catalogo) {
+  const solicitados = productosDeTool(nombreTool, args);
+  if (!solicitados || solicitados.length === 0 || !mensaje) return null;
+
+  const parametros = (clasificacion && clasificacion.parametros) || {};
+  const texto = normalizarBasico(mensaje);
+  if (parametros.referencia || Number.isInteger(parametros.referencia_idx) || mensajeSenalaRenglon(texto)) return null;
+
+  const palabras = palabrasDelMensaje(texto);
+  const productos = new Map();
+  (catalogo || []).forEach(function (p) { productos.set(String(p.ARTICULO_ID), p); });
+  const lista = [...productos.values()];
+  // "un" también es una cantidad; lo que GPT rellena por defecto en 1 no lo es
+  const dijoUno = /\b(UN|UNA|UNO|1)\b/.test(texto);
+
+  const busquedas = [];
+  let hayAmbiguo = false;
+
+  for (const solicitado of solicitados) {
+    const producto = productos.get(solicitado.id);
+    if (!producto) return null;
+
+    const nombre = normalizarBasico(producto.NOMBRE);
+    const usadas = palabras.filter(function (p) { return nombreContiene(nombre, p); });
+    if (usadas.length === 0) return null;
+
+    const coincidencias = lista.filter(function (p) {
+      const n = normalizarBasico(p.NOMBRE);
+      return usadas.every(function (u) { return nombreContiene(n, u); });
+    });
+    if (coincidencias.length > 1) hayAmbiguo = true;
+
+    const cantidad = Number(solicitado.cantidad);
+    registrarBusqueda(busquedas, {
+      etiqueta: usadas.join(' '),
+      sustantivo: usadas.join(' '),
+      productos: coincidencias,
+      total: coincidencias.length,
+      cantidad: cantidad > 1 ? cantidad : (dijoUno ? 1 : null)
+    });
+  }
+
+  return hayAmbiguo ? busquedas : null;
+}
+
 /**
  * Guarda en Redis el resultado de un paso de la guía.
  */
@@ -685,6 +830,8 @@ async function guardarResultadoGuia(resultado, userContext) {
 }
 
 module.exports = {
+  debeTratarseComoBusqueda,
+  detectarAgregadoAmbiguo,
   registrarBusqueda,
   hayProductos,
   iniciarGuia,
