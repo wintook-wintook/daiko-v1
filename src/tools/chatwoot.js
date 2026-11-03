@@ -168,6 +168,13 @@ async function notificarErrorProcesamiento(webhookData, error) {
 
 const UserContext = require('../utils/userContext');
 const { corregirProductosEnRespuesta } = require('../utils/validar_productos_respuesta');
+const {
+  registrarBusqueda,
+  hayProductos,
+  iniciarGuia,
+  procesarRespuesta,
+  guardarResultadoGuia
+} = require('../utils/busqueda_guiada');
 
 // ============================================================
 // V25.0 - FASE 3: Servicios de Clasificación y Router
@@ -790,6 +797,41 @@ async function procesarMensajeWebhook(webhookData) {
       };
     }
 
+    // ============================================================
+    // BÚSQUEDA GUIADA: respuesta a una pregunta pendiente (marca, presentación...)
+    // Va antes del clasificador y de GPT-4o: el código filtra los productos reales
+    // guardados en Redis, así GPT no tiene oportunidad de inventar IDs ni precios.
+    // Si la respuesta no es para la guía, se cancela y sigue el flujo normal.
+    // ============================================================
+    const busquedaGuiada = await userContext.getBusquedaGuiada();
+
+    if (busquedaGuiada) {
+      const esComando = /^[\/=?@]/.test((messageContent || '').trim());
+      let resultadoGuia = null;
+
+      if (messageContent && !esComando && !imagenAdjunta && !excelAdjunto) {
+        try {
+          resultadoGuia = await procesarRespuesta(busquedaGuiada, messageContent, openai);
+        } catch (errorGuia) {
+          console.error('❌ Error en búsqueda guiada, sigue el flujo normal:', errorGuia.message);
+        }
+      }
+
+      if (resultadoGuia) {
+        await guardarResultadoGuia(resultadoGuia, userContext);
+        const respuestaGuia = await appendCarritoFooter(resultadoGuia.texto, userContext);
+        toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off', webhookData.instance_url);
+        return {
+          success: true,
+          data: { conversationId, response: respuestaGuia, fileName: '', userId, senderName, originalMessage: messageContent },
+          message: 'Mensaje procesado correctamente'
+        };
+      }
+
+      console.log('🧭 La respuesta no es para la búsqueda guiada: se cancela y sigue el flujo normal');
+      await userContext.clearBusquedaGuiada();
+    }
+
     // FASE 3: getMessages (necesita contextStr de FASE 2)
     _tStep = Date.now();
     const conversationHistory = await getMessages(webhookData.token, webhookData.account_id, webhookData.conversation_id, contextStr, webhookData.instance_url);
@@ -1334,6 +1376,8 @@ async function procesarMensajeWebhook(webhookData) {
     let pdfData = null;
     let huboBusquedaProductos = false;  // La respuesta lista resultados de búsqueda (no carrito)
     let catalogoAcumulado = [];         // Productos de TODAS las búsquedas del turno (para validación)
+    const busquedasTurno = [];          // Búsquedas por sustantivo del turno (para la búsqueda guiada)
+    let turnoSoloBusquedas = true;      // Si hubo otra tool (carrito, clave...) la respuesta sigue siendo de GPT
     const turnoId = `${userId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; // agrupa búsquedas por categoría del mismo turno
 
     while (continueLoop && iteration < MAX_ITERATIONS) {
@@ -1414,6 +1458,18 @@ async function procesarMensajeWebhook(webhookData) {
               }
             }
 
+            if (name === 'buscar_productos' && functionArgs.query && !functionArgs.clave && functionResult) {
+              registrarBusqueda(busquedasTurno, {
+                etiqueta: functionArgs.query,
+                sustantivo: functionResult.sustantivo,
+                filtros: functionResult.filtros_aplicados || functionArgs.filtros,
+                productos: functionResult.catalogo_para_validacion || [],
+                total: functionResult.total_disponibles
+              });
+            } else {
+              turnoSoloBusquedas = false;
+            }
+
             // ✅ AGREGAR RESULTADO AL HISTORIAL
             // catalogo_para_validacion solo lo usa el código (catalogoAcumulado); mandarlo
             // a GPT eran hasta 100 productos completos por iteración (error 429 TPM)
@@ -1472,7 +1528,8 @@ async function procesarMensajeWebhook(webhookData) {
 
           } catch (error) {
             console.error(`  ❌ Error ejecutando ${name}:`, error);
-            
+            turnoSoloBusquedas = false;
+
             conversationHistory.push({
               role: "tool",
               tool_call_id: id,
@@ -1495,15 +1552,39 @@ async function procesarMensajeWebhook(webhookData) {
         
         let finalResponse = assistantMessage.content || "";
 
-        // ✅ Validar productos citados contra el catálogo real de la búsqueda.
-        // El LLM decide qué mostrar; nombre y precio salen de la búsqueda, no de él.
-        // Usar catálogo acumulado del turno si hubo múltiples búsquedas; si no, el de Redis
-        const catalogoBusqueda = catalogoAcumulado.length > 0
-          ? catalogoAcumulado
-          : await userContext.getUltimosResultados();
-        finalResponse = corregirProductosEnRespuesta(finalResponse, catalogoBusqueda, {
-          descartarDesconocidos: huboBusquedaProductos
-        }).texto;
+        // Búsqueda guiada: va al cierre del turno y no tras la primera búsqueda porque
+        // GPT puede buscar "agua" y en otra iteración "arroz", que se perdería. El texto
+        // de GPT se descarta; la respuesta se arma con los productos reales.
+        // "agrégame 2 aguas" queda fuera: se perdería la cantidad durante las preguntas.
+        let resultadoGuia = null;
+        const accionAdmiteGuia = !modoRefaccionesActivo &&
+          (!clasificacion || clasificacion.accion === 'BUSQUEDA_PRODUCTO' || clasificacion.accion === 'DESCONOCIDO') &&
+          !mensajePideCarrito(messageContent);
+
+        if (accionAdmiteGuia && turnoSoloBusquedas && hayProductos(busquedasTurno)) {
+          try {
+            resultadoGuia = await iniciarGuia(busquedasTurno, openai);
+            await guardarResultadoGuia(resultadoGuia, userContext);
+          } catch (errorGuia) {
+            console.error('❌ Error en búsqueda guiada, se usa la respuesta de GPT:', errorGuia.message);
+            resultadoGuia = null;
+          }
+        }
+
+        if (resultadoGuia) {
+          console.log(`🧭 Búsqueda guiada: se reemplaza la respuesta de GPT (${busquedasTurno.length} producto(s))`);
+          finalResponse = resultadoGuia.texto;
+        } else {
+          // ✅ Validar productos citados contra el catálogo real de la búsqueda.
+          // El LLM decide qué mostrar; nombre y precio salen de la búsqueda, no de él.
+          // Usar catálogo acumulado del turno si hubo múltiples búsquedas; si no, el de Redis
+          const catalogoBusqueda = catalogoAcumulado.length > 0
+            ? catalogoAcumulado
+            : await userContext.getUltimosResultados();
+          finalResponse = corregirProductosEnRespuesta(finalResponse, catalogoBusqueda, {
+            descartarDesconocidos: huboBusquedaProductos
+          }).texto;
+        }
 
         // Agregar info del carrito activo al final de la respuesta (si no está ya incluida)
         // No agregar si es respuesta de reinicio

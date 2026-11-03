@@ -8,6 +8,7 @@ const { buscarNumeroParteExterno } = require('../utils/fuentes_externas_service'
 const { resolverCanonico, resolverMultiplesCanonico } = require('../utils/canonicalizacion_service');
 const UserContext = require('../utils/userContext');
 const { ordenarPorRelevancia } = require('../utils/relevancia');
+const { nombreConUnidad } = require('../utils/unidad_medida');
 
 const functionDefinitions = [
     {
@@ -950,7 +951,7 @@ async function buscarCategoriaPaginada(args, userId, userContext, turnoId) {
   const nuevos = resultado.data.filter(p => !acumulado.ids.has(String(p.ARTICULO_ID)));
   nuevos.forEach(p => acumulado.ids.add(String(p.ARTICULO_ID)));
   const visibles = nuevos.slice(0, PRODUCTOS_POR_PAGINA_CATEGORIA);
-  const normalizar = p => ({ ARTICULO_ID: p.ARTICULO_ID, NOMBRE: p.NOMBRE, PRECIO: p.PRECIO });
+  const normalizar = p => ({ ARTICULO_ID: p.ARTICULO_ID, NOMBRE: p.NOMBRE, PRECIO: p.PRECIO, UNIDAD_VENTA: p.UNIDAD_VENTA });
 
   acumulado.visibles.push(...visibles.map(normalizar));
   acumulado.resto.push(...nuevos.slice(PRODUCTOS_POR_PAGINA_CATEGORIA).map(normalizar));
@@ -1379,7 +1380,8 @@ async function executeFunctionCall(name, args, userId, accountId = 0, turnoId = 
             .map(p => ({
               ARTICULO_ID: p.ARTICULO_ID,
               NOMBRE: p.NOMBRE,
-              PRECIO: p.PRECIO
+              PRECIO: p.PRECIO,
+              UNIDAD_VENTA: p.UNIDAD_VENTA
             }))
             .filter(p =>
               p.ARTICULO_ID !== undefined &&
@@ -1439,7 +1441,7 @@ async function executeFunctionCall(name, args, userId, accountId = 0, turnoId = 
           // ✅ V22.0: Preparar descripciones para análisis semántico (solo si total > 6)
           let descripcionesParaAnalisis = null;
           if (totalProductos > 6) {
-            descripcionesParaAnalisis = productosRecuperados.map(p => `ID: ${p.ARTICULO_ID} - ${p.NOMBRE} | Precio: $${p.PRECIO}`);
+            descripcionesParaAnalisis = productosRecuperados.map(p => `ID: ${p.ARTICULO_ID} - ${nombreConUnidad(p)} | Precio: $${p.PRECIO}`);
             console.log(`🔍 Enviando ${descripcionesParaAnalisis.length} descripciones al LLM para análisis semántico`);
           }
           
@@ -1464,6 +1466,7 @@ async function executeFunctionCall(name, args, userId, accountId = 0, turnoId = 
           success: true,
           data: visibles,  // Solo 6 productos para mostrar
           total_disponibles: totalProductos,
+          sustantivo: queryFinal,  // Ya canonizado: lo usa la búsqueda guiada para descartar coincidencias sueltas
           filtros_aplicados: filtrosNormalizados,
           descripciones_completas: descripcionesParaAnalisis,  // ✅ V22.0: Para análisis del LLM
           catalogo_para_validacion: productosRecuperados,      // ✅ Todos los productos como objetos para validar respuesta del LLM
