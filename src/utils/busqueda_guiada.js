@@ -53,6 +53,17 @@ const TOOLS_AGREGAR = ['agregar_al_carrito', 'crear_nuevo_carrito', 'agregar_var
 // Palabras frecuentes que no identifican un producto aunque aparezcan en su nombre
 const PALABRAS_SIN_PESO = new Set(['CON', 'DEL', 'LAS', 'LOS', 'MAS', 'PARA', 'POR', 'QUE', 'SIN', 'UNA', 'UNO']);
 
+// Confirmaciones y verbos: "sí", "dale" o "claro que sí" también llegan clasificados como
+// carrito y no nombran ningún producto. Van ya en singular, como los deja palabrasDelMensaje.
+const PALABRAS_SIN_PRODUCTO = new Set([
+  'ACUERDO', 'ADELANTE', 'AJA', 'AMBO', 'ANDALE', 'ARTICULO', 'BIEN', 'BUSCO', 'CAJA', 'CLARO', 'CONFIRMA', 'CONFIRMO',
+  'CORRECTO', 'DALE', 'DAME', 'EXACTO', 'FAVOR', 'GRACIA', 'HAZLO', 'MANDA', 'MISMO', 'NECESITO', 'OCUPO', 'OTRA', 'OTRO',
+  'PAQUETE', 'PERFECTO', 'PIEZA', 'PORFA', 'PORFAVOR', 'PRODUCTO', 'PUEDE', 'QUIERO', 'QUISIERA', 'REQUIERO', 'SALE',
+  'SERIA', 'SIMON', 'SIP', 'TAMBIEN', 'TODO', 'UNIDAD', 'VALE'
+]);
+
+const NUMEROS_EN_LETRA = { DOS: 2, TRES: 3, CUATRO: 4, CINCO: 5, SEIS: 6, SIETE: 7, OCHO: 8, NUEVE: 9, DIEZ: 10, DOCE: 12 };
+
 // Palabras que pueden acompañar a una opción sin cambiar su significado. Si queda
 // algo fuera de esta lista ("no quiero ciel, mejor arroz") la respuesta no se toma
 // como literal.
@@ -719,14 +730,57 @@ function debeTratarseComoBusqueda(clasificacion, mensaje, pideCarrito) {
   if (!clasificacion || pideCarrito || !ACCIONES_CARRITO.includes(clasificacion.accion)) return false;
   if (clasificacion.sub_accion && !SUB_ACCIONES_AGREGAR.includes(clasificacion.sub_accion)) return false;
 
+  // No se exige parametros.texto_busqueda: el clasificador a veces lo manda vacío
   const parametros = clasificacion.parametros || {};
-  if (!parametros.texto_busqueda || parametros.referencia || Number.isInteger(parametros.referencia_idx)) return false;
+  if (parametros.referencia || Number.isInteger(parametros.referencia_idx)) return false;
   if (Number(parametros.cantidad) > 1) return false;
 
   const texto = normalizarBasico(mensaje);
   if (REGEX_COTIZACION.test(texto) || mensajeSenalaRenglon(texto)) return false;
   // Números que no son medida ("quiero 2 aires", "100 hebillas") son una cantidad
-  return !/\d/.test(quitarMedidas(texto));
+  if (/\d/.test(quitarMedidas(texto))) return false;
+
+  return palabrasDelMensaje(texto).some(function (p) { return !PALABRAS_SIN_PRODUCTO.has(p); });
+}
+
+/**
+ * ¿La respuesta de un turno que sólo buscó se arma con la guía? Es el respaldo de
+ * debeTratarseComoBusqueda: no depende de lo que traiga el clasificador en parámetros.
+ * Quedan fuera las cotizaciones y listas de varias líneas, que tienen su propio formato.
+ *
+ * @param {object}  clasificacion - Resultado del clasificador (null = fallback)
+ * @param {string}  mensaje       - Mensaje del cliente
+ * @param {boolean} pideCarrito   - Resultado de mensajePideCarrito
+ * @returns {boolean}
+ */
+function accionAdmiteGuia(clasificacion, mensaje, pideCarrito) {
+  if (pideCarrito) return false;
+  if (!clasificacion || clasificacion.accion === 'BUSQUEDA_PRODUCTO' || clasificacion.accion === 'DESCONOCIDO') return true;
+  if (!ACCIONES_CARRITO.includes(clasificacion.accion)) return false;
+
+  const texto = String(mensaje || '').trim();
+  return !texto.includes('\n') && !REGEX_COTIZACION.test(normalizarBasico(texto));
+}
+
+/**
+ * Cantidad que el cliente pidió de un producto: "quiero 2 aires y tres balones".
+ * Sólo la toma si el número va pegado al producto; si no, se le pregunta al final.
+ *
+ * @returns {number|null}
+ */
+function cantidadPedida(mensaje, sustantivo) {
+  const palabra = normalizarBasico(sustantivo).split(' ')[0];
+  if (!palabra) return null;
+
+  const numeros = '\\d+|' + Object.keys(NUMEROS_EN_LETRA).join('|');
+  const regex = new RegExp(
+    '(?<![\\d.A-Z])(' + numeros + ')\\s+(?:(?:PIEZAS?|PZAS?|UNIDADES|CAJAS?|DE)\\s+)*' + escaparRegex(palabra)
+  );
+  const m = normalizarBasico(mensaje).match(regex);
+  if (!m) return null;
+
+  const cantidad = NUMEROS_EN_LETRA[m[1]] || Number(m[1]);
+  return cantidad > 0 ? cantidad : null;
 }
 
 function productosDeTool(nombreTool, args) {
@@ -831,6 +885,8 @@ async function guardarResultadoGuia(resultado, userContext) {
 
 module.exports = {
   debeTratarseComoBusqueda,
+  accionAdmiteGuia,
+  cantidadPedida,
   detectarAgregadoAmbiguo,
   registrarBusqueda,
   hayProductos,

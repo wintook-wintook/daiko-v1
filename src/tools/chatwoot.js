@@ -170,6 +170,8 @@ const UserContext = require('../utils/userContext');
 const { corregirProductosEnRespuesta } = require('../utils/validar_productos_respuesta');
 const {
   debeTratarseComoBusqueda,
+  accionAdmiteGuia,
+  cantidadPedida,
   detectarAgregadoAmbiguo,
   registrarBusqueda,
   hayProductos,
@@ -1509,7 +1511,8 @@ async function procesarMensajeWebhook(webhookData) {
                 sustantivo: functionResult.sustantivo,
                 filtros: functionResult.filtros_aplicados || functionArgs.filtros,
                 productos: functionResult.catalogo_para_validacion || [],
-                total: functionResult.total_disponibles
+                total: functionResult.total_disponibles,
+                cantidad: cantidadPedida(messageContent, functionResult.sustantivo || functionArgs.query)
               });
             } else {
               turnoSoloBusquedas = false;
@@ -1600,13 +1603,11 @@ async function procesarMensajeWebhook(webhookData) {
         // Búsqueda guiada: va al cierre del turno y no tras la primera búsqueda porque
         // GPT puede buscar "agua" y en otra iteración "arroz", que se perdería. El texto
         // de GPT se descarta; la respuesta se arma con los productos reales.
-        // "agrégame 2 aguas" queda fuera: se perdería la cantidad durante las preguntas.
         let resultadoGuia = null;
-        const accionAdmiteGuia = !modoRefaccionesActivo &&
-          (!clasificacion || clasificacion.accion === 'BUSQUEDA_PRODUCTO' || clasificacion.accion === 'DESCONOCIDO') &&
-          !mensajePideCarrito(messageContent);
+        const admiteGuia = !modoRefaccionesActivo &&
+          accionAdmiteGuia(clasificacion, messageContent, mensajePideCarrito(messageContent));
 
-        if (accionAdmiteGuia && turnoSoloBusquedas && hayProductos(busquedasTurno)) {
+        if (admiteGuia && turnoSoloBusquedas && hayProductos(busquedasTurno)) {
           try {
             resultadoGuia = await iniciarGuia(busquedasTurno, openai);
             await guardarResultadoGuia(resultadoGuia, userContext);
