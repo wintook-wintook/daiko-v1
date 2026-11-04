@@ -168,17 +168,6 @@ async function notificarErrorProcesamiento(webhookData, error) {
 
 const UserContext = require('../utils/userContext');
 const { corregirProductosEnRespuesta } = require('../utils/validar_productos_respuesta');
-const {
-  debeTratarseComoBusqueda,
-  accionAdmiteGuia,
-  cantidadPedida,
-  detectarAgregadoAmbiguo,
-  registrarBusqueda,
-  hayProductos,
-  iniciarGuia,
-  procesarRespuesta,
-  guardarResultadoGuia
-} = require('../utils/busqueda_guiada');
 
 // ============================================================
 // V25.0 - FASE 3: Servicios de Clasificación y Router
@@ -801,41 +790,6 @@ async function procesarMensajeWebhook(webhookData) {
       };
     }
 
-    // ============================================================
-    // BÚSQUEDA GUIADA: respuesta a una pregunta pendiente (marca, presentación...)
-    // Va antes del clasificador y de GPT-4o: el código filtra los productos reales
-    // guardados en Redis, así GPT no tiene oportunidad de inventar IDs ni precios.
-    // Si la respuesta no es para la guía, se cancela y sigue el flujo normal.
-    // ============================================================
-    const busquedaGuiada = await userContext.getBusquedaGuiada();
-
-    if (busquedaGuiada) {
-      const esComando = /^[\/=?@]/.test((messageContent || '').trim());
-      let resultadoGuia = null;
-
-      if (messageContent && !esComando && !imagenAdjunta && !excelAdjunto) {
-        try {
-          resultadoGuia = await procesarRespuesta(busquedaGuiada, messageContent, openai);
-        } catch (errorGuia) {
-          console.error('❌ Error en búsqueda guiada, sigue el flujo normal:', errorGuia.message);
-        }
-      }
-
-      if (resultadoGuia) {
-        await guardarResultadoGuia(resultadoGuia, userContext);
-        const respuestaGuia = await appendCarritoFooter(resultadoGuia.texto, userContext);
-        toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off', webhookData.instance_url);
-        return {
-          success: true,
-          data: { conversationId, response: respuestaGuia, fileName: '', userId, senderName, originalMessage: messageContent },
-          message: 'Mensaje procesado correctamente'
-        };
-      }
-
-      console.log('🧭 La respuesta no es para la búsqueda guiada: se cancela y sigue el flujo normal');
-      await userContext.clearBusquedaGuiada();
-    }
-
     // FASE 3: getMessages (necesita contextStr de FASE 2)
     _tStep = Date.now();
     const conversationHistory = await getMessages(webhookData.token, webhookData.account_id, webhookData.conversation_id, contextStr, webhookData.instance_url);
@@ -1045,7 +999,6 @@ async function procesarMensajeWebhook(webhookData) {
     let toolsAUsar = functionDefinitions;
     let clasificacion = null;
     let usarFallback = true;
-    let forzarBusqueda = false;  // El clasificador dijo carrito, pero el cliente sólo nombró productos
 
     // ============================================================
     // MODO_REFACCIONES - prioridad sobre el clasificador V25.0
@@ -1091,13 +1044,6 @@ async function procesarMensajeWebhook(webhookData) {
           parametros: clasificacion.parametros
         });
 
-        if (debeTratarseComoBusqueda(clasificacion, messageContent, mensajePideCarrito(messageContent))) {
-          console.log(`🧭 ${clasificacion.accion} → BUSQUEDA_PRODUCTO: el cliente solo nombró productos, sin pedir agregar`);
-          clasificacion.accion = 'BUSQUEDA_PRODUCTO';
-          clasificacion.sub_accion = 'buscar_nuevo';
-          forzarBusqueda = true;
-        }
-
         // PASO 1.5: Resolver referencias ("el primero", "el segundo")
         if (clasificacion.parametros && contextoClasificador.ultimaBusqueda) {
           const ultimosResultados = await userContext.getUltimosResultados
@@ -1122,9 +1068,7 @@ async function procesarMensajeWebhook(webhookData) {
 
         if (!ruteo.usarFallback && ruteo.prompt) {
           promptAUsar = ruteo.prompt;
-          // BUSQUEDA_TOOLS incluye las de carrito: al forzar la búsqueda se quitan para
-          // que GPT no agregue directo con los IDs que ve en el historial
-          toolsAUsar = filtrarTools(forzarBusqueda ? ['buscar_productos'] : ruteo.tools, functionDefinitions);
+          toolsAUsar = filtrarTools(ruteo.tools, functionDefinitions);
           usarFallback = false;
 
           // Guardar ultima_accion cuando se clasifica como ORDEN (antes de que GPT pida confirmación)
@@ -1390,8 +1334,6 @@ async function procesarMensajeWebhook(webhookData) {
     let pdfData = null;
     let huboBusquedaProductos = false;  // La respuesta lista resultados de búsqueda (no carrito)
     let catalogoAcumulado = [];         // Productos de TODAS las búsquedas del turno (para validación)
-    const busquedasTurno = [];          // Búsquedas por sustantivo del turno (para la búsqueda guiada)
-    let turnoSoloBusquedas = true;      // Si hubo otra tool (carrito, clave...) la respuesta sigue siendo de GPT
     const turnoId = `${userId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; // agrupa búsquedas por categoría del mismo turno
 
     while (continueLoop && iteration < MAX_ITERATIONS) {
@@ -1414,7 +1356,7 @@ async function procesarMensajeWebhook(webhookData) {
         model: "gpt-4o",  // ✅ MISMO MODELO EN TODAS LAS RONDAS
         messages: input,
         tools: toolsAUsar,  // V25.0: Tools filtradas o todas
-        tool_choice: forzarBusqueda && iteration === 1 ? "required" : "auto",
+        tool_choice: "auto",
         temperature: 0.3
       });
       console.log(`⏱️ [5.${iteration}] GPT-4o (iteración ${iteration}): ${Date.now() - _tStep}ms`);
@@ -1441,39 +1383,6 @@ async function procesarMensajeWebhook(webhookData) {
           
           try {
             const functionArgs = JSON.parse(args);
-
-            // Última barrera antes de escribir en el carrito: si el cliente nombró un
-            // producto y varios coinciden, se le pregunta en vez de dejar que GPT elija.
-            // Un error aquí no debe impedir la operación, por eso no se propaga.
-            if (!modoRefaccionesActivo) {
-              let guiaAgregado = null;
-              try {
-                const busquedasAmbiguas = detectarAgregadoAmbiguo(
-                  name,
-                  functionArgs,
-                  messageContent,
-                  clasificacion,
-                  (await userContext.getUltimosResultados()).concat(catalogoAcumulado)
-                );
-                if (busquedasAmbiguas) {
-                  console.warn(`🧭 ${name} bloqueada: el cliente no eligió entre varios productos`, functionArgs);
-                  guiaAgregado = await iniciarGuia(busquedasAmbiguas, openai);
-                  await guardarResultadoGuia(guiaAgregado, userContext);
-                }
-              } catch (errorGuia) {
-                console.error('❌ Error revisando ambigüedad, sigue la operación:', errorGuia.message);
-                guiaAgregado = null;
-              }
-              if (guiaAgregado) {
-                const respuestaGuia = await appendCarritoFooter(guiaAgregado.texto, userContext);
-                toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off', webhookData.instance_url);
-                return {
-                  success: true,
-                  data: { conversationId, response: respuestaGuia, fileName: '', userId, senderName, originalMessage: messageContent },
-                  message: 'Mensaje procesado correctamente'
-                };
-              }
-            }
 
             // ✅ EJECUTAR TOOL con account_id desde webhookData
             _tStep = Date.now();
@@ -1503,19 +1412,6 @@ async function procesarMensajeWebhook(webhookData) {
               if (Array.isArray(catalogoFuente)) {
                 catalogoAcumulado = catalogoAcumulado.concat(catalogoFuente);
               }
-            }
-
-            if (name === 'buscar_productos' && functionArgs.query && !functionArgs.clave && functionResult) {
-              registrarBusqueda(busquedasTurno, {
-                etiqueta: functionArgs.query,
-                sustantivo: functionResult.sustantivo,
-                filtros: functionResult.filtros_aplicados || functionArgs.filtros,
-                productos: functionResult.catalogo_para_validacion || [],
-                total: functionResult.total_disponibles,
-                cantidad: cantidadPedida(messageContent, functionResult.sustantivo || functionArgs.query)
-              });
-            } else {
-              turnoSoloBusquedas = false;
             }
 
             // ✅ AGREGAR RESULTADO AL HISTORIAL
@@ -1576,8 +1472,7 @@ async function procesarMensajeWebhook(webhookData) {
 
           } catch (error) {
             console.error(`  ❌ Error ejecutando ${name}:`, error);
-            turnoSoloBusquedas = false;
-
+            
             conversationHistory.push({
               role: "tool",
               tool_call_id: id,
@@ -1600,37 +1495,15 @@ async function procesarMensajeWebhook(webhookData) {
         
         let finalResponse = assistantMessage.content || "";
 
-        // Búsqueda guiada: va al cierre del turno y no tras la primera búsqueda porque
-        // GPT puede buscar "agua" y en otra iteración "arroz", que se perdería. El texto
-        // de GPT se descarta; la respuesta se arma con los productos reales.
-        let resultadoGuia = null;
-        const admiteGuia = !modoRefaccionesActivo &&
-          accionAdmiteGuia(clasificacion, messageContent, mensajePideCarrito(messageContent));
-
-        if (admiteGuia && turnoSoloBusquedas && hayProductos(busquedasTurno)) {
-          try {
-            resultadoGuia = await iniciarGuia(busquedasTurno, openai);
-            await guardarResultadoGuia(resultadoGuia, userContext);
-          } catch (errorGuia) {
-            console.error('❌ Error en búsqueda guiada, se usa la respuesta de GPT:', errorGuia.message);
-            resultadoGuia = null;
-          }
-        }
-
-        if (resultadoGuia) {
-          console.log(`🧭 Búsqueda guiada: se reemplaza la respuesta de GPT (${busquedasTurno.length} producto(s))`);
-          finalResponse = resultadoGuia.texto;
-        } else {
-          // ✅ Validar productos citados contra el catálogo real de la búsqueda.
-          // El LLM decide qué mostrar; nombre y precio salen de la búsqueda, no de él.
-          // Usar catálogo acumulado del turno si hubo múltiples búsquedas; si no, el de Redis
-          const catalogoBusqueda = catalogoAcumulado.length > 0
-            ? catalogoAcumulado
-            : await userContext.getUltimosResultados();
-          finalResponse = corregirProductosEnRespuesta(finalResponse, catalogoBusqueda, {
-            descartarDesconocidos: huboBusquedaProductos
-          }).texto;
-        }
+        // ✅ Validar productos citados contra el catálogo real de la búsqueda.
+        // El LLM decide qué mostrar; nombre y precio salen de la búsqueda, no de él.
+        // Usar catálogo acumulado del turno si hubo múltiples búsquedas; si no, el de Redis
+        const catalogoBusqueda = catalogoAcumulado.length > 0
+          ? catalogoAcumulado
+          : await userContext.getUltimosResultados();
+        finalResponse = corregirProductosEnRespuesta(finalResponse, catalogoBusqueda, {
+          descartarDesconocidos: huboBusquedaProductos
+        }).texto;
 
         // Agregar info del carrito activo al final de la respuesta (si no está ya incluida)
         // No agregar si es respuesta de reinicio

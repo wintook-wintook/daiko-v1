@@ -1466,7 +1466,6 @@ async function executeFunctionCall(name, args, userId, accountId = 0, turnoId = 
           success: true,
           data: visibles,  // Solo 6 productos para mostrar
           total_disponibles: totalProductos,
-          sustantivo: queryFinal,  // Ya canonizado: lo usa la búsqueda guiada para descartar coincidencias sueltas
           filtros_aplicados: filtrosNormalizados,
           descripciones_completas: descripcionesParaAnalisis,  // ✅ V22.0: Para análisis del LLM
           catalogo_para_validacion: productosRecuperados,      // ✅ Todos los productos como objetos para validar respuesta del LLM
