@@ -1452,9 +1452,14 @@ async function procesarMensajeWebhook(webhookData) {
             // salir TAL CUAL, sin dar otra vuelta al loop de GPT (podría parafrasearlo).
             // Se conserva el aviso de "Carrito activo" al final, igual que en una
             // respuesta final normal, ya que el carrito sigue vigente (preserveCurrentCart).
-            if (functionResult.timeout === true || functionResult.requiereAutorizacion === true) {
+            if (functionResult.timeout === true || functionResult.requiereAutorizacion === true || functionResult.errorBusqueda === true) {
               let errorMsg = functionResult.message;
               console.error(`  ❌ Tool ${name} devolvió error:`, errorMsg);
+              // El detalle técnico sólo lo ve el equipo, en nota privada
+              if (functionResult.detalleError) {
+                sendMessage(webhookData.token, webhookData.account_id, webhookData.conversation_id, `Error del CRM al buscar productos: ${functionResult.detalleError}`, '', true, webhookData.instance_url)
+                  .catch(e => console.error('❌ No se pudo enviar la nota privada:', e.message));
+              }
               const carritoActivo = await userContext.getCarrito();
               if (carritoActivo && !errorMsg.includes('Carrito activo:')) {
                 const folioActivo = await userContext.getFolio();

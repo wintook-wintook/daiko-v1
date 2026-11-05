@@ -190,6 +190,7 @@ async function canonizarSustantivo(sustantivo, accountId) {
 async function buscarItemsLista(items, openai, accountId) {
   const encontrados = [];
   const noEncontrados = [];
+  let huboErrorCrm = false;
 
   // Extracción en lote: una sola llamada para toda la lista, no una por ítem
   const descripciones = items.map(function (i) { return i.descripcion || ''; });
@@ -225,6 +226,10 @@ async function buscarItemsLista(items, openai, accountId) {
         resultado = await buscarProductos(sustantivoUsado, null, null, null, 1, 100, filtrosUsados);
       }
 
+      if (resultado && (resultado.errorBusqueda || resultado.timeout)) {
+        huboErrorCrm = true;
+      }
+
       if (resultado && resultado.success && resultado.data && resultado.data.length > 0) {
         // Elegir por relevancia, no el primero alfabético
         const ordenados = ordenarPorRelevancia(resultado.data, sustantivoUsado, filtrosUsados);
@@ -239,6 +244,12 @@ async function buscarItemsLista(items, openai, accountId) {
       console.error('❌ Error buscando', item.descripcion || item.clave, ':', error.message);
       noEncontrados.push(item);
     }
+  }
+
+  // Con el CRM fallando, reportar artículos como "no encontrados" sería falso: lo
+  // atrapa quien procesa la imagen o el Excel y pide intentar de nuevo
+  if (huboErrorCrm) {
+    throw new Error('El CRM falló durante la búsqueda de la lista');
   }
 
   return { encontrados, noEncontrados };

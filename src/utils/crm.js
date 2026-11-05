@@ -329,6 +329,17 @@ async function obtenerCategorias() {
   }
 }
 
+// Un error del CRM no es lo mismo que "no hay resultados": el cliente debe saber que
+// la búsqueda falló y no que no vendemos el producto. El detalle técnico nunca va en
+// message porque GPT o el cliente lo verían; sale en la nota privada (ver chatwoot.js).
+const MSG_ERROR_BUSQUEDA = 'Tuve un problema técnico al consultar el catálogo y no pude completar tu búsqueda. Por favor intenta de nuevo en unos minutos.';
+
+function errorDeBusqueda(detalle) {
+  const detalleError = String(detalle || 'Error desconocido').split('\n')[0];
+  console.error('❌ Error del CRM en búsqueda de productos:', detalleError);
+  return { success: false, data: [], errorBusqueda: true, message: MSG_ERROR_BUSQUEDA, detalleError, preserveCurrentCart: true };
+}
+
 async function buscarProductos(query, categoria = null, etiquetas = null, precioMax = null, current_page=1, per_page=100, filtros = null, clave = null) {
   const { cliente_id, moneda_id, almacen_id, filtro_existencia } = getContext();
   let data = { cliente_id: cliente_id, moneda_id: moneda_id, per_page };
@@ -403,9 +414,9 @@ async function buscarProductos(query, categoria = null, etiquetas = null, precio
     const response = await getApiData(config);
     evalError(response.data);
     if (response.data.error && response.data.error === true) {
-      return response.data;
+      return errorDeBusqueda(response.data.message);
     }
-    
+
     // ✅ Guardar meta original de la API
     const metaOriginal = response.data.meta || {};
     const totalProductos = metaOriginal.count || 0;
@@ -469,7 +480,12 @@ async function buscarProductos(query, categoria = null, etiquetas = null, precio
     };
   } catch (error) {
     console.error('Error buscarProductos:', error.message);
-    return evalError(error);
+    // ByKey puede responder 404 para una clave que no existe: eso es "no encontrado"
+    if (clave && error.response && error.response.status === 404) {
+      return { success: false, data: [], message: 'No se encontró un producto con esa clave', preserveCurrentCart: true };
+    }
+    const evaluado = evalError(error);
+    return evaluado && evaluado.timeout ? evaluado : errorDeBusqueda(evaluado ? evaluado.message : error.message);
   }
 }
 
@@ -545,6 +561,8 @@ async function consultarAtributoProducto(query, atributo, accountId) {
   console.log(`🔎 consultarAtributoProducto: query="${query}", atributo="${atributo}", campo="${campo}"`);
 
   const resultado = await buscarProductos(query, null, null, null, 1, 100, null);
+
+  if (resultado.errorBusqueda || resultado.timeout) return resultado;
 
   if (!resultado.success) {
     return {

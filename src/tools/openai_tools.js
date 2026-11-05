@@ -1310,7 +1310,10 @@ async function executeFunctionCall(name, args, userId, accountId = 0, turnoId = 
             args.per_page,
             filtrosNormalizados
           );
-          
+
+          // Falla del CRM: no seguir, más abajo se convertiría en "no encontré productos"
+          if (resultado.errorBusqueda || resultado.timeout) return resultado;
+
           // Log de búsqueda con filtros
           console.log(`📊 RESULTADO DE BÚSQUEDA:`, {
             success: resultado.success,
