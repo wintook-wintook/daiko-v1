@@ -115,7 +115,8 @@ class UserContext {
         ARTICULO_ID: p.ARTICULO_ID,
         NOMBRE: p.NOMBRE,
         PRECIO: p.PRECIO,
-        UNIDAD_VENTA: p.UNIDAD_VENTA
+        UNIDAD_VENTA: p.UNIDAD_VENTA,
+        CATALOGOS: p.CATALOGOS
       };
     });
     await redis.hset(this.key, 'ultimos_resultados', JSON.stringify(productosParaGuardar));
@@ -489,6 +490,7 @@ console.log({obj: "UserContext", contextStr});
     pipeline.hset(this.key, 'ultimos_resultados', '');
     pipeline.hset(this.key, 'ultima_accion', '');
     pipeline.hset(this.key, 'wizard_state', '');
+    pipeline.hset(this.key, 'busqueda_guiada', '');
     pipeline.hset(this.key, 'modo_vendedor', 'false');
     pipeline.hset(this.key, 'cliente_vendedor', '');
     pipeline.hset(this.key, 'modo_refacciones', 'false');
@@ -697,6 +699,27 @@ console.log({obj: "UserContext", contextStr});
 
   async clearWizardState() {
     await redis.hdel(this.key, 'wizard_state');
+  }
+
+  // Campo propio y no wizard_state: getComandoActivo trata cualquier wizard_state
+  // como un comando en curso y bloquearía /+prospecto y similares
+  async setBusquedaGuiada(estado) {
+    await redis.hset(this.key, 'busqueda_guiada', JSON.stringify(estado));
+    await redis.expire(this.key, this.ttl);
+  }
+
+  async getBusquedaGuiada() {
+    const data = await redis.hget(this.key, 'busqueda_guiada');
+    if (!data) return null;
+    try {
+      return JSON.parse(data);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async clearBusquedaGuiada() {
+    await redis.hdel(this.key, 'busqueda_guiada');
   }
 
   async getComandoActivo() {

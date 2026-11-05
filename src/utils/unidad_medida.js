@@ -71,6 +71,13 @@ function normalizarBasico(s) {
 }
 
 /**
+ * Quita de un texto ya normalizado las medidas: en "2 aires de 5 KG" sólo queda el 2.
+ */
+function quitarMedidas(textoNormalizado) {
+  return textoNormalizado.replace(new RegExp(REGEX_MEDIDA.source, 'g'), ' ');
+}
+
+/**
  * true si el nombre ya indica cómo se vende el producto.
  */
 function nombreTraeUnidad(nombre) {
@@ -103,5 +110,7 @@ function nombreConUnidad(producto) {
 }
 
 module.exports = {
+  normalizarBasico,
+  quitarMedidas,
   nombreConUnidad
 };

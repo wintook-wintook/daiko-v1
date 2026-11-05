@@ -9,6 +9,10 @@ const { resolverCanonico, resolverMultiplesCanonico } = require('../utils/canoni
 const UserContext = require('../utils/userContext');
 const { ordenarPorRelevancia } = require('../utils/relevancia');
 const { nombreConUnidad } = require('../utils/unidad_medida');
+const { extraerCatalogos } = require('../utils/busqueda_guiada');
+
+// Los catálogos sólo los usa el código (búsqueda guiada): GPT recibe lo de siempre
+const sinCatalogos = ({ CATALOGOS, ...producto }) => producto;
 
 const functionDefinitions = [
     {
@@ -1214,7 +1218,7 @@ async function executeFunctionCall(name, args, userId, accountId = 0, turnoId = 
         
         return {
           success: true,
-          data: productosVentana,
+          data: productosVentana.map(sinCatalogos),
           current_page: siguientePagina,
           total_disponibles: busquedaActiva.total_resultados,
           preserveCurrentCart: true
@@ -1384,7 +1388,8 @@ async function executeFunctionCall(name, args, userId, accountId = 0, turnoId = 
               ARTICULO_ID: p.ARTICULO_ID,
               NOMBRE: p.NOMBRE,
               PRECIO: p.PRECIO,
-              UNIDAD_VENTA: p.UNIDAD_VENTA
+              UNIDAD_VENTA: p.UNIDAD_VENTA,
+              CATALOGOS: extraerCatalogos(p)
             }))
             .filter(p =>
               p.ARTICULO_ID !== undefined &&
@@ -1467,8 +1472,9 @@ async function executeFunctionCall(name, args, userId, accountId = 0, turnoId = 
 
         return {
           success: true,
-          data: visibles,  // Solo 6 productos para mostrar
+          data: visibles.map(sinCatalogos),  // Solo 6 productos para mostrar
           total_disponibles: totalProductos,
+          sustantivo: queryFinal,  // Ya canonizado: lo usa la búsqueda guiada para descartar coincidencias sueltas
           filtros_aplicados: filtrosNormalizados,
           descripciones_completas: descripcionesParaAnalisis,  // ✅ V22.0: Para análisis del LLM
           catalogo_para_validacion: productosRecuperados,      // ✅ Todos los productos como objetos para validar respuesta del LLM
