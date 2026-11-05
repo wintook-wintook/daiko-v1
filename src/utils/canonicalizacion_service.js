@@ -66,61 +66,86 @@ function normalizarUnidades(texto) {
  * Aplica reglas del español, NO diccionarios
  * 
  * Reglas del español:
- * - Palabras terminadas en vocal + s → quitar s (casas → casa)
- * - Palabras terminadas en consonante + es → quitar es (monitores → monitor)
- * - Palabras terminadas en z + es → cambiar ces por z (peces → pez)
- * 
+ * - Vocal + s → quitar s (casas → casa)
+ * - Vocal + d/l/n/r/y + es → quitar es (monitores → monitor, reyes → rey)
+ * - Cualquier otra consonante + es → quitar s (cables → cable, tomates → tomate)
+ * - Vocal + ces → z (peces → pez); consonante + ces → quitar s (dulces → dulce)
+ * - Terminadas en -is/-us → casi nunca son plural (tenis, gris, crisis, virus)
+ *
  * @param {string} palabra - Palabra a convertir a singular
  * @returns {string} Palabra en singular
  */
+const VOCAL = /[aeiouáéíóú]/;
+
+// Terminan en 's' pero NO son plurales
+const NO_PLURALES = new Set([
+  'lunes', 'martes', 'miercoles', 'jueves', 'viernes',
+  'gas', 'mes', 'ingles', 'estres', 'interes', 'reves', 'arnes', 'ciempies', 'atlas',
+  'abrelatas', 'cumpleaños', 'lavaplatos', 'lavavajillas', 'limpiaparabrisas', 'matamoscas',
+  'parabrisas', 'paraguas', 'pasamontañas', 'quitamanchas', 'rompecabezas', 'sacapuntas',
+  'salvavidas', 'tocadiscos'
+]);
+
+// Excepción a -is/-us: éstas sí son plural
+const PLURALES_IS_US = new Set([
+  'bikinis', 'chilis', 'colibris', 'esquis', 'espaguetis', 'jabalis', 'kiwis', 'maniquis', 'raviolis',
+  'rubis', 'safaris', 'taxis', 'bambus', 'champus', 'iglus', 'menus', 'tabus', 'tribus'
+]);
+
+// Excepción a "vocal + d/l/n/r/y + es": el singular sí termina en e
+const SINGULARES_EN_E = new Set(['aire', 'baile', 'cine', 'hule', 'nene', 'sede', 'tule']);
+
+// Excepción a "vocal + ces": el singular termina en ce, no en z
+const SINGULARES_EN_CE = new Set(['enlace', 'desenlace', 'lance', 'roce', 'goce']);
+
+const PLURALES_IRREGULARES = {
+  autobuses: 'autobus', compases: 'compas', gases: 'gas', ingleses: 'ingles', intereses: 'interes', meses: 'mes',
+  paises: 'pais', relojes: 'reloj', reses: 'res'
+};
+
 function normalizarSingular(palabra) {
   if (!palabra || palabra.length < 3) return palabra;
-  
+
   const palabraLower = palabra.toLowerCase();
-  
-  // Excepciones: palabras que terminan en 's' pero NO son plurales
-  const excepcionesSingular = [
-    'lunes', 'martes', 'miercoles', 'jueves', 'viernes',
-    'virus', 'plus', 'bus', 'gas', 'mes', 'pais', 'ingles',
-    'estres', 'interes', 'reves', 'arnes', 'ciempies'
-  ];
-  
-  if (excepcionesSingular.includes(palabraLower)) {
-    return palabraLower;
-  }
-  
-  // Regla 1: Palabras terminadas en -ces → -z (peces → pez, luces → luz)
+
+  if (NO_PLURALES.has(palabraLower)) return palabraLower;
+  if (PLURALES_IRREGULARES[palabraLower]) return PLURALES_IRREGULARES[palabraLower];
+
+  // Regla 1: -ces
   if (palabraLower.endsWith('ces') && palabraLower.length > 4) {
-    return palabraLower.slice(0, -3) + 'z';
+    const sinS = palabraLower.slice(0, -1);
+    const antesDeCes = palabraLower.charAt(palabraLower.length - 4);
+    if (VOCAL.test(antesDeCes) && !SINGULARES_EN_CE.has(sinS)) {
+      return palabraLower.slice(0, -3) + 'z';
+    }
+    return sinS;
   }
-  
-  // Regla 2: Palabras terminadas en -es después de consonante
-  // (monitores → monitor, cables → cable, azúcares → azúcar)
+
+  // Regla 2: -es. Sólo se quita completo si lo que queda puede terminar una palabra:
+  // "monitor" sí; "cabl" o "tomat" no, ésas sólo pierden la s en la regla 3
   if (palabraLower.endsWith('es') && palabraLower.length > 4) {
     const sinEs = palabraLower.slice(0, -2);
     const ultimaLetra = sinEs.charAt(sinEs.length - 1);
-    
-    // Si termina en consonante (excepto s), quitar -es
-    if (/[bcdfghjklmnpqrstvwxyz]/.test(ultimaLetra) && ultimaLetra !== 's') {
+    const penultimaLetra = sinEs.charAt(sinEs.length - 2);
+
+    if (/[dlnry]/.test(ultimaLetra) && VOCAL.test(penultimaLetra) && !SINGULARES_EN_E.has(sinEs + 'e')) {
       return sinEs;
     }
-    
-    // Si termina en vocal acentuada + es (cafés → café)
-    // Mantener el -es ya que la palabra sin él sería incorrecta
   }
-  
-  // Regla 3: Palabras terminadas en -s después de vocal no acentuada
-  // (casas → casa, perros → perro, teclados → teclado)
+
+  // Regla 3: vocal + s (casas → casa, cables → cable)
   if (palabraLower.endsWith('s') && palabraLower.length > 3) {
+    // tenis, gris, crisis, virus. Con acento sí son plural (esquís, menús)
+    if (/[iu]s$/.test(palabraLower) && !PLURALES_IS_US.has(palabraLower)) {
+      return palabraLower;
+    }
+
     const sinS = palabraLower.slice(0, -1);
-    const penultimaLetra = sinS.charAt(sinS.length - 1);
-    
-    // Si la penúltima es vocal, quitar la s
-    if (/[aeiouáéíóú]/.test(penultimaLetra)) {
+    if (VOCAL.test(sinS.charAt(sinS.length - 1))) {
       return sinS;
     }
   }
-  
+
   // Si no aplica ninguna regla, devolver original
   return palabraLower;
 }
