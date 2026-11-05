@@ -23,8 +23,10 @@ const LISTA_SIN_GUIA = 3;           // Resultados por producto cuando no se guí
 const MAX_LISTA_POR_PRODUCTO = 6;
 const MAX_OPCIONES_VISIBLES = 8;
 const MAX_PREGUNTAS = 2;            // Por producto. Después se muestra lo que quede
-const COBERTURA_MINIMA = 0.5;       // Si la mayoría no tiene el dato, la pregunta no sirve
-const MAX_ACLARACIONES = 2;         // Después de esto se muestra la lista, para no ciclarse
+// Artículos con un valor que los distinga. Uno solo no alcanza: "Hogar u otra opción"
+// no ayuda. No se exige proporción: con 9 de 20 capturados ya vale la pena preguntar.
+const MIN_ARTICULOS_CON_DATO = 2;
+const MAX_ACLARACIONES = 2;        // Después de esto se muestra la lista, para no ciclarse
 const TIMEOUT_LLM_MS = 5000;
 
 // Orden de las preguntas y campo de cada catálogo en la respuesta del CRM
@@ -235,19 +237,34 @@ function ordenarOpciones(a, b) {
 }
 
 /**
- * Sólo vale la pena preguntar si hay al menos 2 opciones reales que separen los
- * candidatos y cubran a la mayoría. Lo que no tenga el dato va en "otra opción"
- * para que ningún artículo desaparezca.
+ * Valores que separan a los candidatos: un valor que tienen todos no distingue nada.
+ * Devuelve también por qué no alcanza para preguntar, para el log.
  */
-function armarOpciones(candidatos, clave) {
+function analizarCatalogo(candidatos, clave) {
   const reales = agruparPorValor(candidatos, clave)
     .filter(function (g) { return g.ids.length < candidatos.length; })
     .sort(ordenarOpciones);
-  if (reales.length < 2) return null;
 
   const cubiertos = new Set();
   reales.forEach(function (g) { g.ids.forEach(function (id) { cubiertos.add(id); }); });
-  if (cubiertos.size / candidatos.length < COBERTURA_MINIMA) return null;
+
+  const conDato = candidatos.filter(function (p) { return valoresDe(p, clave).length > 0; }).length;
+  let motivo = null;
+  if (conDato === 0) motivo = 'ningún artículo lo tiene';
+  else if (reales.length === 0) motivo = `${conDato} artículo(s) con dato, todos con el mismo valor`;
+  else if (cubiertos.size < MIN_ARTICULOS_CON_DATO) motivo = `solo ${cubiertos.size} artículo(s) con un valor que lo distinga`;
+
+  return { reales, cubiertos, motivo };
+}
+
+/**
+ * Se pregunta si al menos MIN_ARTICULOS_CON_DATO artículos tienen un valor que los
+ * distinga. Lo que no tenga el dato va en "otra opción" para que ningún artículo
+ * desaparezca.
+ */
+function armarOpciones(candidatos, clave) {
+  const { reales, cubiertos, motivo } = analizarCatalogo(candidatos, clave);
+  if (motivo) return null;
 
   const sinDato = candidatos
     .map(function (p) { return String(p.ARTICULO_ID); })
@@ -255,7 +272,17 @@ function armarOpciones(candidatos, clave) {
   if (sinDato.length > 0) {
     reales.push({ etiqueta: 'otra opción', termino: 'OTRA', ids: sinDato, esOtra: true });
   }
-  return reales;
+  return reales.length >= 2 ? reales : null;
+}
+
+// Por qué no se preguntó nada de un producto: sin esto, el log solo muestra la lista de GPT
+function explicarSinPregunta(item) {
+  if (item.candidatos.length <= 1) return `${item.candidatos.length} candidato(s)`;
+  // Sin motivo y sin pregunta: el cliente ya lo había dicho en su mensaje
+  const detalle = CATALOGOS.map(function (c) {
+    return `${c.clave}: ${analizarCatalogo(item.candidatos, c.clave).motivo || 'ya lo dijo el cliente'}`;
+  });
+  return `${item.candidatos.length} candidatos; ${detalle.join('; ')}`;
 }
 
 function avanzarPregunta(item) {
@@ -604,6 +631,7 @@ function iniciarGuia(busquedas, mensaje, opciones = {}) {
   items.forEach(function (item) {
     if (aplicarLoYaDicho(item, mensaje)) redujo = true;
     avanzarPregunta(item);
+    if (!item.pregunta) console.log(`🧭 Sin pregunta para "${item.etiqueta}": ${explicarSinPregunta(item)}`);
   });
 
   const hayPreguntas = items.some(function (i) { return i.pregunta; });
