@@ -175,6 +175,7 @@ const {
   detectarAgregadoAmbiguo,
   detectarFaltaPartida,
   reabrirGuia,
+  memoriaDeGuia,
   registrarBusqueda,
   hayProductos,
   iniciarGuia,
@@ -822,6 +823,8 @@ async function procesarMensajeWebhook(webhookData) {
       if (messageContent && !esComando && !imagenAdjunta && !excelAdjunto) {
         try {
           resultadoGuia = await procesarRespuesta(busquedaGuiada, messageContent, openai);
+          // No contestó la pregunta pero cambió una respuesta anterior: "mejor para tacos"
+          if (!resultadoGuia) resultadoGuia = reabrirGuia(memoriaDeGuia(busquedaGuiada.items), messageContent);
         } catch (errorGuia) {
           console.error('❌ Error en búsqueda guiada, sigue el flujo normal:', errorGuia.message);
         }

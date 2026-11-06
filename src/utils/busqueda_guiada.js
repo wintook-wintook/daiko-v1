@@ -166,6 +166,9 @@ function nombrePartida(articulo) {
  */
 function prepararPartida(item) {
   const articulo = item.candidatos[0];
+  // Para poder reabrir la guía con lo que buscó ("aire"), no con el nombre del artículo
+  item.etiquetaBusqueda = item.etiquetaBusqueda || item.etiqueta;
+  item.claveBusqueda = item.claveBusqueda || item.clave;
   item.modo = 'partida';
   item.etiqueta = nombrePartida(articulo);
   item.clave = normalizarBasico(articulo.NOMBRE);
@@ -697,14 +700,16 @@ function armarFinal(estado, maxPorProducto) {
   };
 }
 
-// Lo necesario para reabrir la guía: los artículos de la búsqueda original y lo que eligió
+// Lo necesario para reabrir la guía: los artículos de la búsqueda original y lo que eligió.
+// También cuando terminó en un solo artículo ("¿Cuántos agregamos?"): de ahí también se
+// puede cambiar de opinión ("mejor medios").
 function memoriaDeGuia(items) {
-  return items
-    .filter(function (i) { return !i.modo && i.originales && i.originales.length > 1 && i.elegidoAlFiltrar; })
+  return (items || [])
+    .filter(function (i) { return i.originales && i.originales.length > 1 && i.elegidoAlFiltrar; })
     .map(function (i) {
       return {
-        clave: i.clave, etiqueta: i.etiqueta, originales: i.originales, elegidoAlFiltrar: i.elegidoAlFiltrar,
-        cantidad: i.cantidad, filtros: i.filtros, truncado: i.truncado
+        clave: i.claveBusqueda || i.clave, etiqueta: i.etiquetaBusqueda || i.etiqueta, originales: i.originales,
+        elegidoAlFiltrar: i.elegidoAlFiltrar, cantidad: i.cantidad, filtros: i.filtros, truncado: i.truncado
       };
     });
 }
@@ -1158,6 +1163,7 @@ module.exports = {
   detectarAgregadoAmbiguo,
   detectarFaltaPartida,
   reabrirGuia,
+  memoriaDeGuia,
   registrarBusqueda,
   hayProductos,
   iniciarGuia,
