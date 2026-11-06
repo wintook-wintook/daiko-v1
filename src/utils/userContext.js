@@ -492,6 +492,7 @@ console.log({obj: "UserContext", contextStr});
     pipeline.hset(this.key, 'wizard_state', '');
     pipeline.hset(this.key, 'busqueda_guiada', '');
     pipeline.hset(this.key, 'notas_partida', '');
+    pipeline.hset(this.key, 'guia_anterior', '');
     pipeline.hset(this.key, 'modo_vendedor', 'false');
     pipeline.hset(this.key, 'cliente_vendedor', '');
     pipeline.hset(this.key, 'modo_refacciones', 'false');
@@ -725,6 +726,27 @@ console.log({obj: "UserContext", contextStr});
 
   // Presentación/estado que eligió el cliente por artículo, para la nota de su partida.
   // "" también cuenta: ya se le preguntó y le dio igual.
+  // Artículos originales y respuestas de la última guía que terminó en lista, para
+  // poder cambiar una respuesta ("mejor kileado")
+  async getGuiaAnterior() {
+    const data = await redis.hget(this.key, 'guia_anterior');
+    if (!data) return null;
+    try {
+      return JSON.parse(data);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async setGuiaAnterior(memoria) {
+    await redis.hset(this.key, 'guia_anterior', JSON.stringify(memoria));
+    await redis.expire(this.key, this.ttl);
+  }
+
+  async clearGuiaAnterior() {
+    await redis.hdel(this.key, 'guia_anterior');
+  }
+
   async getNotasPartida() {
     const data = await redis.hget(this.key, 'notas_partida');
     if (!data) return {};

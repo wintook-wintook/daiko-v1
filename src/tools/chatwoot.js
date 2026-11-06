@@ -13,7 +13,7 @@ const conversations = new Map(); // userId -> conversation history
 
 const { openaiConfig, systemPrompt } = require('../config/openai_prompt');
 const { functionDefinitions, executeFunctionCall, TOOL_BUSCAR_NUMERO_PARTE_EXTERNO } = require('../tools/openai_tools');
-const {buscarcliente, buscarcliente2, crearProspecto, actualizarObservaciones, runWithCrmContext, setFiltroExistenciaContext} = require('../utils/crm');
+const {buscarcliente, buscarcliente2, crearProspecto, actualizarObservaciones, runWithCrmContext, setFiltroExistenciaContext, verCarrito} = require('../utils/crm');
 const { getApiData } = require('../utils/functions');
 let urlWA = process.env.CHATWOOT_URL; // 'https://app.chatzeus.com/';
 
@@ -174,6 +174,7 @@ const {
   cantidadPedida,
   detectarAgregadoAmbiguo,
   detectarFaltaPartida,
+  reabrirGuia,
   registrarBusqueda,
   hayProductos,
   iniciarGuia,
@@ -839,6 +840,29 @@ async function procesarMensajeWebhook(webhookData) {
 
       console.log('🧭 La respuesta no es para la búsqueda guiada: se cancela y sigue el flujo normal');
       await userContext.clearBusquedaGuiada();
+    } else {
+      // Ya se mostró la lista final: "mejor kileado" cambia una respuesta de la guía. Sin
+      // esto el mensaje llega a GPT, que puede contestar sin buscar e inventar productos.
+      const guiaAnterior = await userContext.getGuiaAnterior();
+      const esComando = /^[\/=?@]/.test((messageContent || '').trim());
+      let resultadoReabierto = null;
+      if (guiaAnterior && messageContent && !esComando && !imagenAdjunta && !excelAdjunto) {
+        try {
+          resultadoReabierto = reabrirGuia(guiaAnterior, messageContent);
+        } catch (errorGuia) {
+          console.error('❌ Error reabriendo la búsqueda guiada, sigue el flujo normal:', errorGuia.message);
+        }
+      }
+      if (resultadoReabierto) {
+        await guardarResultadoGuia(resultadoReabierto, userContext);
+        const respuestaGuia = await appendCarritoFooter(resultadoReabierto.texto, userContext);
+        toggleTyping(webhookData.token, webhookData.account_id, webhookData.conversation_id, 'off', webhookData.instance_url);
+        return {
+          success: true,
+          data: { conversationId, response: respuestaGuia, fileName: '', userId, senderName, originalMessage: messageContent },
+          message: 'Mensaje procesado correctamente'
+        };
+      }
     }
 
     // FASE 3: getMessages (necesita contextStr de FASE 2)
@@ -1394,6 +1418,7 @@ async function procesarMensajeWebhook(webhookData) {
     let isGetPDF = false;
     let pdfData = null;
     let huboBusquedaProductos = false;  // La respuesta lista resultados de búsqueda (no carrito)
+    let herramientasEjecutadas = 0;     // Sin ninguna, todo producto que cite GPT salió de su memoria
     let catalogoAcumulado = [];         // Productos de TODAS las búsquedas del turno (para validación)
     const busquedasTurno = [];          // Búsquedas por sustantivo del turno (para la búsqueda guiada)
     let turnoSoloBusquedas = true;      // Si hubo otra tool (carrito, clave...) la respuesta sigue siendo de GPT
@@ -1507,6 +1532,7 @@ async function procesarMensajeWebhook(webhookData) {
 
             // ✅ EJECUTAR TOOL con account_id desde webhookData
             _tStep = Date.now();
+            herramientasEjecutadas++;
             const functionResult = await executeFunctionCall(
               name,
               functionArgs,
@@ -1660,12 +1686,35 @@ async function procesarMensajeWebhook(webhookData) {
           // ✅ Validar productos citados contra el catálogo real de la búsqueda.
           // El LLM decide qué mostrar; nombre y precio salen de la búsqueda, no de él.
           // Usar catálogo acumulado del turno si hubo múltiples búsquedas; si no, el de Redis
-          const catalogoBusqueda = catalogoAcumulado.length > 0
+          let catalogoBusqueda = catalogoAcumulado.length > 0
             ? catalogoAcumulado
             : await userContext.getUltimosResultados();
-          finalResponse = corregirProductosEnRespuesta(finalResponse, catalogoBusqueda, {
-            descartarDesconocidos: huboBusquedaProductos
-          }).texto;
+
+          // GPT contestó sin llamar ninguna herramienta: un ID que no esté en lo ya
+          // mostrado ni en el carrito lo inventó (log del 05nov: "mejor kileado" → aires
+          // LG y Samsung que no existen). El carrito se consulta sólo en este caso.
+          const sinHerramientas = herramientasEjecutadas === 0 && /ID:[ \t]*\d+/.test(finalResponse);
+          if (sinHerramientas) {
+            const carritoValidar = await userContext.getCarrito();
+            const carritoActual = carritoValidar ? await verCarrito(carritoValidar) : null;
+            const partidas = carritoActual && carritoActual.success && carritoActual.data && Array.isArray(carritoActual.data.Carrito)
+              ? carritoActual.data.Carrito
+              : [];
+            catalogoBusqueda = catalogoBusqueda.concat(partidas.map(p => ({
+              ARTICULO_ID: p.ARTICULO_ID,
+              NOMBRE: p.NOMBRE,
+              PRECIO: Number(p.UNIDADES) > 0 ? parseFloat((Number(p.PRECIOTOTALARTICULOS) / Number(p.UNIDADES)).toFixed(2)) : p.PRECIO_UNITARIO
+            })));
+          }
+
+          const validacion = corregirProductosEnRespuesta(finalResponse, catalogoBusqueda, {
+            descartarDesconocidos: huboBusquedaProductos || sinHerramientas
+          });
+          finalResponse = validacion.texto;
+          // Si todo lo que listó era inventado, no queda un "¿Cuál te agrego?" sin productos
+          if (validacion.stats.bloques > 0 && validacion.stats.descartados === validacion.stats.bloques) {
+            finalResponse = 'No encontré esa opción entre los productos disponibles. ¿Quieres que busque otra cosa?';
+          }
         }
 
         // Agregar info del carrito activo al final de la respuesta (si no está ya incluida)

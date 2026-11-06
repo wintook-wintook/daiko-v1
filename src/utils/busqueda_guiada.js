@@ -257,6 +257,8 @@ function registrarBusqueda(busquedas, busqueda) {
   });
 
   if (Number(busqueda.total) > productos.length) item.truncado = true;
+  // Para poder cambiar una respuesta después de la lista final ("mejor kileado")
+  item.originales = item.candidatos.slice();
   return busquedas;
 }
 
@@ -690,8 +692,76 @@ function armarFinal(estado, maxPorProducto) {
     mostrados: mostrados.length,
     query: estado.items.map(function (i) { return i.clave; }).join(', '),
     filtros: estado.items.length === 1 ? estado.items[0].filtros : null,
-    notas: notasDePartida(estado.items)
+    notas: notasDePartida(estado.items),
+    memoria: memoriaDeGuia(estado.items)
   };
+}
+
+// Lo necesario para reabrir la guía: los artículos de la búsqueda original y lo que eligió
+function memoriaDeGuia(items) {
+  return items
+    .filter(function (i) { return !i.modo && i.originales && i.originales.length > 1 && i.elegidoAlFiltrar; })
+    .map(function (i) {
+      return {
+        clave: i.clave, etiqueta: i.etiqueta, originales: i.originales, elegidoAlFiltrar: i.elegidoAlFiltrar,
+        cantidad: i.cantidad, filtros: i.filtros, truncado: i.truncado
+      };
+    });
+}
+
+// Pueden acompañar al cambio de respuesta: "no, mejor kileado", "entonces para asar"
+const PALABRAS_CAMBIO = new Set(['MEJOR', 'NO', 'MAS', 'ENTONCES', 'CAMBIA', 'CAMBIALO', 'CAMBIALA', 'AHORA', 'SERIA', 'OTRO', 'OTRA', 'PERO'].map(raiz));
+
+function cumplenElecciones(articulos, elecciones) {
+  return articulos.filter(function (p) {
+    return Object.keys(elecciones).every(function (clave) {
+      return valoresDe(p, clave).some(function (v) { return normalizarBasico(v.nombre) === normalizarBasico(elecciones[clave]); });
+    });
+  });
+}
+
+/**
+ * Después de la lista final el cliente cambia una respuesta: "mejor kileado". Se vuelve a
+ * filtrar desde los artículos originales con ese cambio. Sólo si el mensaje es UN valor
+ * real de los catálogos y nada más; cualquier otra cosa sigue el flujo normal.
+ *
+ * @param {Array}  memoria - userContext.getGuiaAnterior()
+ * @param {string} mensaje - Mensaje del cliente
+ * @returns {object|null} Mismo formato que iniciarGuia, o null si no es un cambio de respuesta
+ */
+function reabrirGuia(memoria, mensaje) {
+  const texto = raices(mensaje).join(' ');
+  const coincidencias = [];
+  (memoria || []).forEach(function (m) {
+    CATALOGOS.forEach(function (c) {
+      agruparPorValor(m.originales, c.clave).forEach(function (g) {
+        if (contieneRaices(texto, g.etiqueta)) coincidencias.push({ m, catalogo: c.clave, valor: g.etiqueta });
+      });
+    });
+  });
+  if (coincidencias.length !== 1) return null;
+
+  const { m, catalogo, valor } = coincidencias[0];
+  const frase = raices(valor).join(' ');
+  const sobrantes = (' ' + texto + ' ').split(' ' + frase + ' ').join(' ').split(/\s+/).filter(Boolean)
+    .filter(function (p) { return !PALABRAS_RELLENO.has(p) && !PALABRAS_CAMBIO.has(p); });
+  if (sobrantes.length > 0) return null;
+
+  // Con lo demás que ya había elegido; si así no queda nada, sólo con lo nuevo
+  let elecciones = Object.assign({}, m.elegidoAlFiltrar, { [catalogo]: valor });
+  let candidatos = cumplenElecciones(m.originales, elecciones);
+  if (candidatos.length === 0) {
+    elecciones = { [catalogo]: valor };
+    candidatos = cumplenElecciones(m.originales, elecciones);
+  }
+  console.log(`🧭 Cambio de respuesta en la guía de "${m.etiqueta}": ${catalogo} = ${valor} → ${candidatos.length} artículo(s)`);
+
+  const item = {
+    clave: m.clave, etiqueta: m.etiqueta, candidatos, originales: m.originales, resueltos: Object.keys(elecciones),
+    elegidoAlFiltrar: elecciones, filtros: m.filtros, truncado: m.truncado, cantidad: m.cantidad
+  };
+  avanzarPregunta(item);
+  return armarPaso({ items: [item], noEncontrados: [], aclaraciones: 0, aclaracion: null });
 }
 
 function armarPaso(estado, prefijo) {
@@ -1065,6 +1135,8 @@ async function guardarResultadoGuia(resultado, userContext) {
   if (resultado.estado) await userContext.setBusquedaGuiada(resultado.estado);
   else await userContext.clearBusquedaGuiada();
   if (resultado.notas && Object.keys(resultado.notas).length > 0) await userContext.setNotasPartida(resultado.notas);
+  if (resultado.memoria && resultado.memoria.length > 0) await userContext.setGuiaAnterior(resultado.memoria);
+  else await userContext.clearGuiaAnterior();
 
   // Mismo orden que ve el cliente: "el primero" y la validación de precios leen de aquí
   await userContext.setUltimosResultados(resultado.productos);
@@ -1085,6 +1157,7 @@ module.exports = {
   cantidadPedida,
   detectarAgregadoAmbiguo,
   detectarFaltaPartida,
+  reabrirGuia,
   registrarBusqueda,
   hayProductos,
   iniciarGuia,

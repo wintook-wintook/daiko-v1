@@ -1571,6 +1571,8 @@ async function executeFunctionCall(name, args, userId, accountId = 0, turnoId = 
           // por eso se guarda la lista YA ORDENADA por relevancia (mismo orden que ve el cliente)
           await userContext.setUltimosResultados(productosOrdenados);
           await userContext.setUltimaAccion('busqueda_productos');
+          // Otra búsqueda: "mejor kileado" ya no se refiere a la guía anterior
+          await userContext.clearGuiaAnterior();
 
         return {
           success: true,
