@@ -22,7 +22,7 @@ const MAX_PRODUCTOS_GUIADOS = 5;    // Más que esto ya no cabe en un mensaje: n
 const LISTA_SIN_GUIA = 3;           // Resultados por producto cuando no se guía
 const MAX_LISTA_POR_PRODUCTO = 6;
 const MAX_OPCIONES_VISIBLES = 8;
-// Artículos con un valor que los distinga. Uno solo no alcanza: "Hogar u otra opción"
+// Artículos con un valor que los distinga. Uno solo no alcanza: "Hogar o sin uso"
 // no ayuda. No se exige proporción: con 9 de 20 capturados ya vale la pena preguntar.
 const MIN_ARTICULOS_CON_DATO = 2;
 const MAX_ACLARACIONES = 2;        // Después de esto se muestra la lista, para no ciclarse
@@ -31,11 +31,12 @@ const TIMEOUT_LLM_MS = 5000;
 // Orden de las preguntas para descartar artículos y campo de cada catálogo en la
 // respuesta del CRM. Se pregunta mientras alguno siga separando a los candidatos, una
 // vez por catálogo; lo que quede al final se da a elegir.
+// sinDato: la opción para los artículos que no tienen nada capturado en ese catálogo
 const CATALOGOS = [
-  { clave: 'usos', campo: 'USOS', nombre: 'uso' },
-  { clave: 'calidades', campo: 'CALIDADES', nombre: 'calidad' },
-  { clave: 'estados', campo: 'ESTADOS_CONSERVACION', nombre: 'estado' },
-  { clave: 'presentaciones', campo: 'PRESENTACIONES', nombre: 'presentación' }
+  { clave: 'usos', campo: 'USOS', nombre: 'uso', sinDato: 'sin uso' },
+  { clave: 'calidades', campo: 'CALIDADES', nombre: 'calidad', sinDato: 'sin calidad' },
+  { clave: 'estados', campo: 'ESTADOS_CONSERVACION', nombre: 'estado', sinDato: 'sin estado de conservación' },
+  { clave: 'presentaciones', campo: 'PRESENTACIONES', nombre: 'presentación', sinDato: 'sin presentación' }
 ];
 
 // Ya con un solo artículo: lo que el cliente elige de ESE artículo y va en la nota de
@@ -310,20 +311,26 @@ function analizarCatalogo(candidatos, clave) {
 
 /**
  * Se pregunta si al menos MIN_ARTICULOS_CON_DATO artículos tienen un valor que los
- * distinga. Lo que no tenga el dato va en "otra opción" para que ningún artículo
- * desaparezca.
+ * distinga. Una vez que vale la pena preguntar se ofrecen TODOS los valores, también
+ * los que tienen todos ("Medios" en los dos aires que quedan): el cliente puede querer
+ * justo ese; elegirlo no descarta a nadie pero queda para la nota. Lo que no tenga el
+ * dato va en "sin uso", "sin calidad"... para que ningún artículo desaparezca.
  */
 function armarOpciones(candidatos, clave) {
-  const { reales, cubiertos, motivo } = analizarCatalogo(candidatos, clave);
-  if (motivo) return null;
+  const catalogo = CATALOGOS.find(function (c) { return c.clave === clave; });
+  if (analizarCatalogo(candidatos, clave).motivo) return null;
+
+  const opciones = agruparPorValor(candidatos, clave).sort(ordenarOpciones);
+  const conValor = new Set();
+  opciones.forEach(function (g) { g.ids.forEach(function (id) { conValor.add(id); }); });
 
   const sinDato = candidatos
     .map(function (p) { return String(p.ARTICULO_ID); })
-    .filter(function (id) { return !cubiertos.has(id); });
+    .filter(function (id) { return !conValor.has(id); });
   if (sinDato.length > 0) {
-    reales.push({ etiqueta: 'otra opción', termino: 'OTRA', ids: sinDato, esOtra: true });
+    opciones.push({ etiqueta: catalogo.sinDato, termino: normalizarBasico(catalogo.sinDato), ids: sinDato, esOtra: true });
   }
-  return reales.length >= 2 ? reales : null;
+  return opciones.length >= 2 ? opciones : null;
 }
 
 // Por qué no se preguntó nada de un producto: sin esto, el log solo muestra la lista de GPT
