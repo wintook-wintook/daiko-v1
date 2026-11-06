@@ -22,19 +22,30 @@ const MAX_PRODUCTOS_GUIADOS = 5;    // Más que esto ya no cabe en un mensaje: n
 const LISTA_SIN_GUIA = 3;           // Resultados por producto cuando no se guía
 const MAX_LISTA_POR_PRODUCTO = 6;
 const MAX_OPCIONES_VISIBLES = 8;
-const MAX_PREGUNTAS = 2;            // Por producto. Después se muestra lo que quede
 // Artículos con un valor que los distinga. Uno solo no alcanza: "Hogar u otra opción"
 // no ayuda. No se exige proporción: con 9 de 20 capturados ya vale la pena preguntar.
 const MIN_ARTICULOS_CON_DATO = 2;
 const MAX_ACLARACIONES = 2;        // Después de esto se muestra la lista, para no ciclarse
 const TIMEOUT_LLM_MS = 5000;
 
-// Orden de las preguntas y campo de cada catálogo en la respuesta del CRM
+// Orden de las preguntas para descartar artículos y campo de cada catálogo en la
+// respuesta del CRM. Se pregunta mientras alguno siga separando a los candidatos, una
+// vez por catálogo; lo que quede al final se da a elegir.
 const CATALOGOS = [
   { clave: 'usos', campo: 'USOS', nombre: 'uso' },
   { clave: 'calidades', campo: 'CALIDADES', nombre: 'calidad' },
-  { clave: 'estados', campo: 'ESTADOS_CONSERVACION', nombre: 'estado' }
+  { clave: 'estados', campo: 'ESTADOS_CONSERVACION', nombre: 'estado' },
+  { clave: 'presentaciones', campo: 'PRESENTACIONES', nombre: 'presentación' }
 ];
+
+// Ya con un solo artículo: lo que el cliente elige de ESE artículo y va en la nota de
+// la partida. El uso no, porque no cambia lo que se surte.
+const CATALOGOS_PARTIDA = [
+  { clave: 'presentaciones', campo: 'PRESENTACIONES', nombre: 'presentación' },
+  { clave: 'estados', campo: 'ESTADOS_CONSERVACION', nombre: 'estado' },
+  { clave: 'calidades', campo: 'CALIDADES', nombre: 'calidad' }
+];
+const CAMPOS_CRM = CATALOGOS;
 
 const REGEX_CUALQUIERA = /\b(CUALQUIERA|LA QUE SEA|EL QUE SEA|LO QUE SEA|ME DA IGUAL|DA IGUAL|NO IMPORTA|LO QUE TENGAS|MUESTRAME TODOS|MUESTRAME TODAS|MUESTRAME TODO|VER TODOS|VER TODAS|VER TODO|VER MAS|HAY MAS|TODOS|TODAS|TODO|LISTA)\b/g;
 const REGEX_AMBOS = /\b(AMBOS|AMBAS|LOS DOS|LAS DOS|LOS TRES|LAS TRES|TODOS|TODAS)\b/;
@@ -122,11 +133,11 @@ function conTimeout(promesa) {
  * estos datos. Sólo se lee NOMBRE y POSICION: los IDs no hacen falta para preguntar.
  *
  * @param {object} articulo - Artículo tal como lo manda el CRM
- * @returns {object|undefined} {usos, calidades, estados}, o undefined si no trae ninguno
+ * @returns {object|undefined} {usos, calidades, estados, presentaciones}, o undefined si no trae ninguno
  */
 function extraerCatalogos(articulo) {
   const resultado = {};
-  CATALOGOS.forEach(function (c) {
+  CAMPOS_CRM.forEach(function (c) {
     const valores = articulo && Array.isArray(articulo[c.campo]) ? articulo[c.campo] : [];
     const validos = valores
       .filter(function (v) { return v && typeof v.NOMBRE === 'string' && v.NOMBRE.trim(); })
@@ -138,6 +149,47 @@ function extraerCatalogos(articulo) {
 
 function valoresDe(articulo, clave) {
   return (articulo && articulo.CATALOGOS && articulo.CATALOGOS[clave]) || [];
+}
+
+// Con una sola opción no hay nada que preguntar ni que anotar
+function necesitaPartida(articulo) {
+  return CATALOGOS_PARTIDA.some(function (c) { return valoresDe(articulo, c.clave).length >= 2; });
+}
+
+function nombrePartida(articulo) {
+  return String(articulo.NOMBRE || '').trim().toLowerCase();
+}
+
+/**
+ * Convierte un producto ya resuelto a un artículo en preguntas de su partida.
+ */
+function prepararPartida(item) {
+  const articulo = item.candidatos[0];
+  item.modo = 'partida';
+  item.etiqueta = nombrePartida(articulo);
+  item.clave = normalizarBasico(articulo.NOMBRE);
+  item.resueltos = [];
+  item.eleccion = [];
+  item.lista = false;
+
+  // Lo que eligió para descartar artículos ("Congelado") ya vale para su nota: no se
+  // le vuelve a preguntar, y se anota sólo si el artículo tenía más de una opción
+  CATALOGOS_PARTIDA.forEach(function (c) {
+    const elegido = item.elegidoAlFiltrar && item.elegidoAlFiltrar[c.clave];
+    const valores = valoresDe(articulo, c.clave);
+    const delArticulo = elegido && valores.find(function (v) { return normalizarBasico(v.nombre) === normalizarBasico(elegido); });
+    if (!delArticulo) return;
+    item.resueltos.push(c.clave);
+    if (valores.length >= 2) item.eleccion.push(delArticulo.nombre);
+  });
+}
+
+// Al filtrar se recuerda lo elegido para la nota de la partida. Con dos opciones
+// ("fresco o congelado, da igual") no hay una sola que anotar.
+function recordarEleccion(item, catalogo, opciones) {
+  if (opciones.length !== 1 || opciones[0].esOtra) return;
+  item.elegidoAlFiltrar = item.elegidoAlFiltrar || {};
+  item.elegidoAlFiltrar[catalogo] = opciones[0].etiqueta;
 }
 
 // ============================================================
@@ -186,7 +238,6 @@ function registrarBusqueda(busquedas, busqueda) {
       etiqueta: String(busqueda.etiqueta || sustantivo).trim().toLowerCase(),
       candidatos: [],
       resueltos: [],
-      preguntas: 0,
       filtros: busqueda.filtros || null,
       truncado: false,
       cantidad: busqueda.cantidad || null
@@ -287,7 +338,22 @@ function explicarSinPregunta(item) {
 
 function avanzarPregunta(item) {
   item.pregunta = null;
-  if (item.lista || item.candidatos.length <= 1 || item.preguntas >= MAX_PREGUNTAS) return;
+  if (item.modo === 'partida') {
+    const articulo = item.candidatos[0];
+    for (const catalogo of CATALOGOS_PARTIDA) {
+      if (item.resueltos.includes(catalogo.clave)) continue;
+      const opciones = valoresDe(articulo, catalogo.clave)
+        .map(function (v) { return { etiqueta: v.nombre, termino: normalizarBasico(v.nombre), posicion: v.posicion, ids: [String(articulo.ARTICULO_ID)] }; })
+        .sort(ordenarOpciones);
+      if (opciones.length >= 2) {
+        item.pregunta = { catalogo: catalogo.clave, nombre: catalogo.nombre, opciones, partida: true };
+        return;
+      }
+      item.resueltos.push(catalogo.clave);
+    }
+    return;
+  }
+  if (item.lista || item.candidatos.length <= 1) return;
 
   for (const catalogo of CATALOGOS) {
     if (item.resueltos.includes(catalogo.clave)) continue;
@@ -310,6 +376,18 @@ function aplicarLoYaDicho(item, mensaje) {
   const texto = raices(mensaje).join(' ');
   let redujo = false;
 
+  // "agrégame 5 bistec congelado": se anota sin preguntar. Si nombra dos opciones del
+  // mismo catálogo no se adivina cuál, se pregunta.
+  if (item.modo === 'partida') {
+    CATALOGOS_PARTIDA.forEach(function (catalogo) {
+      const mencionadas = valoresDe(item.candidatos[0], catalogo.clave).filter(function (v) { return contieneRaices(texto, v.nombre); });
+      if (mencionadas.length !== 1 || valoresDe(item.candidatos[0], catalogo.clave).length < 2) return;
+      item.resueltos.push(catalogo.clave);
+      item.eleccion.push(mencionadas[0].nombre);
+    });
+    return false;
+  }
+
   CATALOGOS.forEach(function (catalogo) {
     const mencionados = agruparPorValor(item.candidatos, catalogo.clave).filter(function (g) {
       return contieneRaices(texto, g.etiqueta);
@@ -317,6 +395,7 @@ function aplicarLoYaDicho(item, mensaje) {
     if (mencionados.length === 0) return;
 
     item.resueltos.push(catalogo.clave);
+    recordarEleccion(item, catalogo.clave, mencionados);
     const ids = new Set();
     mencionados.forEach(function (g) { g.ids.forEach(function (id) { ids.add(id); }); });
     if (ids.size < item.candidatos.length) {
@@ -488,6 +567,7 @@ function textoPregunta(item) {
     ? visibles.join(', ') + ', entre otras'
     : unirConO(otra ? visibles.concat(otra.etiqueta) : visibles);
 
+  if (catalogo === 'presentaciones') return `¿Cómo quieres ${item.etiqueta}? Tenemos ${lista}.`;
   if (catalogo === 'usos') return `¿Para qué uso necesitas ${item.etiqueta}? Tenemos opciones para ${lista}.`;
   if (catalogo === 'calidades') return `¿Qué calidad de ${item.etiqueta} prefieres? Tenemos ${lista}.`;
   return `¿Cómo prefieres ${item.etiqueta}? Tenemos ${lista}.`;
@@ -497,13 +577,54 @@ function textoProducto(numero, producto) {
   return `${numero}) ID: ${producto.ARTICULO_ID} - ${nombreConUnidad(producto)}\n   Precio: $${producto.PRECIO}`;
 }
 
+// Aparte y no "en Medio kilo": hay presentaciones como "En caja" o "Con instalación"
+function textoEleccion(item) {
+  return item && item.eleccion && item.eleccion.length > 0 ? ` Elegiste: ${item.eleccion.join(', ')}.` : '';
+}
+
 // El ID se queda en el texto: con él GPT agrega el artículo correcto cuando el cliente
 // responde "5", igual que en una lista.
-function textoProductoUnico(producto, cantidad) {
-  const base = `Tenemos ${nombreConUnidad(producto)} (ID: ${producto.ARTICULO_ID}) con un valor de $${producto.PRECIO}.`;
+function textoPresentacion(producto, item) {
+  return `Tenemos ${nombreConUnidad(producto)} (ID: ${producto.ARTICULO_ID}) con un valor de $${producto.PRECIO}.${textoEleccion(item)}`;
+}
+
+function textoProductoUnico(producto, cantidad, item) {
+  const base = textoPresentacion(producto, item);
   return cantidad
     ? `${base}\nCantidad: ${cantidad}. ¿Quieres que lo agregue a tu carrito?`
     : `${base} ¿Cuántos agregamos a tu carrito?`;
+}
+
+// Nota de cada artículo cuya partida ya se resolvió. Va vacía si el cliente dijo que le
+// daba igual: así la barrera del carrito sabe que ya se preguntó.
+function notasDePartida(items) {
+  const notas = {};
+  items.forEach(function (item) {
+    if (item.modo === 'partida' && !item.pregunta) {
+      notas[String(item.candidatos[0].ARTICULO_ID)] = item.eleccion.join('. ');
+      return;
+    }
+    // Quedaron varios para elegir de la lista: lo que eligió al filtrar ("Armado") ya
+    // resuelve la nota del que escoja, si cubre todo lo que ese artículo preguntaría
+    if (!item.elegidoAlFiltrar) return;
+    item.candidatos.forEach(function (p) {
+      const porPreguntar = CATALOGOS_PARTIDA.filter(function (c) { return valoresDe(p, c.clave).length >= 2; });
+      const elegidas = porPreguntar.map(function (c) {
+        const elegido = item.elegidoAlFiltrar[c.clave];
+        const valor = elegido && valoresDe(p, c.clave).find(function (v) { return normalizarBasico(v.nombre) === normalizarBasico(elegido); });
+        return valor ? valor.nombre : null;
+      });
+      if (porPreguntar.length > 0 && elegidas.every(Boolean)) notas[String(p.ARTICULO_ID)] = elegidas.join('. ');
+    });
+  });
+  return notas;
+}
+
+// Un producto que ya quedó en un solo artículo pasa a las preguntas de su partida
+function pasarAPartida(item) {
+  if (item.modo || item.candidatos.length !== 1 || !necesitaPartida(item.candidatos[0])) return false;
+  prepararPartida(item);
+  return true;
 }
 
 // La cantidad que el cliente ya dijo no se le vuelve a preguntar
@@ -531,7 +652,7 @@ function armarFinal(estado, maxPorProducto) {
     const visibles = item.candidatos.slice(0, maxPorProducto);
     visibles.forEach(function (p) {
       mostrados.push(p);
-      lineas.push(textoProducto(mostrados.length, p));
+      lineas.push(textoProducto(mostrados.length, p) + (item.eleccion && item.eleccion.length > 0 ? `\n   Nota: ${item.eleccion.join(', ')}` : ''));
     });
     if (item.cantidad && visibles.length === 1) {
       lineas[lineas.length - 1] += `\n   Cantidad: ${item.cantidad}`;
@@ -548,7 +669,7 @@ function armarFinal(estado, maxPorProducto) {
   if (noEncontrados.length > 0) partes.push(`No encontré ${unirConO(noEncontrados)}.`);
 
   if (mostrados.length === 1 && conMas.length === 0) {
-    partes.push(textoProductoUnico(mostrados[0], estado.items[0].cantidad));
+    partes.push(textoProductoUnico(mostrados[0], estado.items[0].cantidad, estado.items[0]));
   } else {
     partes.push(lineas.join('\n\n'));
     if (conMas.length > 0) partes.push(`Hay más opciones disponibles de ${conMas.join(', ')}.`);
@@ -561,15 +682,25 @@ function armarFinal(estado, maxPorProducto) {
     productos: mostrados.concat(resto),
     mostrados: mostrados.length,
     query: estado.items.map(function (i) { return i.clave; }).join(', '),
-    filtros: estado.items.length === 1 ? estado.items[0].filtros : null
+    filtros: estado.items.length === 1 ? estado.items[0].filtros : null,
+    notas: notasDePartida(estado.items)
   };
 }
 
 function armarPaso(estado, prefijo) {
+  estado.items.forEach(function (item) {
+    if (pasarAPartida(item)) avanzarPregunta(item);
+  });
+
   const pendientes = estado.items.filter(function (i) { return i.pregunta; });
   if (pendientes.length === 0) return armarFinal(estado, MAX_LISTA_POR_PRODUCTO);
 
-  const preguntas = pendientes.map(textoPregunta).join('\n');
+  // La primera pregunta de una partida presenta el artículo: el cliente aún no lo ha visto
+  const preguntas = pendientes.map(function (item) {
+    if (item.modo !== 'partida' || item.presentado) return textoPregunta(item);
+    item.presentado = true;
+    return `${textoPresentacion(item.candidatos[0])} ${textoPregunta(item)}`;
+  }).join('\n');
   const productos = [];
   estado.items.forEach(function (i) { productos.push(...i.candidatos); });
 
@@ -629,7 +760,10 @@ function iniciarGuia(busquedas, mensaje, opciones = {}) {
 
   let redujo = false;
   items.forEach(function (item) {
+    pasarAPartida(item);
     if (aplicarLoYaDicho(item, mensaje)) redujo = true;
+    // Ya eligió presentación o estado en el mismo mensaje: hay que confirmarlo y anotarlo
+    if (item.modo === 'partida' && item.eleccion.length > 0) redujo = true;
     avanzarPregunta(item);
     if (!item.pregunta) console.log(`🧭 Sin pregunta para "${item.etiqueta}": ${explicarSinPregunta(item)}`);
   });
@@ -642,14 +776,18 @@ function iniciarGuia(busquedas, mensaje, opciones = {}) {
 
 function aplicarSelecciones(selecciones) {
   selecciones.forEach(function (s) {
-    if (s.cualquiera) {
+    if (s.item.modo === 'partida') {
+      // "cualquiera" en una partida: no hay preferencia, no se anota nada
+      if (!s.cualquiera) s.item.eleccion.push(s.opciones[0].etiqueta);
+      s.item.resueltos.push(s.item.pregunta.catalogo);
+    } else if (s.cualquiera) {
       s.item.lista = true;
     } else {
       const ids = new Set();
       s.opciones.forEach(function (o) { o.ids.forEach(function (id) { ids.add(id); }); });
       s.item.candidatos = s.item.candidatos.filter(function (p) { return ids.has(String(p.ARTICULO_ID)); });
       s.item.resueltos.push(s.item.pregunta.catalogo);
-      s.item.preguntas += 1;
+      recordarEleccion(s.item, s.item.pregunta.catalogo, s.opciones);
     }
     avanzarPregunta(s.item);
   });
@@ -693,6 +831,12 @@ async function procesarRespuesta(estado, mensaje, openai) {
       interpretacion = llm;
     }
   }
+
+  // "en cuartos y kileado" reparte la cantidad entre dos presentaciones: no se adivina
+  // cuánto va de cada una
+  interpretacion.selecciones = interpretacion.selecciones.filter(function (s) {
+    return !(s.item.modo === 'partida' && s.opciones && s.opciones.length > 1);
+  });
 
   aplicarSelecciones(interpretacion.selecciones);
 
@@ -869,11 +1013,51 @@ function detectarAgregadoAmbiguo(nombreTool, args, mensaje, clasificacion, catal
 }
 
 /**
+ * Segunda barrera antes de escribir en el carrito: el artículo tiene varias
+ * presentaciones (o estados o calidades) y el cliente no ha elegido. Cubre todos los
+ * caminos para llegar ahí: "el primero" de una lista, "agrégame 5", la guía.
+ *
+ * @param {string} nombreTool - Tool que GPT quiere ejecutar
+ * @param {object} args       - Argumentos de la tool
+ * @param {string} mensaje    - Mensaje del cliente
+ * @param {Array}  catalogo   - Artículos reales conocidos en esta conversación
+ * @param {object} notas      - Notas ya resueltas por artículo (userContext.getNotasPartida)
+ * @returns {Array|null} Búsquedas listas para iniciarGuia, o null si no falta nada
+ */
+function detectarFaltaPartida(nombreTool, args, mensaje, catalogo, notas) {
+  const solicitados = productosDeTool(nombreTool, args);
+  if (!solicitados || solicitados.length === 0) return null;
+
+  const productos = new Map();
+  (catalogo || []).forEach(function (p) { productos.set(String(p.ARTICULO_ID), p); });
+  const dijoUno = /\b(UN|UNA|UNO|1)\b/.test(normalizarBasico(mensaje));
+
+  const busquedas = [];
+  solicitados.forEach(function (solicitado) {
+    const producto = productos.get(solicitado.id);
+    const yaResuelto = notas && Object.prototype.hasOwnProperty.call(notas, solicitado.id);
+    if (!producto || yaResuelto || !necesitaPartida(producto)) return;
+
+    const cantidad = Number(solicitado.cantidad);
+    registrarBusqueda(busquedas, {
+      etiqueta: nombrePartida(producto),
+      sustantivo: producto.NOMBRE,
+      productos: [producto],
+      total: 1,
+      cantidad: cantidad > 1 ? cantidad : (dijoUno ? 1 : null)
+    });
+  });
+
+  return busquedas.length > 0 ? busquedas : null;
+}
+
+/**
  * Guarda en Redis el resultado de un paso de la guía.
  */
 async function guardarResultadoGuia(resultado, userContext) {
   if (resultado.estado) await userContext.setBusquedaGuiada(resultado.estado);
   else await userContext.clearBusquedaGuiada();
+  if (resultado.notas && Object.keys(resultado.notas).length > 0) await userContext.setNotasPartida(resultado.notas);
 
   // Mismo orden que ve el cliente: "el primero" y la validación de precios leen de aquí
   await userContext.setUltimosResultados(resultado.productos);
@@ -893,6 +1077,7 @@ module.exports = {
   accionAdmiteGuia,
   cantidadPedida,
   detectarAgregadoAmbiguo,
+  detectarFaltaPartida,
   registrarBusqueda,
   hayProductos,
   iniciarGuia,

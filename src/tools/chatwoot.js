@@ -173,12 +173,17 @@ const {
   accionAdmiteGuia,
   cantidadPedida,
   detectarAgregadoAmbiguo,
+  detectarFaltaPartida,
   registrarBusqueda,
   hayProductos,
   iniciarGuia,
   procesarRespuesta,
   guardarResultadoGuia
 } = require('../utils/busqueda_guiada');
+const { instruccionDelCliente } = require('../utils/notas_partida');
+
+// Tools que escriben observaciones en una partida del carrito
+const TOOLS_CON_NOTA = ['agregar_al_carrito', 'crear_nuevo_carrito', 'agregar_varios_articulos_al_carrito', 'crear_nuevo_carrito_con_varios_articulos', 'actualizar_articulo_del_carrito'];
 
 // ============================================================
 // V25.0 - FASE 3: Servicios de Clasificación y Router
@@ -1448,16 +1453,29 @@ async function procesarMensajeWebhook(webhookData) {
             if (!modoRefaccionesActivo) {
               let guiaAgregado = null;
               try {
+                const catalogoConocido = (await userContext.getUltimosResultados()).concat(catalogoAcumulado);
                 const busquedasAmbiguas = detectarAgregadoAmbiguo(
                   name,
                   functionArgs,
                   messageContent,
                   clasificacion,
-                  (await userContext.getUltimosResultados()).concat(catalogoAcumulado)
+                  catalogoConocido
+                );
+                // Ya es un solo artículo, pero tiene varias presentaciones y no ha elegido
+                const faltaPartida = busquedasAmbiguas ? null : detectarFaltaPartida(
+                  name,
+                  functionArgs,
+                  messageContent,
+                  catalogoConocido,
+                  await userContext.getNotasPartida()
                 );
                 if (busquedasAmbiguas) {
                   console.warn(`🧭 ${name} bloqueada: el cliente no eligió entre varios productos`, functionArgs);
                   guiaAgregado = iniciarGuia(busquedasAmbiguas, messageContent, { forzar: true });
+                  await guardarResultadoGuia(guiaAgregado, userContext);
+                } else if (faltaPartida) {
+                  console.warn(`🧭 ${name} bloqueada: falta elegir presentación/estado`, functionArgs);
+                  guiaAgregado = iniciarGuia(faltaPartida, messageContent, { forzar: true });
                   await guardarResultadoGuia(guiaAgregado, userContext);
                 }
               } catch (errorGuia) {
@@ -1473,6 +1491,18 @@ async function procesarMensajeWebhook(webhookData) {
                   message: 'Mensaje procesado correctamente'
                 };
               }
+            }
+
+            // Las instrucciones especiales de una partida las redacta GPT: sólo pasan si
+            // salen de lo que escribió el cliente (este mensaje o los anteriores)
+            if (TOOLS_CON_NOTA.includes(name)) {
+              const textosCliente = [messageContent].concat(conversationHistory
+                .filter(m => m && m.role === 'user' && typeof m.content === 'string')
+                .slice(-6)
+                .map(m => m.content));
+              const limpiarNota = (o) => { if (o && o.observaciones) o.observaciones = instruccionDelCliente(o.observaciones, textosCliente) || null; };
+              limpiarNota(functionArgs);
+              (Array.isArray(functionArgs.productos) ? functionArgs.productos : []).forEach(limpiarNota);
             }
 
             // ✅ EJECUTAR TOOL con account_id desde webhookData

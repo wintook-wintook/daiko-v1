@@ -491,6 +491,7 @@ console.log({obj: "UserContext", contextStr});
     pipeline.hset(this.key, 'ultima_accion', '');
     pipeline.hset(this.key, 'wizard_state', '');
     pipeline.hset(this.key, 'busqueda_guiada', '');
+    pipeline.hset(this.key, 'notas_partida', '');
     pipeline.hset(this.key, 'modo_vendedor', 'false');
     pipeline.hset(this.key, 'cliente_vendedor', '');
     pipeline.hset(this.key, 'modo_refacciones', 'false');
@@ -720,6 +721,31 @@ console.log({obj: "UserContext", contextStr});
 
   async clearBusquedaGuiada() {
     await redis.hdel(this.key, 'busqueda_guiada');
+  }
+
+  // Presentación/estado que eligió el cliente por artículo, para la nota de su partida.
+  // "" también cuenta: ya se le preguntó y le dio igual.
+  async getNotasPartida() {
+    const data = await redis.hget(this.key, 'notas_partida');
+    if (!data) return {};
+    try {
+      return JSON.parse(data) || {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  async setNotasPartida(notas) {
+    const actuales = await this.getNotasPartida();
+    await redis.hset(this.key, 'notas_partida', JSON.stringify({ ...actuales, ...notas }));
+    await redis.expire(this.key, this.ttl);
+  }
+
+  // Ya escrita en el carrito: la siguiente vez que agregue ese artículo se vuelve a preguntar
+  async clearNotasPartida(ids) {
+    const actuales = await this.getNotasPartida();
+    (ids || []).forEach(function (id) { delete actuales[String(id)]; });
+    await redis.hset(this.key, 'notas_partida', JSON.stringify(actuales));
   }
 
   async getComandoActivo() {

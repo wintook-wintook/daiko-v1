@@ -10,6 +10,8 @@ const UserContext = require('../utils/userContext');
 const { ordenarPorRelevancia } = require('../utils/relevancia');
 const { nombreConUnidad } = require('../utils/unidad_medida');
 const { extraerCatalogos } = require('../utils/busqueda_guiada');
+const { unirNota, combinarConPartida, juntarRepetidos } = require('../utils/notas_partida');
+const { normalizarBasico } = require('../utils/unidad_medida');
 
 // Los catálogos sólo los usa el código (búsqueda guiada): GPT recibe lo de siempre
 const sinCatalogos = ({ CATALOGOS, ...producto }) => producto;
@@ -305,9 +307,13 @@ REGLAS (9.4):
                     type: "integer",
                     minimum: 1,
                     description: "Cantidad de unidades del producto"
+                  },
+                  observaciones: {
+                    type: ["string", "null"],
+                    description: "Instrucciones especiales que el cliente escribió para ESTE artículo, con sus palabras (ej. 'bolsas bien cerradas', 'cortes delgados'). null si no dio ninguna. NUNCA poner la presentación, el estado ni la calidad: esos los agrega el sistema."
                   }
                 },
-                required: ["articulo_id", "unidades"],
+                required: ["articulo_id", "unidades", "observaciones"],
                 additionalProperties: false
               },
               minItems: 1
@@ -339,9 +345,13 @@ REGLAS (9.4):
             carrito_id: {
               type: "string", 
               description: "ID del usuario"
+            },
+            observaciones: {
+              type: ["string", "null"],
+              description: "Instrucciones especiales que el cliente escribió para ESTE artículo, con sus palabras (ej. 'bolsas bien cerradas', 'cortes delgados'). null si no dio ninguna. NUNCA poner la presentación, el estado ni la calidad: esos los agrega el sistema."
             }
           },
-          required: ["producto_id", "cantidad", "carrito_id"],
+          required: ["producto_id", "cantidad", "carrito_id", "observaciones"],
           additionalProperties: false
         },
         strict: true
@@ -369,9 +379,13 @@ REGLAS (9.4):
                     type: "integer",
                     minimum: 1,
                     description: "Cantidad de unidades del producto"
+                  },
+                  observaciones: {
+                    type: ["string", "null"],
+                    description: "Instrucciones especiales que el cliente escribió para ESTE artículo, con sus palabras (ej. 'bolsas bien cerradas', 'cortes delgados'). null si no dio ninguna. NUNCA poner la presentación, el estado ni la calidad: esos los agrega el sistema."
                   }
                 },
-                required: ["articulo_id", "unidades"],
+                required: ["articulo_id", "unidades", "observaciones"],
                 additionalProperties: false
               },
               minItems: 1
@@ -413,9 +427,13 @@ REGLAS (9.4):
               type: "integer",
               minimum: 1,            
               description: "Cantidad de unidades"
+            },
+            observaciones: {
+              type: ["string", "null"],
+              description: "Instrucciones especiales que el cliente escribió para ESTE artículo, con sus palabras (ej. 'bolsas bien cerradas', 'cortes delgados'). null si no dio ninguna. NUNCA poner la presentación, el estado ni la calidad: esos los agrega el sistema."
             }
           },
-          required: ["producto_id", "cantidad"],
+          required: ["producto_id", "cantidad", "observaciones"],
           additionalProperties: false
         },
         strict: true
@@ -463,11 +481,15 @@ REGLAS (9.4):
               description: "Cantidad de unidades"
             },
             carrito_id: {
-              type: "string", 
+              type: "string",
               description: "ID del usuario"
+            },
+            observaciones: {
+              type: ["string", "null"],
+              description: "Nueva nota de la partida SOLO si el cliente pidió cambiarla (ej. 'mejor en cuartos', 'que vengan bien cerradas'), con sus palabras. Reemplaza la nota anterior. null para no tocarla, que es lo normal al cambiar solo la cantidad."
             }
           },
-          required: ["producto_id", "cantidad", "carrito_id"],
+          required: ["producto_id", "cantidad", "carrito_id", "observaciones"],
           additionalProperties: false
         },
         strict: true
@@ -903,6 +925,83 @@ function formatearListaCarritos(resultado) {
  * Pre-formatea los datos del carrito para que GPT no tenga que decidir el formato.
  * Sigue el formato exacto definido en carrito_prompt.js
  */
+// ============================================================
+// NOTAS POR PARTIDA
+// La presentación/estado que eligió el cliente (Redis, la anota busqueda_guiada) se
+// junta con sus instrucciones y va en "observaciones" de cada producto.
+// ============================================================
+function fallo(resultado) {
+  return !resultado || resultado.error === true || resultado.success === false;
+}
+
+async function prepararNotas(productos, carritoId, userContext) {
+  const notas = await userContext.getNotasPartida();
+  const lista = (productos || []).map(p => ({
+    articulo_id: p.articulo_id,
+    unidades: p.unidades,
+    observaciones: unirNota(notas[String(p.articulo_id)], p.observaciones),
+    eligio: Boolean(notas[String(p.articulo_id)])
+  }));
+
+  // Sólo hace falta leer el carrito si eligió presentación de un artículo que quizá ya está
+  let partidas = [];
+  if (carritoId && lista.some(p => p.eligio)) {
+    const carrito = await verCarrito(carritoId);
+    partidas = carrito && carrito.success && carrito.data && Array.isArray(carrito.data.Carrito) ? carrito.data.Carrito : [];
+  }
+
+  const agregar = [];
+  const actualizar = [];
+  lista.forEach(p => {
+    const partida = p.eligio && partidas.find(x => String(x.ARTICULO_ID) === String(p.articulo_id));
+    if (!partida) {
+      agregar.push({ articulo_id: p.articulo_id, unidades: p.unidades, observaciones: p.observaciones });
+    } else if (normalizarBasico(partida.OBSERVACIONES) === normalizarBasico(p.observaciones)) {
+      // Misma nota: add suma las unidades y la conserva
+      agregar.push({ articulo_id: p.articulo_id, unidades: p.unidades, observaciones: '' });
+    } else {
+      // add concatenaría las notas sin decir cuántas unidades lleva cada una
+      actualizar.push({
+        articulo_id: p.articulo_id,
+        unidades: Number(partida.UNIDADES) + Number(p.unidades),
+        observaciones: combinarConPartida(partida, p.unidades, p.observaciones)
+      });
+    }
+  });
+  return { agregar, actualizar, ids: lista.map(p => p.articulo_id) };
+}
+
+async function escribirEnCarrito(productos, carritoId, userContext) {
+  const { agregar, actualizar, ids } = await prepararNotas(productos, carritoId, userContext);
+
+  let resultado = null;
+  for (const p of actualizar) {
+    resultado = await agregarAlCarrito(p.articulo_id, p.unidades, carritoId, 'update', p.observaciones);
+    if (fallo(resultado)) return resultado;
+  }
+  if (agregar.length === 1) {
+    resultado = await agregarAlCarrito(agregar[0].articulo_id, agregar[0].unidades, carritoId, 'add', agregar[0].observaciones);
+  } else if (agregar.length > 1) {
+    resultado = await agregarVariosArticulosAlCarrito(carritoId, juntarRepetidos(agregar));
+  }
+  if (fallo(resultado)) return resultado;
+
+  await userContext.clearNotasPartida(ids);
+  return resultado;
+}
+
+async function crearCarritoConNotas(productos, userContext) {
+  const { agregar, ids } = await prepararNotas(productos, null, userContext);
+  const nuevo = agregar.length === 1
+    ? await crearNuevoCarrito(agregar[0].articulo_id, agregar[0].unidades, agregar[0].observaciones)
+    : await crearNuevoCarritoConVariosArticulos(agregar);
+  if (nuevo.success && nuevo.carritoId) {
+    await userContext.setCarrito(nuevo.carritoId, nuevo.folio);
+    await userContext.clearNotasPartida(ids);
+  }
+  return nuevo;
+}
+
 function formatearCarritoTexto(carritoData) {
   if (!carritoData.success || !carritoData.data?.Carrito) return null;
 
@@ -923,7 +1022,10 @@ function formatearCarritoTexto(carritoData) {
     // Precio unitario con IVA = subtotal / unidades (evita usar MONTO_IMPUESTO que es total de línea, no por unidad)
     const precioConIva = cantidad > 0 ? subtotal / cantidad : 0;
     texto += (i + 1) + ') ID: ' + p.ARTICULO_ID + ' - ' + (p.NOMBRE || 'Sin nombre') + '\n';
-    texto += '   Cantidad: ' + cantidad + ' | Precio: $' + precioConIva.toFixed(2) + ' | Subtotal: $' + subtotal.toFixed(2) + '\n\n';
+    texto += '   Cantidad: ' + cantidad + ' | Precio: $' + precioConIva.toFixed(2) + ' | Subtotal: $' + subtotal.toFixed(2) + '\n';
+    const nota = typeof p.OBSERVACIONES === 'string' ? p.OBSERVACIONES.trim() : '';
+    if (nota) texto += '   Nota: ' + nota.split(/\r?\n/).join(' / ') + '\n';
+    texto += '\n';
   }
 
   const total = importe.TOTAL_CARRITO || 0;
@@ -1505,25 +1607,21 @@ async function executeFunctionCall(name, args, userId, accountId = 0, turnoId = 
         // La fuente de verdad es el carrito guardado en Redis, no lo que mande el LLM.
         const carritoReal = await userContext.getCarrito();
 
-        if (!carritoReal) {
-          const nuevoCarrito = await crearNuevoCarrito(args.producto_id, args.cantidad);
-          if (nuevoCarrito.success && nuevoCarrito.carritoId) {
-            await userContext.setCarrito(nuevoCarrito.carritoId, nuevoCarrito.folio);
-          }
-          return nuevoCarrito;
-        }
+        const productoUnico = [{ articulo_id: args.producto_id, unidades: args.cantidad, observaciones: args.observaciones }];
+        if (!carritoReal) return crearCarritoConNotas(productoUnico, userContext);
 
-        return await agregarAlCarrito(args.producto_id, args.cantidad, carritoReal);
+        return escribirEnCarrito(productoUnico, carritoReal, userContext);
       }
       
       case "agregar_varios_articulos_al_carrito":
-        return agregarVariosArticulosAlCarrito(args.carrito_id, args.productos);
+        return escribirEnCarrito(args.productos, args.carrito_id, userContext);
   
       case "remover_articulo_del_carrito":
         return agregarAlCarrito(args.producto_id, args.cantidad, args.carrito_id, "remove");
       
       case "actualizar_articulo_del_carrito":
-        return agregarAlCarrito(args.producto_id, args.cantidad, args.carrito_id, "update");
+        // Sin observaciones la API conserva la nota guardada
+        return agregarAlCarrito(args.producto_id, args.cantidad, args.carrito_id, "update", args.observaciones || undefined);
   
       case "limpiar_carrito_activo": {
         await userContext.setCarrito('', '');
@@ -1533,33 +1631,25 @@ async function executeFunctionCall(name, args, userId, accountId = 0, turnoId = 
       case "crear_nuevo_carrito": {
         const carritoExistente = await userContext.getCarrito();
         if (carritoExistente) {
-          const resAgregar = await agregarAlCarrito(args.producto_id, args.cantidad, carritoExistente);
+          const resAgregar = await escribirEnCarrito([{ articulo_id: args.producto_id, unidades: args.cantidad, observaciones: args.observaciones }], carritoExistente, userContext);
           if (resAgregar && resAgregar.success) return resAgregar;
           const msgE = (resAgregar?.message || '').toLowerCase();
           const esEstatus = msgE.includes('cancelad') || msgE.includes('ganado') || msgE.includes('cerrado');
           if (!esEstatus) return resAgregar;
         }
-        const nuevoCarrito = await crearNuevoCarrito(args.producto_id, args.cantidad);
-        if (nuevoCarrito.success && nuevoCarrito.carritoId) {
-          await userContext.setCarrito(nuevoCarrito.carritoId, nuevoCarrito.folio);
-        }
-        return nuevoCarrito;
+        return crearCarritoConNotas([{ articulo_id: args.producto_id, unidades: args.cantidad, observaciones: args.observaciones }], userContext);
       }
 
       case "crear_nuevo_carrito_con_varios_articulos": {
         const carritoExistenteV = await userContext.getCarrito();
         if (carritoExistenteV) {
-          const resAgregarV = await agregarVariosArticulosAlCarrito(carritoExistenteV, args.productos);
+          const resAgregarV = await escribirEnCarrito(args.productos, carritoExistenteV, userContext);
           if (resAgregarV && resAgregarV.success) return resAgregarV;
           const msgEV = (resAgregarV?.message || '').toLowerCase();
           const esEstatusV = msgEV.includes('cancelad') || msgEV.includes('ganado') || msgEV.includes('cerrado');
           if (!esEstatusV) return resAgregarV;
         }
-        const carritoN = await crearNuevoCarritoConVariosArticulos(args.productos);
-        if (carritoN.success) {
-          await userContext.setCarrito(carritoN.carritoId, carritoN.folio);
-        }
-        return carritoN;
+        return crearCarritoConNotas(args.productos, userContext);
       }
   
       case "obtener_carritos_disponibles": {

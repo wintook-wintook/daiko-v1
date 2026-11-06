@@ -92,6 +92,12 @@ function generarPDFCotizacion(data) {
                     .text(`${numeral(item.DESCUENTO).format('0,0.00')}`, 450, y)
                     .text(`${numeral(item.PRECIOTOTALARTICULOS).format('$0,0.00')}`, 500, y);
                 y += 20;
+                // Nota de la partida (presentación, instrucciones del cliente)
+                const nota = typeof item.OBSERVACIONES === 'string' ? item.OBSERVACIONES.trim() : '';
+                if (nota) {
+                    doc.fontSize(7).text(`Nota: ${nota.split(/\r?\n/).join(' / ')}`, 100, y - 8, { width: 380 });
+                    y += 12;
+                }
             });
 
             // Totales

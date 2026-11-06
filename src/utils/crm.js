@@ -44,6 +44,7 @@ function runWithCrmContext(fn) {
   return crmContext.run(defaultCrmContext(), fn);
 }
 
+const { juntarRepetidos } = require('./notas_partida');
 const folio_ventas_id = 92226;
 
 const { getApiData: _getApiData } = require('./functions');
@@ -665,8 +666,12 @@ async function obtenerDetalleProducto(id) {
   }
 }
 
-async function agregarAlCarrito(productoId, cantidad, carritoId, opcion = "add") {
-  let data = JSON.stringify({ articulo_id: productoId, unidades: cantidad });
+// observaciones: nota de la partida. undefined = no tocar la guardada (en update la API
+// la conserva si no viene el campo). En add, "" no borra nada, así que no se manda.
+async function agregarAlCarrito(productoId, cantidad, carritoId, opcion = "add", observaciones = undefined) {
+  const cuerpo = { articulo_id: productoId, unidades: cantidad };
+  if (opcion === 'update' ? observaciones !== undefined : observaciones) cuerpo.observaciones = observaciones;
+  let data = JSON.stringify(cuerpo);
   let config = getConfigApiDaiko(`cart/${carritoId}/${opcion}`, data, 2);
   try {
     let response = await getApiData(config);
@@ -718,14 +723,16 @@ async function agregarVariosArticulosAlCarrito(carritoId, Productos, opcion = "a
   }
 }
 
-async function crearNuevoCarrito(productoId, cantidad) {
+async function crearNuevoCarrito(productoId, cantidad, observaciones = '') {
+  const producto = { "articulo_id": productoId, "unidades": cantidad };
+  if (observaciones) producto.observaciones = observaciones;
   const { cliente_id, moneda_id, almacen_id, vendedor_id } = getContext();
   let data = JSON.stringify({
     "almacen_id":  almacen_id,
     "moneda_id":   moneda_id,
     "vendedor_id": vendedor_id,
     "folio_ventas_id": folio_ventas_id,
-    "productos": [{"articulo_id":productoId, "unidades":cantidad}]
+    "productos": [producto]
   });
   let config = getConfigApiDaiko(`createCart/${cliente_id}`, data, 2);
 //console.log({crearNuevoCarrito: data, config});
@@ -760,6 +767,9 @@ async function crearNuevoCarrito(productoId, cantidad) {
 
 async function crearNuevoCarritoConVariosArticulos(Productos) {
   const { cliente_id, moneda_id, almacen_id, vendedor_id } = getContext();
+  // Con un artículo repetido el CRM crea dos partidas, y después add/update/remove solo
+  // tocan la primera
+  Productos = juntarRepetidos(Productos);
 
   let data = JSON.stringify({
     "almacen_id":  almacen_id,
